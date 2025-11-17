@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 interface Pet {
   id: number
   name: string
   photoText: string
-  status: 'urgent' | 'waiting'
   fosterer: string
   location: string // 省份
   species: 'cat' | 'dog'
@@ -19,7 +19,6 @@ const pets: Pet[] = [
     id: 1,
     name: '小橘',
     photoText: '小橘的照片',
-    status: 'urgent',
     fosterer: '李同学',
     location: '广东省',
     species: 'cat',
@@ -31,7 +30,6 @@ const pets: Pet[] = [
     id: 2,
     name: '煤球',
     photoText: '煤球的照片',
-    status: 'waiting',
     fosterer: '王同学',
     location: '北京市',
     species: 'dog',
@@ -43,7 +41,6 @@ const pets: Pet[] = [
     id: 3,
     name: '雪球',
     photoText: '雪球的照片',
-    status: 'waiting',
     fosterer: '赵同学',
     location: '上海市',
     species: 'cat',
@@ -55,7 +52,6 @@ const pets: Pet[] = [
     id: 4,
     name: '小黑',
     photoText: '小黑的照片',
-    status: 'urgent',
     fosterer: '李同学',
     location: '四川省',
     species: 'dog',
@@ -67,7 +63,6 @@ const pets: Pet[] = [
     id: 5,
     name: '灰灰',
     photoText: '灰灰的照片',
-    status: 'urgent',
     fosterer: '刘同学',
     location: '浙江省',
     species: 'cat',
@@ -79,7 +74,6 @@ const pets: Pet[] = [
     id: 6,
     name: '卷卷',
     photoText: '卷卷的照片',
-    status: 'waiting',
     fosterer: '杨同学',
     location: '江苏省',
     species: 'dog',
@@ -91,7 +85,6 @@ const pets: Pet[] = [
     id: 7,
     name: '花花',
     photoText: '花花的照片',
-    status: 'waiting',
     fosterer: '张同学',
     location: '山东省',
     species: 'cat',
@@ -103,7 +96,6 @@ const pets: Pet[] = [
     id: 8,
     name: '豆豆',
     photoText: '豆豆的照片',
-    status: 'urgent',
     fosterer: '王同学',
     location: '河南省',
     species: 'dog',
@@ -115,7 +107,6 @@ const pets: Pet[] = [
     id: 9,
     name: '咪咪',
     photoText: '咪咪的照片',
-    status: 'waiting',
     fosterer: '赵同学',
     location: '湖北省',
     species: 'cat',
@@ -127,7 +118,6 @@ const pets: Pet[] = [
     id: 10,
     name: '旺旺',
     photoText: '旺旺的照片',
-    status: 'urgent',
     fosterer: '李同学',
     location: '湖南省',
     species: 'dog',
@@ -141,6 +131,10 @@ const locationFilter = ref('')
 const genderFilter = ref<'all' | Pet['gender']>('all')
 const speciesFilter = ref<'all' | Pet['species']>('all')
 const adoptionStatusFilter = ref<'all' | Pet['adoption_status']>('all')
+
+const route = useRoute()
+
+const isActive = (name: string) => route.name === name
 
 const filteredPets = computed(() => {
   return pets.filter((pet) => {
@@ -162,18 +156,24 @@ const filteredPets = computed(() => {
     class="bg-background-light dark:bg-background-dark font-display text-gray-700 dark:text-gray-300 min-h-screen"
   >
     <!-- Header -->
-    <header class="bg-primary shadow-md">
-      <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
+    <header class="bg-orange-500 shadow-md sticky top-0 z-20">
+      <nav class="container mx-auto px-6 py-5 flex justify-between items-center">
+        <!-- Logo -->
         <div class="flex items-center space-x-2">
           <span class="material-icons text-white text-3xl">pets</span>
           <span class="text-2xl font-bold text-white tracking-wider">FUREVER HOME</span>
         </div>
-        <div class="hidden md:flex items-center space-x-8">
-          <a class="text-white hover:text-white/80 transition-colors" href="#">首页</a>
-          <a class="text-white hover:text-white/80 transition-colors" href="#">宠物详情</a>
-          <a class="text-white hover:text-white/80 transition-colors" href="#">沟通对接</a>
-          <span class="text-white font-semibold border-b-2 border-white pb-1">宠物列表</span>
-          <a class="text-white hover:text-white/80 transition-colors" href="/dashboard">个人主页</a>
+        <!-- Main nav menu -->
+        <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-white">
+          <a href="#" class="hover:text-white/80 transition-colors">首页</a>
+          <span
+            class="pb-1 border-b-2 border-white font-semibold text-white"
+          >
+            宠物列表
+          </span>
+          <a href="#" class="hover:text-white/80 transition-colors">沟通对接</a>
+          <a href="#" class="hover:text-white/80 transition-colors">宠物论坛</a>
+          <a href="#" class="hover:text-white/80 transition-colors">个人主页</a>
         </div>
         <RouterLink
           class="flex items-center space-x-2 text-white hover:text-white/80 transition-colors"
@@ -253,7 +253,7 @@ const filteredPets = computed(() => {
           <div class="ml-auto flex items-center">
             <RouterLink
               to="/post-pet"
-              class="px-4 py-2 text-sm font-medium rounded-full bg-primary text-white hover:bg-orange-500 transition-colors"
+              class="px-4 py-2 text-sm font-medium rounded-full bg-primary text-white bg-orange-500 transition-colors"
             >
               + 发布待领养动物
             </RouterLink>
@@ -280,16 +280,16 @@ const filteredPets = computed(() => {
             </h3>
             <div class="my-4">
               <span
-                v-if="pet.status === 'urgent'"
-                class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-red-600 bg-red-200 dark:bg-red-900/50 dark:text-red-400"
-              >
-                急需领养
-              </span>
-              <span
-                v-else
+                v-if="pet.adoption_status === 'available'"
                 class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-yellow-800 dark:text-yellow-300 bg-yellow-200 dark:bg-yellow-900/50"
               >
                 等待领养
+              </span>
+              <span
+                v-else
+                class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-zinc-700/80"
+              >
+                已被领养
               </span>
             </div>
 
@@ -298,7 +298,7 @@ const filteredPets = computed(() => {
                 临时收养者: {{ pet.fosterer }}
               </span>
               <button
-                class="flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-md bg-primary text-white hover:bg-orange-500 transition-colors"
+                class="flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-md bg-primary text-white bg-orange-500 transition-colors"
               >
                 <span class="material-icons text-base">chat_bubble_outline</span>
                 <span>联系TA</span>

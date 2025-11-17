@@ -237,11 +237,11 @@ const submitForm = () => {
           class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-gray-200 dark:bg-gray-700 text-slate-800 dark:text-slate-200 text-base font-bold leading-normal tracking-[0.015em]"
           @click="saveDraft"
         >
-          <span class="truncate">保存为草稿</span>
+          <span class="truncate">保存草稿</span>
         </button>
         <button
           type="button"
-          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em]"
+          class="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-8 bg-orange-500 hover:bg-orange-600 shadow-md text-white text-base font-bold leading-normal tracking-[0.015em]"
           @click="submitForm"
         >
           <span class="truncate">提交审核</span>

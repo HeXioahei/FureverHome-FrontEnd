@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import PetList from '../views/PetList.vue'
-import PostPet from '../views/PostPet.vue'
+import PetList from '../views/pet/PetList.vue'
+import PostPet from '../views/pet/PostPet.vue'
 
 const routes: RouteRecordRaw[] = [
   {
