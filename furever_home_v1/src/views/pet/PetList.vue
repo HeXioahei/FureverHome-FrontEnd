@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { pets, type Pet } from '@/data/pets'
 const locationFilter = ref('')
 const genderFilter = ref<'all' | Pet['gender']>('all')
 const speciesFilter = ref<'all' | Pet['species']>('all')
 const adoptionStatusFilter = ref<'all' | Pet['adoption_status']>('all')
-
-const route = useRoute()
-
-const isActive = (name: string) => route.name === name
 
 const filteredPets = computed(() => {
   return pets.filter((pet) => {
@@ -30,36 +25,6 @@ const filteredPets = computed(() => {
   <div
     class="bg-background-light dark:bg-background-dark font-display text-gray-700 dark:text-gray-300 min-h-screen"
   >
-    <!-- Header -->
-    <header class="bg-orange-500 shadow-md sticky top-0 z-20">
-      <nav class="container mx-auto px-6 py-5 flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <span class="material-icons text-white text-3xl">pets</span>
-          <span class="text-2xl font-bold text-white tracking-wider">FUREVER HOME</span>
-        </div>
-        <!-- Main nav menu -->
-        <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-white">
-          <a href="#" class="hover:text-white/80 transition-colors">首页</a>
-          <span
-            class="pb-1 border-b-2 border-white font-semibold text-white"
-          >
-            宠物列表
-          </span>
-          <a href="#" class="hover:text-white/80 transition-colors">沟通对接</a>
-          <a href="#" class="hover:text-white/80 transition-colors">宠物论坛</a>
-          <a href="#" class="hover:text-white/80 transition-colors">个人主页</a>
-        </div>
-        <RouterLink
-          class="flex items-center space-x-2 text-white hover:text-white/80 transition-colors"
-          to="/dashboard"
-        >
-          <span class="material-icons">account_circle</span>
-          <span class="hidden sm:inline">用户</span>
-        </RouterLink>
-      </nav>
-    </header>
-
     <!-- Main -->
     <main class="container mx-auto px-6 py-8">
       <!-- Hero -->
