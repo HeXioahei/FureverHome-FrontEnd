@@ -1,19 +1,18 @@
 <template>
   <div class="bg-background-light dark:bg-background-dark min-h-screen">
-    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- 左侧栏 -->
-        <aside class="lg:col-span-1 space-y-8">
-          <!-- 用户卡片 -->
-          <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div class="flex items-center space-x-4">
-              <div class="w-20 h-20 rounded-full bg-yellow-400 flex items-center justify-center text-white text-4xl font-bold">
-                {{ user.name.charAt(0) }}
-              </div>
-              <div>
-                <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.name }}</h1>
-                <span class="inline-block bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full mt-2">{{ user.title }}</span>
-              </div>
+  <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 左侧栏 -->
+      <aside class="lg:col-span-1 space-y-8">
+        <!-- 用户卡片 -->
+        <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div class="flex items-center space-x-4">
+            <div class="w-20 h-20 rounded-full bg-yellow-400 flex items-center justify-center text-white text-4xl font-bold">
+              {{ user.name.charAt(0) }}
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.name }}</h1>
+              <span class="inline-block bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full mt-2">{{ user.title }}</span>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4 mt-4">
@@ -22,17 +21,18 @@
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ stat.label }}</p>
             </div>
           </div>
+        </div>
 
-          <!-- 基本信息 -->
-          <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 class="text-lg font-bold text-primary mb-4">基本信息</h2>
-            <div class="grid grid-cols-2 gap-y-4 text-sm">
-              <div v-for="info in baseInfo" :key="info.label" :class="info.spanAll ? 'col-span-2' : ''">
-                <p class="text-gray-500 dark:text-gray-400">{{ info.label }}</p>
-                <p class="font-medium text-gray-800 dark:text-gray-200 mt-1">{{ info.value }}</p>
-              </div>
+        <!-- 基本信息 -->
+        <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">基本信息</h2>
+          <div class="grid grid-cols-2 gap-y-4 text-sm">
+            <div v-for="info in baseInfo" :key="info.label" :class="info.spanAll ? 'col-span-2' : ''">
+              <p class="text-gray-500 dark:text-gray-400">{{ info.label }}</p>
+              <p class="font-medium text-gray-800 dark:text-gray-200 mt-1">{{ info.value }}</p>
             </div>
           </div>
+        </div>
 
         <!-- 勋章 -->
         <!-- <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -104,56 +104,8 @@
               <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs">{{ proof.title }}</div>
               <span :class="['absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full', statusClass(proof.status)]">[{{ statusLabel(proof.status) }}]</span>
             </div>
-            <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">他人评价</h3>
-            <div class="space-y-6">
-              <div v-for="eva in evaluations" :key="eva.id" class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <p class="font-semibold text-gray-800 dark:text-gray-200">{{ eva.author }}</p>
-                    <div class="flex text-yellow-400 my-1">
-                      <span v-for="i in 5" :key="i" class="material-icons text-sm">{{ i <= eva.stars ? 'star' : 'star_border' }}</span>
-                    </div>
-                    <p class="text-gray-600 dark:text-gray-300">{{ eva.content }}</p>
-                  </div>
-                  <div class="flex flex-col items-end flex-shrink-0 ml-4">
-                    <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">{{ eva.date }}</p>
-                    <button v-if="eva.appealable" type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" @click="appeal(eva)">【申诉】</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button type="button" class="mt-6 w-full sm:w-auto bg-primary text-white font-semibold py-2 px-6 rounded-lg hover:opacity-90 transition-opacity" @click="addEvaluation">添加评价</button>
-          </section>
-        </aside>
-
-        <!-- 右侧主体内容 -->
-        <div class="lg:col-span-2 space-y-8">
-          <!-- 个人简介 -->
-          <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 class="text-lg font-bold text-primary mb-4">个人简介</h2>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed">{{ user.bio }}</p>
-          </section>
-
-          <!-- 爱宠证明档案 -->
-          <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <div class="flex justify-between items-center mb-4">
-              <h2 class="text-lg font-bold text-primary">爱宠证明档案</h2>
-            </div>
-            <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">养宠经历</h3>
-            <ul class="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300 mb-6">
-              <li v-for="exp in experiences" :key="exp.id">{{ exp.text }}</li>
-            </ul>
-            <div class="flex justify-between items-center mb-3">
-              <h3 class="font-semibold text-gray-700 dark:text-gray-200">证明材料</h3>
-              <button type="button" class="text-sm bg-primary/10 text-primary dark:bg-primary/20 dark:text-orange-300 px-3 py-1 rounded-md hover:bg-primary/20 transition-colors" @click="uploadProof">上传新证明</button>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div v-for="proof in proofs" :key="proof.id" class="relative cursor-pointer" @click="handleProofClick(proof)">
-                <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs">{{ proof.title }}</div>
-                <span :class="['absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full', statusClass(proof.status)]">[{{ statusLabel(proof.status) }}]</span>
-              </div>
-            </div>
-          </section>
+          </div>
+        </section>
 
         <!-- 信誉积分 -->
         <!-- <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
@@ -164,59 +116,69 @@
               <div class="flex text-yellow-400">
                 <span v-for="i in 5" :key="i" class="material-icons" :class="starIcon(i)">{{ starIcon(i) }}</span>
               </div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">基于{{ rating.total }}条评价</p>
             </div>
-            <div>
-              <h2 class="text-lg font-bold text-primary mb-4">长期领养</h2>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div v-for="pet in longTermAdoptions" :key="pet.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                  <h3 :class="['text-xl font-bold mb-2', pet.titleClass]">{{ pet.name }}</h3>
-                  <p class="text-gray-600 dark:text-gray-300 mb-4">{{ pet.desc }}</p>
-                  <div class="flex justify-between items-center">
-                    <span 
-                      :class="['text-xs font-semibold px-2 py-1 rounded-full cursor-pointer', pet.bgClass]"
-                      @click="pet.status==='rejected' && showReject(pet)"
-                    >
-                      {{ pet.statusLabel }}
-                    </span>
-                    <span class="text-sm text-gray-500">{{ pet.days }}天</span>
+          </div>
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">他人评价</h3>
+          <div class="space-y-6">
+            <div v-for="eva in evaluations" :key="eva.id" class="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-semibold text-gray-800 dark:text-gray-200">{{ eva.author }}</p>
+                  <div class="flex text-yellow-400 my-1">
+                    <span v-for="i in 5" :key="i" class="material-icons text-sm">{{ i <= eva.stars ? 'star' : 'star_border' }}</span>
                   </div>
+                  <p class="text-gray-600 dark:text-gray-300">{{ eva.content }}</p>
+                </div>
+                <div class="flex flex-col items-end flex-shrink-0 ml-4">
+                  <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">{{ eva.date }}</p>
+                  <button v-if="eva.appealable" type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" @click="appeal(eva)">【申诉】</button>
+                </div>
+        <section class="space-y-8">
+          <div>
+            <h2 class="text-lg font-bold text-primary mb-4">短期领养</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div v-for="pet in shortTermAdoptions" :key="pet.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h3 :class="['text-xl font-bold mb-2', pet.titleClass]">{{ pet.name }}</h3>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ pet.desc }}</p>
+                <div class="flex justify-between items-center">
+                  <span :class="['text-xs font-semibold px-2 py-1 rounded-full', pet.bgClass]">{{ pet.statusLabel }}</span>
+                  <span class="text-sm text-gray-500">{{ pet.days }}天</span>
                 </div>
               </div>
             </div>
-          </section>
-
-          <!-- 最近帖子 -->
-          <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 class="text-lg font-bold text-primary mb-4">最近发布的帖子</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div v-for="post in recentPosts" :key="post.id" class="border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
-                <div class="flex justify-between items-center mb-2">
-                  <h3 :class="['font-bold', post.colorClass]">{{ post.title }}</h3>
-                  <span :class="['text-xs font-semibold px-2 py-0.5 rounded-full cursor-pointer', statusClass(post.status)]" @click="post.status==='rejected' && showReject(post)">[{{ post.statusLabel }}]</span>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-primary mb-4">长期领养</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div v-for="pet in longTermAdoptions" :key="pet.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+                <h3 :class="['text-xl font-bold mb-2', pet.titleClass]">{{ pet.name }}</h3>
+                <p class="text-gray-600 dark:text-gray-300 mb-4">{{ pet.desc }}</p>
+                <div class="flex justify-between items-center">
+                  <span 
+                    :class="['text-xs font-semibold px-2 py-1 rounded-full cursor-pointer', pet.bgClass]"
+                    @click="pet.status==='rejected' && showReject(pet)"
+                  >
+                    {{ pet.statusLabel }}
+                  </span>
+                  <span class="text-sm text-gray-500">{{ pet.days }}天</span>
                 </div>
-                <p class="text-xs text-gray-400 dark:text-gray-500 my-2">{{ post.date }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ post.summary }}</p>
               </div>
             </div>
           </div>
-          <button type="button" class="mt-6 w-full sm:w-auto bg-primary text-white font-semibold py-2 px-6 rounded-lg hover:opacity-90 transition-opacity" @click="addEvaluation">添加评价</button>
-        </section> -->
+        </section>
 
-    <footer class="bg-gray-800 dark:bg-black text-gray-300 dark:text-gray-400">
-      <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h3 class="text-white font-bold mb-2">数据统计</h3>
-            <p class="text-sm leading-loose">我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。</p>
-            <RouterLink to="/shelters" class="text-sm text-primary hover:underline mt-2 inline-block">查看合作救助站 →</RouterLink>
-          </div>
-          <div>
-            <h3 class="text-white font-bold mb-2">联系开发团队</h3>
-            <p class="text-sm leading-loose">如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。</p>
-            <div class="flex space-x-4 mt-3" aria-label="社交图标">
-              <span class="w-6 h-6" aria-hidden="true">💬</span>
-              <span class="w-6 h-6" aria-hidden="true">💌</span>
-              <span class="w-6 h-6" aria-hidden="true">🌐</span>
+        <!-- 最近帖子 -->
+        <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">最近发布的帖子</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div v-for="post in recentPosts" :key="post.id" class="border border-gray-200 dark:border-gray-700 p-4 rounded-lg">
+              <div class="flex justify-between items-center mb-2">
+                <h3 :class="['font-bold', post.colorClass]">{{ post.title }}</h3>
+                <span :class="['text-xs font-semibold px-2 py-0.5 rounded-full cursor-pointer', statusClass(post.status)]" @click="post.status==='rejected' && showReject(post)">[{{ post.statusLabel }}]</span>
+              </div>
+              <p class="text-xs text-gray-400 dark:text-gray-500 my-2">{{ post.date }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ post.summary }}</p>
             </div>
           </div>
         </section>
@@ -238,12 +200,22 @@
           <p class="text-sm leading-loose">我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。</p>
           <RouterLink to="/shelters" class="text-sm text-primary hover:underline mt-2 inline-block">查看合作救助站 →</RouterLink>
         </div>
-        <div class="border-t border-gray-700 dark:border-gray-600 mt-8 pt-6 text-center text-sm">
-          <p>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
+        <div>
+          <h3 class="text-white font-bold mb-2">联系开发团队</h3>
+          <p class="text-sm leading-loose">如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。</p>
+          <div class="flex space-x-4 mt-3" aria-label="社交图标">
+            <span class="w-6 h-6" aria-hidden="true">💬</span>
+            <span class="w-6 h-6" aria-hidden="true">💌</span>
+            <span class="w-6 h-6" aria-hidden="true">🌐</span>
+          </div>
         </div>
       </div>
-    </footer>
-  </div>
+      <div class="border-t border-gray-700 dark:border-gray-600 mt-8 pt-6 text-center text-sm">
+        <p>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
+      </div>
+    </div>
+  </footer>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -276,8 +248,14 @@ const baseInfo = ref([
   { label: '救助经验', value: '2年', spanAll: true }
 ]);
 
+const badges = ref<Badge[]>([
+  { id: 1, name: '勋章 1' },
+  { id: 2, name: '勋章 2' },
+  { id: 3, name: '勋章 3' }
+]);
+
 const experiences = ref<Experience[]>([
-  { id: 1, text: '2021-2023年 饲养金毛犬"旺财" - 负责日常护理与定期体检' },
+  { id: 1, text: '2021-2023年 饲养金毛犬“旺财” - 负责日常护理与定期体检' },
   { id: 2, text: '2020-至今 救助并寄养校园流浪猫狗 - 协助寻找合适领养家庭' }
 ]);
 
@@ -336,13 +314,13 @@ function starIcon(i: number) {
 
 function handleProofClick(proof: Proof) {
   if (proof.status === 'rejected') {
-    alert('拒绝理由：' + proof.reason + '\n您可以点击"重新提交"按钮再次上传。');
+    alert('拒绝理由：' + proof.reason + '\n您可以点击“重新提交”按钮再次上传。');
   }
 }
 
 function showReject(item: { reason?: string }) {
   if (item.reason) {
-    alert('拒绝理由：' + item.reason + '\n您可以点击"重新提交"按钮修改后再次提交。');
+    alert('拒绝理由：' + item.reason + '\n您可以点击“重新提交”按钮修改后再次提交。');
   }
 }
 
@@ -361,6 +339,7 @@ function appeal(eva: Evaluation) {
 function goBack() {
   router.push('/home');
 }
+
 </script>
 
 <style scoped>

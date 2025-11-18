@@ -1,82 +1,88 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import type { RouteRecordRaw } from 'vue-router';
-import Home from '@/views/home/Home.vue';
-import PetList from '@/views/pet/PetList.vue';
-import Talk from '@/views/talk/Talk.vue';
-import PostList from '@/views/forum/PostList.vue';
-import Profile from '@/views/user/Profile.vue';
-import NotFound from '@/views/error/404.vue';
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import Home from '../views/home/Home.vue'
+import PetList from '../views/pet/PetList.vue'
+import PostPet from '../views/pet/PostPet.vue'
+import PetDetail from '../views/pet/PetDetail.vue'
+import Talk from '../views/talk/Talk.vue'
+import PostList from '../views/forum/PostList.vue'
+import PostDetail from '../views/forum/PostDetail.vue'
+import Profile from '../views/user/Profile.vue'
+import Login from '../views/user/Login.vue'
+import Register from '../views/user/Register.vue'
+import NotFound from '../views/error/404.vue'
 
-// 定义路由类型
 const routes: RouteRecordRaw[] = [
   {
-    path: '/home',
-    name: 'home',
-    component: Home,
-    meta: { title: '首页 - FUREVER HOME' }
-  },
-  // 根路径重定向到首页，确保新标签页打开 / 时不空白
-  {
     path: '/',
-    redirect: '/home'
+    name: 'Home',
+    component: Home,
+    meta: { showNavBar: true }
   },
   {
-    path: '/user/profile',
-    name: 'userProfile',
-    component: Profile,
-    meta: { 
-      title: '个人主页 - FUREVER HOME',
-      hideNav: true
-    }
-  },
-  {
-    path: '/petList',
-    name: 'petList',
+    path: '/pets',
+    name: 'PetList',
     component: PetList,
-    meta: {
-      title: '宠物列表 - FUREVER HOME'
-    }
+    meta: { showNavBar: true }
+  },
+  {
+    path: '/post-pet',
+    name: 'PostPet',
+    component: PostPet,
+    meta: { showNavBar: true }
+  },
+  {
+    path: '/pet/:id',
+    name: 'PetDetail',
+    component: PetDetail,
+    meta: { showNavBar: true }
+  },
+  {
+    path: '/communication',
+    name: 'Communication',
+    component: Talk,
+    meta: { showNavBar: true }
   },
   {
     path: '/forum',
-    name: 'forum',
+    name: 'Forum',
     component: PostList,
-    meta: {
-      title: '宠物论坛 - FUREVER HOME'
-    }
+    meta: { showNavBar: true }
   },
   {
-    path: '/talk',
-    name: 'talk',
-    component: Talk,
-    meta: {
-      title: '沟通对接 - FUREVER HOME'
-    }
+    path: '/forum/:id',
+    name: 'PostDetail',
+    component: PostDetail,
+    meta: { showNavBar: true }
   },
-  // 添加404路由
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: Profile,
+    meta: { showNavBar: false }
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { showNavBar: false }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register,
+    meta: { showNavBar: false }
+  },
   {
     path: '/:pathMatch(.*)*',
-    name: 'notFound',
+    name: 'NotFound',
     component: NotFound,
-    meta: { title: '页面未找到 - FUREVER HOME' }
+    meta: { showNavBar: false }
   }
-];
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-  // 添加滚动行为
-  scrollBehavior() {
-    return { top: 0 };
-  }
-});
+  history: createWebHistory(),
+  routes
+})
 
-// 全局前置守卫，设置页面标题
-router.beforeEach((to, _from, next) => {
-  if (to.meta.title) {
-    document.title = to.meta.title as string;
-  }
-  next();
-});
-
-export default router;
+export default router
