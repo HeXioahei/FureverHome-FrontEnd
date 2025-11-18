@@ -15,11 +15,11 @@
                 <span class="inline-block bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full mt-2">{{ user.title }}</span>
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mt-4">
-              <div class="bg-white dark:bg-gray-700 p-4 rounded-lg text-center shadow-sm" v-for="stat in user.stats" :key="stat.key">
-                <p class="text-3xl font-bold text-primary">{{ stat.value }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ stat.label }}</p>
-              </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div class="bg-white dark:bg-gray-700 p-4 rounded-lg text-center shadow-sm" v-for="stat in user.stats" :key="stat.key">
+              <p class="text-3xl font-bold text-primary">{{ stat.value }}</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ stat.label }}</p>
             </div>
           </div>
 
@@ -34,17 +34,75 @@
             </div>
           </div>
 
-          <!-- 信誉积分 -->
-          <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 class="text-lg font-bold text-primary mb-4">信誉积分</h2>
-            <div class="flex items-center mb-6">
-              <span class="text-5xl font-bold text-gray-800 dark:text-gray-100">{{ rating.score.toFixed(1) }}</span>
-              <div class="ml-4">
-                <div class="flex text-yellow-400">
-                  <span v-for="i in 5" :key="i" class="material-icons" :class="starIcon(i)">{{ starIcon(i) }}</span>
-                </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">基于{{ rating.total }}条评价</p>
+        <!-- 勋章 -->
+        <!-- <div class="bg-orange-50 dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">我的勋章</h2>
+            <div class="grid grid-cols-2 gap-4">
+              <div v-for="badge in badges" :key="badge.id" class="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 text-xs font-medium">
+                {{ badge.name }}
               </div>
+          </div>
+        </div> -->
+
+        <!-- 信誉积分 -->
+        <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">信誉积分</h2>
+          <div class="flex items-center mb-6">
+            <span class="text-5xl font-bold text-gray-800 dark:text-gray-100">{{ rating.score.toFixed(1) }}</span>
+            <div class="ml-4">
+              <div class="flex text-yellow-400">
+                <span v-for="i in 5" :key="i" class="material-icons" :class="starIcon(i)">{{ starIcon(i) }}</span>
+              </div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">基于{{ rating.total }}条评价</p>
+            </div>
+          </div>
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">他人评价</h3>
+          <div class="space-y-6">
+            <div v-for="eva in evaluations" :key="eva.id" class="border-b border-gray-200 dark:border-gray-700 pb-4">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-semibold text-gray-800 dark:text-gray-200">{{ eva.author }}</p>
+                  <div class="flex text-yellow-400 my-1">
+                    <span v-for="i in 5" :key="i" class="material-icons text-sm">{{ i <= eva.stars ? 'star' : 'star_border' }}</span>
+                  </div>
+                  <p class="text-gray-600 dark:text-gray-300">{{ eva.content }}</p>
+                </div>
+                <div class="flex flex-col items-end flex-shrink-0 ml-4">
+                  <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">{{ eva.date }}</p>
+                  <button v-if="eva.appealable" type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" @click="appeal(eva)">【申诉】</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="mt-6 w-full sm:w-auto bg-primary text-white font-semibold py-2 px-6 rounded-lg hover:opacity-90 transition-opacity" @click="addEvaluation">添加评价</button>
+        </section>
+      </aside>
+
+      <!-- 右侧主体内容 -->
+      <div class="lg:col-span-2 space-y-8">
+        <!-- 个人简介 -->
+        <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">个人简介</h2>
+          <p class="text-gray-600 dark:text-gray-300 leading-relaxed">{{ user.bio }}</p>
+        </section>
+
+        <!-- 爱宠证明档案 -->
+        <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-primary">爱宠证明档案</h2>
+          </div>
+          <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-2">养宠经历</h3>
+          <ul class="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300 mb-6">
+            <li v-for="exp in experiences" :key="exp.id">{{ exp.text }}</li>
+          </ul>
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-gray-700 dark:text-gray-200">证明材料</h3>
+            <button type="button" class="text-sm bg-primary/10 text-primary dark:bg-primary/20 dark:text-orange-300 px-3 py-1 rounded-md hover:bg-primary/20 transition-colors" @click="uploadProof">上传新证明</button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div v-for="proof in proofs" :key="proof.id" class="relative cursor-pointer" @click="handleProofClick(proof)">
+              <div class="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs">{{ proof.title }}</div>
+              <span :class="['absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full', statusClass(proof.status)]">[{{ statusLabel(proof.status) }}]</span>
             </div>
             <h3 class="font-semibold text-gray-700 dark:text-gray-200 mb-4">他人评价</h3>
             <div class="space-y-6">
@@ -97,19 +155,14 @@
             </div>
           </section>
 
-          <!-- 领养情况 -->
-          <section class="space-y-8">
-            <div>
-              <h2 class="text-lg font-bold text-primary mb-4">短期领养</h2>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div v-for="pet in shortTermAdoptions" :key="pet.id" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                  <h3 :class="['text-xl font-bold mb-2', pet.titleClass]">{{ pet.name }}</h3>
-                  <p class="text-gray-600 dark:text-gray-300 mb-4">{{ pet.desc }}</p>
-                  <div class="flex justify-between items-center">
-                    <span :class="['text-xs font-semibold px-2 py-1 rounded-full', pet.bgClass]">{{ pet.statusLabel }}</span>
-                    <span class="text-sm text-gray-500">{{ pet.days }}天</span>
-                  </div>
-                </div>
+        <!-- 信誉积分 -->
+        <!-- <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <h2 class="text-lg font-bold text-primary mb-4">信誉积分</h2>
+          <div class="flex items-center mb-6">
+            <span class="text-5xl font-bold text-gray-800 dark:text-gray-100">{{ rating.score.toFixed(1) }}</span>
+            <div class="ml-4">
+              <div class="flex text-yellow-400">
+                <span v-for="i in 5" :key="i" class="material-icons" :class="starIcon(i)">{{ starIcon(i) }}</span>
               </div>
             </div>
             <div>
@@ -145,10 +198,9 @@
                 <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ post.summary }}</p>
               </div>
             </div>
-          </section>
-        </div>
-      </div>
-    </main>
+          </div>
+          <button type="button" class="mt-6 w-full sm:w-auto bg-primary text-white font-semibold py-2 px-6 rounded-lg hover:opacity-90 transition-opacity" @click="addEvaluation">添加评价</button>
+        </section> -->
 
     <footer class="bg-gray-800 dark:bg-black text-gray-300 dark:text-gray-400">
       <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -167,6 +219,24 @@
               <span class="w-6 h-6" aria-hidden="true">🌐</span>
             </div>
           </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+
+
+
+
+
+
+  <footer class="bg-gray-800 dark:bg-black text-gray-300 dark:text-gray-400">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div>
+          <h3 class="text-white font-bold mb-2">数据统计</h3>
+          <p class="text-sm leading-loose">我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。</p>
+          <RouterLink to="/shelters" class="text-sm text-primary hover:underline mt-2 inline-block">查看合作救助站 →</RouterLink>
         </div>
         <div class="border-t border-gray-700 dark:border-gray-600 mt-8 pt-6 text-center text-sm">
           <p>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
