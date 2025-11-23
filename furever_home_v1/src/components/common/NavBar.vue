@@ -1,59 +1,47 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, RouterLink } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-
-const isActive = (name: string) => route.name === name
 
 const navItems = [
   { name: 'Home', label: '首页', path: '/' },
   { name: 'PetList', label: '宠物列表', path: '/pets' },
   { name: 'Communication', label: '沟通对接', path: '/communication' },
-  { name: 'Forum', label: '宠物论坛', path: '/forum' }
+  { name: 'Forum', label: '宠物论坛', path: '/forum' },
+  { name: 'PostPet', label: '发布宠物', path: '/post-pet' }
 ]
 
-// 在新标签页打开个人主页
-const openProfile = () => {
-  // 获取完整的 URL 路径
-  const routeData = router.resolve({ name: 'Profile' })
-  window.open(routeData.href, '_blank')
+// 跳转到个人主页（不新开标签页）
+const goToProfile = () => {
+  router.push({ name: 'Profile' })
 }
 </script>
 
 <template>
-  <header class="bg-orange-500 shadow-md sticky top-0 z-20">
-    <nav class="container mx-auto px-6 py-5 flex justify-between items-center">
-      <!-- Logo -->
-      <RouterLink to="/" class="flex items-center space-x-2 hover:opacity-90 transition-opacity">
-        <span class="material-icons text-white text-3xl">pets</span>
-        <span class="text-2xl font-bold text-white tracking-wider">FUREVER HOME</span>
-      </RouterLink>
-
-      <!-- Main nav menu -->
-      <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-white">
-        <RouterLink
+  <header class="h-[60px] flex items-center justify-between px-[10%] shadow-md sticky top-0 z-[100]" style="background-color: #FF8C00; color: white;">
+    <RouterLink to="/" class="font-extrabold text-xl flex items-center gap-2 hover:opacity-90 transition-opacity">
+      <i class="fa-solid fa-paw"></i> FUREVERHOME
+    </RouterLink>
+    <nav>
+      <ul class="flex gap-8 text-base">
+        <li 
           v-for="item in navItems"
           :key="item.name"
-          :to="item.path"
-          :class="[
-            'hover:text-white/80 transition-colors',
-            isActive(item.name) ? 'pb-1 border-b-2 border-white font-semibold' : ''
-          ]"
+          class="cursor-pointer opacity-90 py-1 border-b-[3px] border-transparent transition-all hover:opacity-100 hover:font-medium"
+          :class="route.name === item.name ? 'opacity-100 font-extrabold border-white' : ''"
         >
-          {{ item.label }}
-        </RouterLink>
-      </div>
-
-      <!-- User Avatar -->
-      <button
-        @click="openProfile"
-        class="flex items-center space-x-2 text-white hover:text-white/80 transition-colors"
-        type="button"
-      >
-        <span class="material-icons">account_circle</span>
-        <span class="hidden sm:inline">用户</span>
-      </button>
+          <RouterLink :to="item.path">{{ item.label }}</RouterLink>
+        </li>
+      </ul>
     </nav>
+    <button
+      @click="goToProfile"
+      class="flex items-center gap-2 text-sm cursor-pointer hover:opacity-80 transition-opacity"
+      type="button"
+    >
+      <i class="fa-solid fa-circle-user" style="font-size: 20px;"></i>
+      <span>用户</span>
+    </button>
   </header>
 </template>

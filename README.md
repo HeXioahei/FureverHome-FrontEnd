@@ -45,8 +45,11 @@ src/
 ├── main.ts                       # 应用入口文件
 ├── api/                          # API接口层
 │   ├── index.ts                  # API模块入口文件
+│   ├── request.ts                # HTTP请求工具（封装fetch）
 │   ├── applyApi.ts               # 申请相关API接口
+│   ├── evaluationApi.ts          # 评价相关API接口
 │   ├── petApi.ts                 # 宠物相关API接口
+│   ├── postApi.ts                # 帖子相关API接口
 │   └── userApi.ts                # 用户相关API接口
 ├── assets/                       # 静态资源
 │   ├── icons/
@@ -90,9 +93,17 @@ src/
     │   └── Talk.vue              # 交流页面组件
     └── user/                     # 用户模块
         ├── Login.vue             # 登录页面
-        ├── Profile.vue           # 用户个人资料页面
+        ├── Profile.vue           # 用户个人资料页面（他人视角）
         ├── Profile_backup.vue    # 用户资料页面备份
-        └── Register.vue          # 注册页面
+        ├── Register.vue          # 注册页面
+        ├── UserCenter.vue        # 用户中心主页面
+        └── UserCenter/           # 用户中心子模块
+            ├── BasicInfo.vue     # 基本信息管理
+            ├── CreditScore.vue   # 信誉积分查看
+            ├── MyApplications.vue # 我的申请
+            ├── MyHome.vue        # 我的主页
+            ├── MyPosts.vue       # 我的帖子
+            └── MyTodo.vue        # 我的待办
 ```
 
 ## 🛠️ 技术栈
@@ -110,6 +121,7 @@ src/
 - **Tailwind CSS** (v4.1.17) - 实用优先的 CSS 框架
 - **PostCSS** (v8.5.6) - CSS 后处理器
 - **Autoprefixer** (v10.4.22) - 自动添加 CSS 前缀
+- **Font Awesome** (via CDN) - 图标库，提供丰富的图标支持
 
 ### 开发工具
 - **ESLint** (v9.37.0) - JavaScript/TypeScript 代码检查工具
@@ -119,6 +131,10 @@ src/
 ### 构建与部署
 - **npm-run-all2** (v8.0.4) - 并行运行 npm 脚本
 - **jiti** (v2.6.1) - TypeScript 运行时
+
+### HTTP请求
+- **原生 Fetch API** - 使用原生fetch进行HTTP请求，无需额外依赖
+- **自定义请求封装** - 统一的请求工具类，支持token认证、错误处理、文件上传等
 
 ## 🚀 快速开始
 
@@ -161,19 +177,27 @@ src/
 ## 🎨 项目特性
 
 ### 🐾 核心功能
-- **宠物浏览**: 浏览可领养的宠物信息
-- **宠物详情**: 查看宠物的详细信息和照片
-- **用户系统**: 用户注册、登录和个人资料管理
-- **申请系统**: 宠物领养申请流程
-- **论坛交流**: 用户交流和经验分享
-- **宠物发布**: 发布待领养宠物信息
+- **宠物浏览**: 浏览可领养的宠物信息，支持筛选和搜索
+- **宠物详情**: 查看宠物的详细信息和照片，支持短期/长期领养
+- **用户系统**: 
+  - 用户注册、登录和个人资料管理
+  - 个人主页展示（他人视角）：展示用户信息、评价、领养记录、帖子等
+  - 用户中心：个人信息管理、待办事项、申请管理、帖子管理等
+- **申请系统**: 完整的宠物领养申请流程，支持申请、审核、处理
+- **论坛交流**: 用户交流和经验分享，支持帖子发布、评论、点赞
+- **宠物发布**: 发布待领养宠物信息，支持图片上传和详细信息编辑
+- **评价系统**: 用户互评机制，支持评分、评论、申诉
+- **信誉积分**: 基于评价的信誉积分系统，展示用户信用等级
 
 ### 🎯 技术特性
-- **响应式设计**: 支持桌面端和移动端
-- **暗色模式**: 支持明暗主题切换
-- **类型安全**: 完整的 TypeScript 类型定义
-- **模块化架构**: 清晰的代码组织结构
-- **现代化构建**: 基于 Vite 的快速构建
+- **响应式设计**: 支持桌面端和移动端，适配各种屏幕尺寸
+- **类型安全**: 完整的 TypeScript 类型定义，提供良好的开发体验
+- **模块化架构**: 清晰的代码组织结构，API层、组件层、视图层分离
+- **现代化构建**: 基于 Vite 的快速构建，支持热模块替换（HMR）
+- **RESTful API**: 统一的API接口设计，支持分页、文件上传等功能
+- **组件化开发**: 可复用的Vue组件，提高开发效率
+- **路由管理**: 基于Vue Router的单页应用路由管理
+- **状态管理**: 使用Pinia进行全局状态管理
 
 ## 🎨 设计系统
 
@@ -232,6 +256,20 @@ fontFamily: {
 | `.prettierrc.json` | Prettier 格式化配置 |
 | `postcss.config.ts` | PostCSS 处理配置 |
 
+### 环境变量配置
+
+项目支持通过环境变量配置API基础URL：
+
+```bash
+# .env.development
+VITE_API_BASE_URL=http://localhost:8080/api
+
+# .env.production
+VITE_API_BASE_URL=https://api.fureverhome.com/api
+```
+
+如果未设置环境变量，默认使用 `http://localhost:8080/api`
+
 ## 🚀 部署指南
 
 ### 构建生产版本
@@ -259,6 +297,49 @@ npm run build
 
 本项目基于 [LICENSE](LICENSE) 文件中的许可证进行分发。
 
+## 📚 API接口说明
+
+### API模块结构
+
+项目采用模块化的API设计，所有API接口统一管理在 `src/api/` 目录下：
+
+- **request.ts**: HTTP请求工具类，封装fetch，提供统一的请求接口
+- **userApi.ts**: 用户相关API（用户信息、统计数据、徽章、证明等）
+- **evaluationApi.ts**: 评价相关API（获取评价、添加评价、回复评价等）
+- **petApi.ts**: 宠物相关API（获取领养宠物列表、宠物详情等）
+- **postApi.ts**: 帖子相关API（获取帖子列表、创建/更新/删除帖子等）
+- **applyApi.ts**: 申请相关API（创建申请、处理申请、获取申请列表等）
+
+### API使用示例
+
+```typescript
+import { getUserInfo, getUserEvaluations, getUserShortTermPets } from '@/api'
+
+// 获取用户信息
+const response = await getUserInfo(1)
+if (response.code === 200) {
+  console.log(response.data)
+}
+
+// 获取评价列表（分页）
+const evaluations = await getUserEvaluations(1, { page: 1, pageSize: 5 })
+
+// 获取短期领养宠物列表（分页）
+const pets = await getUserShortTermPets(1, { page: 1, pageSize: 6 })
+```
+
+### 统一响应格式
+
+所有API接口返回统一的响应格式：
+
+```typescript
+interface ApiResponse<T> {
+  code: number      // 状态码，200表示成功
+  message: string   // 响应消息
+  data: T          // 响应数据
+}
+```
+
 ## 🆘 常见问题
 
 ### Q: 如何解决依赖安装失败？
@@ -269,6 +350,15 @@ A: 检查 Node.js 版本是否符合要求（^20.19.0 || >=22.12.0）
 
 ### Q: 如何添加新的页面？
 A: 在 `src/views/` 目录下创建新的 Vue 组件，然后在 `src/router/index.ts` 中添加路由配置
+
+### Q: 如何配置API基础URL？
+A: 创建 `.env.development` 或 `.env.production` 文件，设置 `VITE_API_BASE_URL` 环境变量
+
+### Q: 如何添加新的API接口？
+A: 在对应的API文件中添加新的函数（如 `userApi.ts`），使用 `httpClient` 发送请求
+
+### Q: 如何处理API请求错误？
+A: 所有API请求都会抛出错误，可以使用 try-catch 捕获，或使用全局错误处理中间件
 
 ---
 
