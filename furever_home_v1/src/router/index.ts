@@ -7,6 +7,7 @@ import Talk from '../views/talk/Talk.vue'
 import PostList from '../views/forum/PostList.vue'
 import PostDetail from '../views/forum/PostDetail.vue'
 import Profile from '../views/user/Profile.vue'
+import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import NotFound from '../views/error/404.vue'
@@ -15,68 +16,62 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: Home,
-    meta: { showNavBar: true }
+    component: Home
   },
   {
     path: '/pets',
     name: 'PetList',
-    component: PetList,
-    meta: { showNavBar: true }
+    component: PetList
   },
   {
     path: '/post-pet',
     name: 'PostPet',
-    component: PostPet,
-    meta: { showNavBar: true }
+    component: PostPet
   },
   {
     path: '/pet/:id',
     name: 'PetDetail',
-    component: PetDetail,
-    meta: { showNavBar: true }
+    component: PetDetail
   },
   {
     path: '/communication',
     name: 'Communication',
-    component: Talk,
-    meta: { showNavBar: true }
+    component: Talk
   },
   {
     path: '/forum',
     name: 'Forum',
-    component: PostList,
-    meta: { showNavBar: true }
+    component: PostList
   },
   {
     path: '/forum/:id',
     name: 'PostDetail',
-    component: PostDetail,
-    meta: { showNavBar: true }
+    component: PostDetail
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: Profile,
-    meta: { showNavBar: false }
+    component: Profile
+  },
+  {
+    path: '/user-center',
+    name: 'UserCenter',
+    component: UserCenter
   },
   {
     path: '/login',
     name: 'Login',
-    component: Login,
-    meta: { showNavBar: false }
+    component: Login
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register,
-    meta: { showNavBar: false }
+    component: Register
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: NotFound,
-    meta: { showNavBar: false }
+    component: NotFound
   }
 ]
 
