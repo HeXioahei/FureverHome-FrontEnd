@@ -11,6 +11,7 @@ import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import NotFound from '../views/error/404.vue'
+import PostNew from '../views/forum/PostNew.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -72,6 +73,11 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound
+  },
+  {
+        path: '/post/new', // 发布帖子页面的路径
+        name: 'PostNew',   // 路由名称
+        component: PostNew // 对应的组件
   }
 ]
 
