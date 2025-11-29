@@ -12,6 +12,11 @@ import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import NotFound from '../views/error/404.vue'
+import AdminLayout from '../views/admin/AdminLayout.vue'
+import AdminDashboard from '../views/admin/Dashboard.vue'
+import AdminPosts from '../views/admin/Posts.vue'
+import AdminPets from '../views/admin/Pets.vue'
+import AdminApplications from '../views/admin/Applications.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -73,6 +78,32 @@ const routes: RouteRecordRaw[] = [
     path: '/register',
     name: 'Register',
     component: Register
+  },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    children: [
+      {
+        path: '',
+        name: 'AdminDashboard',
+        component: AdminDashboard
+      },
+      {
+        path: 'posts',
+        name: 'AdminPosts',
+        component: AdminPosts
+      },
+      {
+        path: 'pets',
+        name: 'AdminPets',
+        component: AdminPets
+      },
+      {
+        path: 'applications',
+        name: 'AdminApplications',
+        component: AdminApplications
+      }
+    ]
   },
   {
     path: '/:pathMatch(.*)*',

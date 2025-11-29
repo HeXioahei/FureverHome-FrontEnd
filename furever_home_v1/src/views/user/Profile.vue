@@ -634,7 +634,7 @@ interface BaseInfo {
 }
 
 const baseInfo = ref<BaseInfo[]>([
-  { label: '用户名', value: '李同学' },
+  // { label: '用户名', value: '李同学' },
   { label: '年龄', value: '22' },
   { label: '性别', value: '女' },
   { label: '所在地', value: '大学城校区' },
