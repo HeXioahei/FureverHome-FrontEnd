@@ -1,10 +1,26 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import Home from '../views/home/Home.vue'
 import PetList from '../views/pet/PetList.vue'
 import PostPet from '../views/pet/PostPet.vue'
+import PetDetail from '../views/pet/PetDetail.vue'
+import ApplyAdoption from '../views/pet/ApplyAdoption.vue'
+import Talk from '../views/talk/Talk.vue'
+import PostList from '../views/forum/PostList.vue'
+import PostDetail from '../views/forum/PostDetail.vue'
+import Profile from '../views/user/Profile.vue'
+import UserCenter from '../views/user/UserCenter.vue'
+import Login from '../views/user/Login.vue'
+import Register from '../views/user/Register.vue'
+import NotFound from '../views/error/404.vue'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
+    name: 'Home',
+    component: Home
+  },
+  {
+    path: '/pets',
     name: 'PetList',
     component: PetList
   },
@@ -16,7 +32,52 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/pet/:id',
     name: 'PetDetail',
-    component: () => import('../views/pet/PetDetail.vue')
+    component: PetDetail
+  },
+  {
+    path: '/pet/:id/apply',
+    name: 'ApplyAdoption',
+    component: ApplyAdoption
+  },
+  {
+    path: '/communication',
+    name: 'Communication',
+    component: Talk
+  },
+  {
+    path: '/forum',
+    name: 'Forum',
+    component: PostList
+  },
+  {
+    path: '/forum/:id',
+    name: 'PostDetail',
+    component: PostDetail
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: Profile
+  },
+  {
+    path: '/user-center',
+    name: 'UserCenter',
+    component: UserCenter
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Register
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound
   }
 ]
 

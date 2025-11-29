@@ -1,381 +1,345 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 interface Pet {
   id: number
   name: string
-  photoText: string
+  photo_url: string
   fosterer: string
-  location: string // 省份
-  species: 'cat' | 'dog'
-  age: number // 年龄（单位：岁，暂时用于前端筛选）
-  gender: 'male' | 'female'
-  adoption_status: 'adopted' | 'available'
+  location: string
+  species: string
+  age: number // 年龄（月）
+  gender: string
+  adoption_status: string // '短期领养' | '长期领养'
   breed: string
   health_status: string
+  days_adopted: number // 领养天数
 }
 
+const router = useRouter()
+
+// Mock数据
 const pets: Pet[] = [
   {
     id: 1,
     name: '小橘',
-    photoText: '小橘的照片',
+    photo_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300',
     fosterer: '李同学',
     location: '广东省',
-    species: 'cat',
-    age: 1,
-    gender: 'male',
-    adoption_status: 'available',
-    breed: '橘猫',
-    health_status: '已绝育'
+    species: '猫',
+    age: 12,
+    gender: '公',
+    adoption_status: '短期领养',
+    breed: '中华田园猫',
+    health_status: '已绝育',
+    days_adopted: 15
   },
   {
     id: 2,
     name: '煤球',
-    photoText: '煤球的照片',
+    photo_url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=300',
     fosterer: '王同学',
     location: '北京市',
-    species: 'dog',
-    age: 5,
-    gender: 'female',
-    adoption_status: 'adopted',
+    species: '狗',
+    age: 6,
+    gender: '母',
+    adoption_status: '长期领养',
     breed: '黑色中型犬',
-    health_status: '已免疫'
+    health_status: '未绝育',
+    days_adopted: 6
   },
   {
     id: 3,
     name: '雪球',
-    photoText: '雪球的照片',
+    photo_url: 'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=300',
     fosterer: '赵同学',
     location: '上海市',
-    species: 'cat',
-    age: 3,
-    gender: 'female',
-    adoption_status: 'available',
+    species: '猫',
+    age: 36,
+    gender: '母',
+    adoption_status: '长期领养',
     breed: '长毛白猫',
-    health_status: '健康良好'
+    health_status: '已绝育',
+    days_adopted: 3
   },
   {
     id: 4,
     name: '小黑',
-    photoText: '小黑的照片',
+    photo_url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300',
     fosterer: '李同学',
     location: '四川省',
-    species: 'dog',
-    age: 7,
-    gender: 'male',
-    adoption_status: 'adopted',
+    species: '狗',
+    age: 8,
+    gender: '公',
+    adoption_status: '短期领养',
     breed: '黑色小型犬',
-    health_status: '已绝育'
+    health_status: '未绝育',
+    days_adopted: 8
   },
   {
     id: 5,
     name: '灰灰',
-    photoText: '灰灰的照片',
+    photo_url: 'https://images.unsplash.com/photo-1573865526739-10c1dd7e1e0e?w=300',
     fosterer: '刘同学',
     location: '浙江省',
-    species: 'cat',
-    age: 4,
-    gender: 'female',
-    adoption_status: 'available',
+    species: '猫',
+    age: 5,
+    gender: '母',
+    adoption_status: '短期领养',
     breed: '蓝猫',
-    health_status: '已免疫'
+    health_status: '已绝育',
+    days_adopted: 5
   },
   {
     id: 6,
-    name: '卷卷',
-    photoText: '卷卷的照片',
-    fosterer: '杨同学',
+    name: '小金',
+    photo_url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=300',
+    fosterer: '陈同学',
     location: '江苏省',
-    species: 'dog',
+    species: '狗',
     age: 3,
-    gender: 'male',
-    adoption_status: 'available',
-    breed: '泰迪',
-    health_status: '健康良好'
-  },
-  {
-    id: 7,
-    name: '花花',
-    photoText: '花花的照片',
-    fosterer: '张同学',
-    location: '山东省',
-    species: 'cat',
-    age: 2,
-    gender: 'female',
-    adoption_status: 'available',
-    breed: '玳瑁猫',
-    health_status: '已免疫'
-  },
-  {
-    id: 8,
-    name: '豆豆',
-    photoText: '豆豆的照片',
-    fosterer: '王同学',
-    location: '河南省',
-    species: 'dog',
-    age: 1,
-    gender: 'male',
-    adoption_status: 'adopted',
-    breed: '金毛犬',
-    health_status: '健康良好'
-  },
-  {
-    id: 9,
-    name: '咪咪',
-    photoText: '咪咪的照片',
-    fosterer: '赵同学',
-    location: '湖北省',
-    species: 'cat',
-    age: 1,
-    gender: 'female',
-    adoption_status: 'available',
-    breed: '英短',
-    health_status: '已绝育'
-  },
-  {
-    id: 10,
-    name: '旺旺',
-    photoText: '旺旺的照片',
-    fosterer: '李同学',
-    location: '湖南省',
-    species: 'dog',
-    age: 2,
-    gender: 'male',
-    adoption_status: 'adopted',
-    breed: '拉布拉多',
-    health_status: '已免疫'
+    gender: '公',
+    adoption_status: '长期领养',
+    breed: '金毛寻回犬',
+    health_status: '未绝育',
+    days_adopted: 26
   }
 ]
 
-const locationFilter = ref('')
-const genderFilter = ref<'all' | Pet['gender']>('all')
-const speciesFilter = ref<'all' | Pet['species']>('all')
-const adoptionStatusFilter = ref<'all' | Pet['adoption_status']>('all')
+// 筛选条件
+const provinceFilter = ref('')
+const speciesFilter = ref('')
+const genderFilter = ref('')
+const ageFilter = ref('')
+const adoptionStatusFilter = ref('')
 
-const route = useRoute()
-
-const isActive = (name: string) => route.name === name
+// 分页
+const currentPage = ref(1)
+const pageSize = 6
 
 const filteredPets = computed(() => {
   return pets.filter((pet) => {
-    const locationQuery = locationFilter.value.trim()
-    if (locationQuery && !pet.location.includes(locationQuery)) return false
-
-    if (genderFilter.value !== 'all' && pet.gender !== genderFilter.value) return false
-    if (speciesFilter.value !== 'all' && pet.species !== speciesFilter.value) return false
-    if (adoptionStatusFilter.value !== 'all' && pet.adoption_status !== adoptionStatusFilter.value)
-      return false
-
+    if (provinceFilter.value && pet.location !== provinceFilter.value) return false
+    if (speciesFilter.value && pet.species !== speciesFilter.value) return false
+    if (genderFilter.value && pet.gender !== genderFilter.value) return false
+    if (adoptionStatusFilter.value && pet.adoption_status !== adoptionStatusFilter.value) return false
+    
+    // 年龄筛选
+    if (ageFilter.value) {
+      const age = pet.age
+      if (ageFilter.value === '0-6' && (age < 0 || age > 6)) return false
+      if (ageFilter.value === '6-12' && (age < 6 || age > 12)) return false
+      if (ageFilter.value === '12-36' && (age < 12 || age > 36)) return false
+      if (ageFilter.value === '36-84' && (age < 36 || age > 84)) return false
+      if (ageFilter.value === '84+' && age < 84) return false
+    }
+    
     return true
   })
 })
+
+const totalPages = computed(() => Math.ceil(filteredPets.value.length / pageSize))
+
+const paginatedPets = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  const end = start + pageSize
+  return filteredPets.value.slice(start, end)
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
+
+const goToPetDetail = (id: number) => {
+  router.push({ name: 'PetDetail', params: { id } })
+}
 </script>
 
 <template>
-  <div
-    class="bg-background-light dark:bg-background-dark font-display text-gray-700 dark:text-gray-300 min-h-screen"
-  >
-    <!-- Header -->
-    <header class="bg-orange-500 shadow-md sticky top-0 z-20">
-      <nav class="container mx-auto px-6 py-5 flex justify-between items-center">
-        <!-- Logo -->
-        <div class="flex items-center space-x-2">
-          <span class="material-icons text-white text-3xl">pets</span>
-          <span class="text-2xl font-bold text-white tracking-wider">FUREVER HOME</span>
-        </div>
-        <!-- Main nav menu -->
-        <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-white">
-          <a href="#" class="hover:text-white/80 transition-colors">首页</a>
-          <span
-            class="pb-1 border-b-2 border-white font-semibold text-white"
+  <div class="min-h-screen bg-[#f5f5f5]">
+    <!-- Hero Section -->
+    <section class="text-center pt-24 pb-10">
+      <h1 class="text-[28px] text-[#FF8C42] mb-2.5 font-bold">
+        为这些可爱的小生命寻找一个永久的家
+      </h1>
+      <p class="text-base text-[#666]">领养代替购买，给流浪动物一个温暖的家</p>
+    </section>
+
+    <!-- Main Container -->
+    <div class="max-w-[1200px] mx-auto px-[5%] pb-8">
+      <!-- Filter Bar -->
+      <div class="bg-white rounded-2xl p-5 mb-8 shadow-[0_8px_24px_rgba(0,0,0,0.06)]">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-sm text-[#666] whitespace-nowrap">筛选条件：</span>
+
+          <!-- 地区 -->
+          <span class="text-sm text-[#666] whitespace-nowrap">地区</span>
+          <select
+            v-model="provinceFilter"
+            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
           >
-            宠物列表
-          </span>
-          <a href="#" class="hover:text-white/80 transition-colors">沟通对接</a>
-          <a href="#" class="hover:text-white/80 transition-colors">宠物论坛</a>
-          <a href="#" class="hover:text-white/80 transition-colors">个人主页</a>
+            <option value="">请选择</option>
+            <option>北京市</option>
+            <option>上海市</option>
+            <option>广东省</option>
+            <option>江苏省</option>
+            <option>浙江省</option>
+            <option>四川省</option>
+            <option>湖北省</option>
+            <option>山东省</option>
+          </select>
+
+          <!-- 种类 -->
+          <span class="text-sm text-[#666] whitespace-nowrap">种类</span>
+          <select
+            v-model="speciesFilter"
+            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
+          >
+            <option value="">请选择</option>
+            <option>猫</option>
+            <option>狗</option>
+            <option>其他</option>
+          </select>
+
+          <!-- 性别 -->
+          <span class="text-sm text-[#666] whitespace-nowrap">性别</span>
+          <select
+            v-model="genderFilter"
+            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
+          >
+            <option value="">请选择</option>
+            <option>公</option>
+            <option>母</option>
+          </select>
+
+          <!-- 年龄 -->
+          <span class="text-sm text-[#666] whitespace-nowrap">年龄</span>
+          <select
+            v-model="ageFilter"
+            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
+          >
+            <option value="">请选择</option>
+            <option value="0-6">0-6个月</option>
+            <option value="6-12">6-12个月</option>
+            <option value="12-36">1-3岁</option>
+            <option value="36-84">3-7岁</option>
+            <option value="84+">7岁以上</option>
+          </select>
+
+          <!-- 领养状态 -->
+          <span class="text-sm text-[#666] whitespace-nowrap">领养状态</span>
+          <select
+            v-model="adoptionStatusFilter"
+            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
+          >
+            <option value="">请选择</option>
+            <option>短期领养</option>
+            <option>长期领养</option>
+          </select>
         </div>
-        <RouterLink
-          class="flex items-center space-x-2 text-white hover:text-white/80 transition-colors"
-          to="/dashboard"
-        >
-          <span class="material-icons">account_circle</span>
-          <span class="hidden sm:inline">用户</span>
-        </RouterLink>
-      </nav>
-    </header>
+      </div>
 
-    <!-- Main -->
-    <main class="container mx-auto px-6 py-8">
-      <!-- Hero -->
-      <section class="text-center py-12">
-        <h1 class="text-4xl font-bold text-primary">为这些可爱的小生命寻找一个永久的家</h1>
-        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">
-          领养代替购买，给流浪动物一个温暖的家
-        </p>
-      </section>
-
-      <!-- Filter bar -->
-      <section class="bg-white dark:bg-zinc-900 p-6 rounded-lg shadow-sm mb-8">
-        <div class="flex flex-wrap items-center gap-4">
-          <span class="font-medium text-gray-800 dark:text-gray-200">筛选条件:</span>
-
-          <!-- 地区筛选（搜索省市区） -->
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-600 dark:text-gray-300">地区</span>
-            <input
-              v-model="locationFilter"
-              type="text"
-              placeholder="输入省/市/区搜索"
-              class="text-sm rounded-full border border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 px-3 py-1 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <!-- 性别筛选 -->
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-600 dark:text-gray-300">性别</span>
-            <select
-              v-model="genderFilter"
-              class="text-sm rounded-full border border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200  pl-5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">全部</option>
-              <option value="male"> 公 </option>
-              <option value="female"> 母 </option>
-            </select>
-          </div>
-
-          <!-- 品种（猫/狗）筛选 -->
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-600 dark:text-gray-300">品种</span>
-            <select
-              v-model="speciesFilter"
-              class="text-sm rounded-full border border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200  pl-5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">全部</option>
-              <option value="cat"> 猫 </option>
-              <option value="dog"> 狗 </option>
-            </select>
-          </div>
-
-          <!-- 领养状态筛选 -->
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-600 dark:text-gray-300">领养状态</span>
-            <select
-              v-model="adoptionStatusFilter"
-              class="text-sm rounded-full border border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 px-5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">全部</option>
-              <option value="available">未领养</option>
-              <option value="adopted">已领养</option>
-            </select>
-          </div>
-
-          <div class="ml-auto flex items-center">
-            <RouterLink
-              to="/post-pet"
-              class="px-4 py-2 text-sm font-medium rounded-full bg-primary text-white bg-orange-500 transition-colors"
-            >
-              + 发布待领养动物
-            </RouterLink>
-          </div>
-        </div>
-      </section>
-
-      <!-- Pet cards -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        <article
-          v-for="pet in filteredPets"
+      <!-- Pets Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        <div
+          v-for="pet in paginatedPets"
           :key="pet.id"
-          class="bg-white dark:bg-zinc-900 rounded-lg shadow-sm overflow-hidden flex flex-col"
+          class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
+          @click="goToPetDetail(pet.id)"
         >
-          <RouterLink
-            :to="{ name: 'PetDetail', params: { id: pet.id } }"
-            class="flex-1 flex flex-col hover:shadow-md transition-shadow duration-150"
-          >
-            <div class="bg-orange-100 dark:bg-orange-900/20 h-56 flex items-center justify-center">
-              <span class="text-gray-400 dark:text-gray-500">
-                {{ pet.photoText }}
-              </span>
+          <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
+            <img
+              v-if="pet.photo_url"
+              :src="pet.photo_url"
+              :alt="pet.name"
+              class="w-full h-full object-cover"
+            />
+            <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
+          </div>
+          <div class="p-5">
+            <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
+            <div class="text-sm text-[#666] mb-2.5">
+              {{ pet.species }} · {{ Math.floor(pet.age / 12) }}岁{{ pet.age % 12 }}个月 · {{ pet.health_status }}
             </div>
-
-            <div class="p-6 flex-grow flex flex-col">
-              <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">
-                {{ pet.name }}
-              </h3>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {{ pet.breed }} · {{ pet.age }}个月 · {{ pet.health_status }}
-              </p>
-              <div class="my-4">
-                <span
-                  v-if="pet.adoption_status === 'available'"
-                  class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-yellow-800 dark:text-yellow-300 bg-yellow-200 dark:bg-yellow-900/50"
-                >
-                  等待领养
-                </span>
-                <span
-                  v-else
-                  class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-zinc-700/80"
-                >
-                  已被领养
-                </span>
-              </div>
-
-              <div class="mt-auto pt-4 flex justify-end items-center gap-3">
-                <span class="text-sm text-gray-600 dark:text-gray-300">
-                  临时收养者: {{ pet.fosterer }}
-                </span>
-                <button
-                  class="flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-md bg-primary text-white bg-orange-500 transition-colors"
-                  type="button"
-                  @click.stop
-                >
-                  <span class="material-icons text-base">chat_bubble_outline</span>
-                  <span>联系TA</span>
-                </button>
-              </div>
+            <span
+              :class="[
+                'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
+                pet.adoption_status === '短期领养'
+                  ? 'bg-[#FFF3CD] text-[#856404]'
+                  : 'bg-[#D1FAE5] text-[#059669]'
+              ]"
+            >
+              {{ pet.adoption_status }}
+            </span>
+            <div class="text-xs text-[#666] mt-1.5">
+              临时收养者：{{ pet.fosterer }}
             </div>
-          </RouterLink>
-        </article>
-      </section>
-    </main>
+            <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
+              已{{ pet.adoption_status }} {{ pet.days_adopted }} 天
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-center items-center gap-2 mt-10">
+        <button
+          :disabled="currentPage === 1"
+          class="px-4 py-2 border border-[#ddd] bg-white rounded-lg cursor-pointer transition-all hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:text-[#ccc] disabled:cursor-not-allowed disabled:hover:border-[#ddd] disabled:hover:text-[#ccc]"
+          @click="goToPage(currentPage - 1)"
+        >
+          上一页
+        </button>
+        <button
+          v-for="page in totalPages"
+          :key="page"
+          :class="[
+            'px-4 py-2 border rounded-lg cursor-pointer transition-all',
+            currentPage === page
+              ? 'bg-[#FF8C42] text-white border-[#FF8C42]'
+              : 'border-[#ddd] bg-white hover:border-[#FF8C42] hover:text-[#FF8C42]'
+          ]"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+          :disabled="currentPage === totalPages"
+          class="px-4 py-2 border border-[#ddd] bg-white rounded-lg cursor-pointer transition-all hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:text-[#ccc] disabled:cursor-not-allowed disabled:hover:border-[#ddd] disabled:hover:text-[#ccc]"
+          @click="goToPage(currentPage + 1)"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
 
     <!-- Footer -->
-    <footer class="bg-slate-800 dark:bg-zinc-950 text-slate-300 mt-12">
-      <div class="container mx-auto px-6 py-12">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h3 class="text-lg font-semibold text-white">数据统计</h3>
-            <p class="mt-2 text-sm max-w-md">
-              我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。
-            </p>
-            <a
-              class="mt-4 inline-block text-primary hover:text-orange-300 transition-colors text-sm"
-              href="#"
-            >
-              查看合作救助站 →
-            </a>
-          </div>
-
-          <div>
-            <h3 class="text-lg font-semibold text-white">联系开发团队</h3>
-            <p class="mt-2 text-sm max-w-md">
-              如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。
-            </p>
-            <div class="mt-4 flex space-x-4">
-              <a class="text-2xl hover:text-white" href="#">💬</a>
-              <a class="text-2xl hover:text-white" href="#">💌</a>
-              <a class="text-2xl hover:text-white" href="#">🌐</a>
-            </div>
+    <footer class="bg-[#2C3E50] text-white py-10 px-[5%] mt-16">
+      <div class="flex flex-wrap justify-between max-w-[1200px] mx-auto gap-8">
+        <div class="flex-1 min-w-[220px]">
+          <h3 class="mb-4 text-lg font-semibold">数据统计</h3>
+          <p class="mb-2 text-sm text-[#ccc]">我们与多家救助站建立了长期合作关系</p>
+          <p class="mb-2 text-sm text-[#ccc]">已为 <strong>1,286</strong> 只小动物找到新家</p>
+          <a href="#" class="text-[#FF8C42] text-sm hover:underline">查看合作救助站 →</a>
+        </div>
+        <div class="flex-1 min-w-[220px]">
+          <h3 class="mb-4 text-lg font-semibold">联系开发团队</h3>
+          <p class="mb-2 text-sm text-[#ccc]">
+            如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。
+          </p>
+          <div class="flex gap-3 mt-2.5">
+            <i class="fa-brands fa-weixin text-2xl hover:text-[#FF8C42] cursor-pointer transition-colors"></i>
+            <i class="fa-brands fa-qq text-2xl hover:text-[#FF8C42] cursor-pointer transition-colors"></i>
+            <i class="fa-brands fa-weibo text-2xl hover:text-[#FF8C42] cursor-pointer transition-colors"></i>
           </div>
         </div>
-
-        <div
-          class="border-t border-slate-700 dark:border-zinc-800 mt-8 pt-6 text-center text-sm text-slate-400"
-        >
-          <p>© 2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
-        </div>
+      </div>
+      <div class="text-center mt-8 pt-5 border-t border-white/10 text-sm text-[#aaa]">
+        2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
       </div>
     </footer>
   </div>

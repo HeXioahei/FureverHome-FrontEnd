@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import SubmitSuccessModal from '@/components/PostPet_components/SubmitSuccessModal.vue'
-import LeaveDraftConfirmModal from '@/components/PostPet_components/LeaveDraftConfirmModal.vue'
 
 interface PetForm {
   name: string
-  breed: string
-  gender: 'male' | 'female' | ''
   age: string
-  vaccinated: boolean
-  neutered: boolean
-  dewormed: boolean
-  personality: string
+  gender: string
+  species: string
+  breed: string
+  sterilized: string
+  location: string
+  healthStatus: string
   story: string
   phone: string
   email: string
@@ -22,252 +20,380 @@ const router = useRouter()
 
 const form = ref<PetForm>({
   name: '',
-  breed: '',
-  gender: '',
   age: '',
-  vaccinated: false,
-  neutered: false,
-  dewormed: false,
-  personality: '',
+  gender: '',
+  species: '',
+  breed: '',
+  sterilized: '',
+  location: '',
+  healthStatus: '',
   story: '',
   phone: '',
   email: ''
 })
 
-const showSubmitSuccess = ref(false)
-const showLeaveConfirm = ref(false)
+const uploadedFiles = ref<File[]>([])
+const showSuccessModal = ref(false)
+const showErrorModal = ref(false)
+const errorMessage = ref('')
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    const newFiles = Array.from(target.files)
+    if (uploadedFiles.value.length + newFiles.length > 5) {
+      alert('最多只能上传5张照片')
+      return
+    }
+    uploadedFiles.value.push(...newFiles)
+  }
+}
+
+const removeFile = (index: number) => {
+  uploadedFiles.value.splice(index, 1)
+}
+
+const triggerFileInput = () => {
+  const input = document.getElementById('fileInput') as HTMLInputElement
+  input?.click()
+}
+
+const validateForm = (): boolean => {
+  const requiredFields = [
+    { key: 'name', label: '动物名称' },
+    { key: 'age', label: '年龄' },
+    { key: 'gender', label: '性别' },
+    { key: 'species', label: '动物种类' },
+    { key: 'breed', label: '动物品种' },
+    { key: 'sterilized', label: '是否绝育' },
+    { key: 'location', label: '目前位置' },
+    { key: 'phone', label: '联系电话' },
+    { key: 'email', label: '电子邮箱' }
+  ]
+
+  const missingFields: string[] = []
+  requiredFields.forEach(field => {
+    if (!form.value[field.key as keyof PetForm]?.trim()) {
+      missingFields.push(field.label)
+    }
+  })
+
+  if (missingFields.length > 0) {
+    errorMessage.value = `请完善以下必填信息：${missingFields.join('、')}`
+    showErrorModal.value = true
+    return false
+  }
+
+  return true
+}
 
 const submitForm = () => {
-  // TODO: 这里未来接后端提交接口，现在先简单打印
+  if (!validateForm()) {
+    return
+  }
+
+  // TODO: 这里未来接后端提交接口
   console.log('提交审核', form.value)
-  showSubmitSuccess.value = true
+  console.log('上传的文件', uploadedFiles.value)
+  showSuccessModal.value = true
 }
 
-const openLeaveConfirm = () => {
-  showLeaveConfirm.value = true
+const closeSuccessModal = () => {
+  showSuccessModal.value = false
+  // 重置表单
+  form.value = {
+    name: '',
+    age: '',
+    gender: '',
+    species: '',
+    breed: '',
+    sterilized: '',
+    location: '',
+    healthStatus: '',
+    story: '',
+    phone: '',
+    email: ''
+  }
+  uploadedFiles.value = []
 }
 
-const handleLeaveWithoutSave = () => {
-  showLeaveConfirm.value = false
-  router.push('/')
-}
-
-const handleSaveAndLeave = () => {
-  console.log('保存草稿', form.value)
-  showLeaveConfirm.value = false
-  router.push('/')
+const closeErrorModal = () => {
+  showErrorModal.value = false
 }
 </script>
 
 <template>
-  <main class="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative">
-    <div class="flex flex-col gap-10">
-      <div class="flex flex-wrap justify-between gap-3 p-4">
-        <h1
-          class="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] min-w-72"
-        >
+  <div class="min-h-screen bg-[#F8F9FB]">
+    <div class="max-w-[1200px] mx-auto py-8 px-5">
+      <main class="bg-white rounded-xl p-8 shadow-sm">
+        <h1 class="text-[28px] font-bold text-center mb-8 text-[#333333]">
           发布待领养动物信息
         </h1>
-      </div>
 
-      <div
-        class="flex flex-col gap-8 bg-white dark:bg-gray-900/50 p-6 sm:p-8 rounded-xl border border-[#e6e0db] dark:border-gray-800"
-      >
-        <!-- 宠物基本信息 -->
-        <section>
-          <h2
-            class="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
-          >
-            宠物基本信息
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 px-4 py-3">
-            <label class="flex flex-col min-w-40 flex-1">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                动物名称
-              </p>
-              <input
-                v-model="form.name"
-                class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-                placeholder="例如：豆豆"
-              />
-            </label>
-
-            <label class="flex flex-col min-w-40 flex-1">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                品种
-              </p>
-              <input
-                v-model="form.breed"
-                class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-                placeholder="例如：金毛寻回犬"
-              />
-            </label>
-
-            <div class="flex flex-col">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                性别
-              </p>
-              <div class="flex items-center gap-4 h-14">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    v-model="form.gender"
-                    class="form-radio text-primary focus:ring-primary/50 bg-background-light dark:bg-background-dark border-[#e6e0db] dark:border-gray-700"
-                    type="radio"
-                    name="gender"
-                    value="male"
-                  />
-                  <span class="text-slate-700 dark:text-slate-300">公</span>
+        <form @submit.prevent="submitForm">
+          <!-- 宠物基本信息 -->
+          <div class="mb-8 pb-5 border-b border-[#E5E7EB]">
+            <h2 class="text-xl font-bold mb-5 text-[#333333] flex items-center gap-2.5">
+              <i class="fa-solid fa-paw text-[#FF8C00]"></i>
+              宠物基本信息
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  动物名称 <span class="text-[#EF4444]">*</span>
                 </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    v-model="form.gender"
-                    class="form-radio text-primary focus:ring-primary/50 bg-background-light dark:bg-background-dark border-[#e6e0db] dark:border-gray-700"
-                    type="radio"
-                    name="gender"
-                    value="female"
-                  />
-                  <span class="text-slate-700 dark:text-slate-300">母</span>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  placeholder="例如：豆豆"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  年龄(以月为单位) <span class="text-[#EF4444]">*</span>
                 </label>
+                <input
+                  v-model="form.age"
+                  type="text"
+                  placeholder="例如：5"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  性别 <span class="text-[#EF4444]">*</span>
+                </label>
+                <select
+                  v-model="form.gender"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                >
+                  <option value="">请选择</option>
+                  <option value="公">公</option>
+                  <option value="母">母</option>
+                </select>
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  动物种类 <span class="text-[#EF4444]">*</span>
+                </label>
+                <select
+                  v-model="form.species"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                >
+                  <option value="">请选择</option>
+                  <option value="狗">狗</option>
+                  <option value="猫">猫</option>
+                  <option value="兔子">兔子</option>
+                  <option value="仓鼠">仓鼠</option>
+                  <option value="鸟类">鸟类</option>
+                  <option value="鱼类">鱼类</option>
+                  <option value="龟类">龟类</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  动物品种 <span class="text-[#EF4444]">*</span>
+                </label>
+                <input
+                  v-model="form.breed"
+                  type="text"
+                  placeholder="例如：拉布拉多、布偶猫"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  是否绝育 <span class="text-[#EF4444]">*</span>
+                </label>
+                <select
+                  v-model="form.sterilized"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                >
+                  <option value="">请选择</option>
+                  <option value="是">是</option>
+                  <option value="否">否</option>
+                  <option value="未知">未知</option>
+                </select>
+              </div>
+
+              <div class="mb-5 md:col-span-2">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  目前位置 <span class="text-[#EF4444]">*</span>
+                </label>
+                <input
+                  v-model="form.location"
+                  type="text"
+                  placeholder="例如：北京市海淀区"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
               </div>
             </div>
-
-            <label class="flex flex-col min-w-40 flex-1">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                年龄
-              </p>
-              <input
-                v-model="form.age"
-                class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-                placeholder="例如：2岁"
-              />
-            </label>
           </div>
-        </section>
 
-        <!-- 健康状况 -->
-        <section>
-          <h2
-            class="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
+          <!-- 照片/视频上传 -->
+          <div class="mb-8 pb-5 border-b border-[#E5E7EB]">
+            <h2 class="text-xl font-bold mb-5 text-[#333333] flex items-center gap-2.5">
+              <i class="fa-solid fa-image text-[#FF8C00]"></i>
+              照片/视频上传
+            </h2>
+            <div
+              class="border-2 border-dashed border-[#E5E7EB] rounded-xl p-10 text-center cursor-pointer transition-all hover:border-[#FF8C00] hover:bg-[rgba(255,140,0,0.05)]"
+              @click="triggerFileInput"
+            >
+              <input
+                id="fileInput"
+                type="file"
+                multiple
+                accept="image/*"
+                class="hidden"
+                @change="handleFileUpload"
+              />
+              <div class="text-[40px] mb-2.5 text-[#666666]">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <div class="text-[#666666] mb-2.5">点击上传或拖拽文件到这里</div>
+              <div class="text-sm text-[#9CA3AF]">支持 JPG, PNG 格式，最多5张照片</div>
+            </div>
+            <div v-if="uploadedFiles.length > 0" class="mt-4 flex flex-wrap gap-3">
+              <div
+                v-for="(file, index) in uploadedFiles"
+                :key="index"
+                class="relative w-24 h-24 rounded-lg overflow-hidden border border-[#E5E7EB]"
+              >
+                <img
+                  :src="URL.createObjectURL(file)"
+                  :alt="file.name"
+                  class="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                  @click="removeFile(index)"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 详细描述 -->
+          <div class="mb-8 pb-5 border-b border-[#E5E7EB]">
+            <h2 class="text-xl font-bold mb-5 text-[#333333] flex items-center gap-2.5">
+              <i class="fa-solid fa-book text-[#FF8C00]"></i>
+              详细描述（救助故事与宠物的健康状态）
+            </h2>
+            <div class="mb-5">
+              <textarea
+                v-model="form.story"
+                placeholder="请详细描述救助的背景、故事和任何特殊需求。"
+                class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm min-h-[120px] resize-y transition-colors focus:border-[#FF8C00] focus:outline-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- 联系信息 -->
+          <div class="mb-8 pb-5 border-b border-[#E5E7EB]">
+            <h2 class="text-xl font-bold mb-5 text-[#333333] flex items-center gap-2.5">
+              <i class="fa-solid fa-address-book text-[#FF8C00]"></i>
+              联系信息
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  联系电话 <span class="text-[#EF4444]">*</span>
+                </label>
+                <input
+                  v-model="form.phone"
+                  type="tel"
+                  placeholder="13812345678"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+
+              <div class="mb-5">
+                <label class="block mb-2 font-semibold text-[#666666] text-sm">
+                  电子邮箱 <span class="text-[#EF4444]">*</span>
+                </label>
+                <input
+                  v-model="form.email"
+                  type="email"
+                  placeholder="user@example.com"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="flex justify-center gap-5 mt-8">
+            <button
+              type="submit"
+              class="px-8 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all border-none bg-[#FF8C00] text-white hover:bg-[#E67A2A] hover:-translate-y-0.5 hover:shadow-[0_4px_8px_rgba(255,140,0,0.3)]"
+            >
+              提交审核
+            </button>
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <!-- 成功模态框 -->
+    <div
+      v-if="showSuccessModal"
+      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
+      @click="closeSuccessModal"
+    >
+      <div
+        class="bg-white rounded-xl w-[90%] max-w-[460px] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] text-center"
+        @click.stop
+      >
+        <div class="text-[60px] mb-5 text-[#10B981]">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <h2 class="text-[#333333] mb-4">发布成功！</h2>
+        <p class="mb-6 text-[#666666]">您发布的宠物信息将展示在平台上。</p>
+        <div class="flex justify-center gap-2.5">
+          <button
+            class="px-8 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all border-none bg-[#FF8C00] text-white hover:bg-[#E67A2A]"
+            @click="closeSuccessModal"
           >
-            健康状况
-          </h2>
-          <div class="flex flex-wrap gap-x-8 gap-y-4 px-4 py-3">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="form.vaccinated"
-                class="form-checkbox rounded text-primary focus:ring-primary/50 bg-background-light dark:bg-background-dark border-[#e6e0db] dark:border-gray-700"
-                type="checkbox"
-              />
-              <span class="text-slate-700 dark:text-slate-300">已免疫</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="form.neutered"
-                class="form-checkbox rounded text-primary focus:ring-primary/50 bg-background-light dark:bg-background-dark border-[#e6e0db] dark:border-gray-700"
-                type="checkbox"
-              />
-              <span class="text-slate-700 dark:text-slate-300">已绝育</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="form.dewormed"
-                class="form-checkbox rounded text-primary focus:ring-primary/50 bg-background-light dark:bg-background-dark border-[#e6e0db] dark:border-gray-700"
-                type="checkbox"
-              />
-              <span class="text-slate-700 dark:text-slate-300">已驱虫</span>
-            </label>
-          </div>
-        </section>
-
-        <!-- 性格特点 -->
-        <section>
-          <h2
-            class="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
-          >
-            性格特点
-          </h2>
-          <div class="px-4 py-3">
-            <textarea
-              v-model="form.personality"
-              class="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary min-h-[120px] placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-              placeholder="例如：活泼亲人，喜欢玩球，对小孩和其它动物友好..."
-            />
-          </div>
-        </section>
-
-        <!-- 故事/详细描述 -->
-        <section>
-          <h2
-            class="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
-          >
-            救助故事/详细描述
-          </h2>
-          <div class="px-4 py-3">
-            <textarea
-              v-model="form.story"
-              class="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary min-h-[200px] placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-              placeholder="请详细描述宠物的背景、故事和任何特殊需求..."
-            />
-          </div>
-        </section>
-
-        <!-- 联系信息 -->
-        <section>
-          <h2
-            class="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
-          >
-            联系信息
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 px-4 py-3">
-            <label class="flex flex-col min-w-40 flex-1">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                联系电话
-              </p>
-              <input
-                v-model="form.phone"
-                class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-                placeholder="请输入您的电话号码"
-              />
-            </label>
-            <label class="flex flex-col min-w-40 flex-1">
-              <p class="text-slate-800 dark:text-slate-200 text-base font-medium leading-normal pb-2">
-                电子邮箱
-              </p>
-              <input
-                v-model="form.email"
-                class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#e6e0db] dark:border-gray-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-slate-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal leading-normal"
-                placeholder="请输入您的电子邮箱"
-              />
-            </label>
-          </div>
-        </section>
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="flex flex-wrap justify-end items-center gap-4 px-4 py-5">
-        <button
-          type="button"
-          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-transparent border border-gray-300 dark:border-gray-600 text-slate-700 dark:text-slate-200 text-base font-bold leading-normal tracking-[0.015em]"
-          @click="openLeaveConfirm"
-        >
-          <span class="truncate">返回列表</span>
-        </button>
-        <button
-          type="button"
-          class="flex min-w-[120px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-8 bg-orange-500 hover:bg-orange-600 shadow-md text-white text-base font-bold leading-normal tracking-[0.015em]"
-          @click="submitForm"
-        >
-          <span class="truncate">提交审核</span>
-        </button>
+            确定
+          </button>
+        </div>
       </div>
     </div>
 
-    <SubmitSuccessModal :visible="showSubmitSuccess" />
-
-    <LeaveDraftConfirmModal
-      :visible="showLeaveConfirm"
-      @leave-without-save="handleLeaveWithoutSave"
-      @save-and-leave="handleSaveAndLeave"
-    />
-  </main>
+    <!-- 失败模态框 -->
+    <div
+      v-if="showErrorModal"
+      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
+      @click="closeErrorModal"
+    >
+      <div
+        class="bg-white rounded-xl w-[90%] max-w-[460px] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] text-center"
+        @click.stop
+      >
+        <div class="text-[60px] mb-5 text-[#EF4444]">
+          <i class="fa-solid fa-circle-exclamation"></i>
+        </div>
+        <h2 class="text-[#333333] mb-4">发布失败</h2>
+        <p class="mb-6 text-[#666666]">{{ errorMessage }}</p>
+        <div class="flex justify-center gap-2.5">
+          <button
+            class="px-8 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all border-none bg-[#FF8C00] text-white hover:bg-[#E67A2A]"
+            @click="closeErrorModal"
+          >
+            确定
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
