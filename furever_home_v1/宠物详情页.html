@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小橘 - 宠物详情 | FUREVER HOME</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #FF8C00; 
+            --text-orange: #FF8C00;   
+            --bg-color: #F8F9FB;      
+            --card-bg: #FFFFFF;       
+            --text-main: #333333;
+            --text-sub: #666666;
+            --sidebar-active-bg: #FFE4CF;
+            --sidebar-active-text: #D97706;
+            --footer-bg: #1E293B;
+            --radius: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+        }
+        body {
+            background: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+        button {
+            border: none;
+            cursor: pointer;
+        }
+
+        /* 顶部导航 */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav ul {
+            display: flex;
+            gap: 30px;
+            font-size: 16px; 
+            list-style: none;
+        }
+
+        nav ul li {
+            cursor: pointer;
+            opacity: 0.9;
+            padding: 5px 0; 
+            border-bottom: 3px solid transparent; 
+            transition: all 0.3s ease;
+        }
+        
+        nav ul li:hover {
+            opacity: 1;
+            font-weight: 500;
+        }
+
+        .active {
+            opacity: 1;
+            font-weight: 800; 
+            border-bottom-color: white; 
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+        .user-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: none;
+            flex-direction: column;
+            min-width: 140px;
+            padding: 8px 0;
+            z-index: 2000;
+            animation: fadeIn 0.2s ease;
+        }
+        .user-menu.show {
+            display: flex;
+        }
+        .user-menu a {
+            padding: 10px 16px;
+            font-size: 14px;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .user-menu a:hover {
+            background: var(--gray);
+        }
+
+        /* 主内容 */
+        main {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        .pet-profile {
+            display: flex;
+            gap: 30px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        .pet-image {
+            flex: 1 1 380px;
+            min-width: 300px;
+            background: #FFE4B5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+        }
+        .pet-image img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: var(--radius);
+        }
+        .pet-info {
+            flex: 1 1 380px;
+            padding: 30px;
+        }
+        .pet-name {
+            font-size: 28px;
+            color: var(--primary-color);
+            margin-bottom: 6px;
+        }
+        .pet-breed {
+            color: var(--text-sub);
+            margin-bottom: 20px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .info-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-label {
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+        .adoption-status {
+            background: #fffaf0;
+            padding: 15px;
+            border-radius: var(--radius);
+            margin: 20px 0;
+        }
+        .status-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .status-temporary {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .current-owner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .owner-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: #F3C697;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+        }
+        .owner-info {
+            flex: 1;
+        }
+        .owner-name {
+            font-weight: 600;
+        }
+        .owner-rating {
+            color: #f5a623;
+            font-size: 13px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 22px;
+            background: var(--primary-color);
+            color: #fff;
+            border-radius: var(--radius);
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: #e6722a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .btn-secondary {
+            background: #4A90E2;
+        }
+        .btn-secondary:hover {
+            background: #3a7bc8;
+        }
+
+        /* 描述 + 相册 */
+        .pet-description {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--text-main);
+        }
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .photo-item {
+            height: 150px;
+            background: #f0f0f0;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* 底部 */
+        footer {
+            background: var(--footer-bg);
+            color: #fff;
+            padding: 40px 5% 20px;
+            margin-top: 60px;
+        }
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+        }
+        .footer-section {
+            flex: 1 1 260px;
+        }
+        .footer-section h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .social-icons {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .copyright {
+            text-align: center;
+            padding-top: 25px;
+            margin-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 850px) {
+            header { padding: 0 20px; }
+            nav { display: none; }
+            .pet-profile {
+                flex-direction: column;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-paw"></i> FUREVERHOME
+        </div>
+        <nav>
+            <ul>
+                <li>首页</li>
+                <li class="active">宠物列表</li>
+                <li>沟通对接</li>
+                <li>宠物论坛</li>
+                <li>发布宠物</li>
+            </ul>
+        </nav>
+        <!-- 右侧用户头像（可点击） -->
+    <div class="user-section" id="userSection">
+        <div class="user-avatar">👤</div>
+        <span>用户</span>
+
+        <!-- 用户下拉菜单 -->
+        <div class="user-menu" id="userMenu">
+          <a href="#">用户中心</a>
+          <a href="#">退出登录</a>
+        </div>
+    </div>
+    </header>
+
+    <!-- 主体 -->
+    <main>
+        <div class="pet-profile">
+            <div class="pet-image">
+                <img src="D:\Desktop\cw\software\20180819135314_ULNQV.jpg" alt="小橘">
+            </div>
+            <div class="pet-info">
+                <h1 class="pet-name">小橘</h1>
+                <p class="pet-breed">中华田园猫 · 猫</p>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">性别</div>
+                        <div>公</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">年龄</div>
+                        <div>1岁</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">绝育状况</div>
+                        <div>已绝育</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">目前位置</div>
+                        <div>xx省xx市</div>
+                    </div>
+                </div>
+
+                <div class="adoption-status">
+                    <span class="status-tag status-temporary">短期领养</span>
+                    <p>当前领养状态：临时收养</p>
+                    <div class="current-owner">
+                        <div class="owner-avatar">李</div>
+                        <div class="owner-info">
+                            <div class="owner-name">李同学</div>
+                            <div class="owner-rating">评分: 4.9 ★★★★☆</div>
+                        </div>
+                        <a href="#" class="btn btn-secondary">查看主页</a>
+                        <a href="#" class="btn btn-secondary">联系TA</a>
+                    </div>
+                </div>
+
+                <button class="btn">请求领养</button>
+            </div>
+        </div>
+
+        <div class="pet-description">
+            <h2 class="section-title">关于小橘</h2>
+            <p>小橘是2022年秋天在xx大学被发现的流浪小猫，当时只有两个月大，被李同学救助并临时收养至今，已经健康成长为一只活跃可爱的猫咪。</p>
+            <p>小橘性格异常温顺，喜欢与人互动，会主动蹭腿示好，特别喜欢玩逗猫棒和在线球，作息规律，已经学会使用猫砂盆，非常适合家庭培养。</p>
+            <p>作为临时收养者，李同学已为小橘完成绝育、三联疫苗和体外驱虫，健康状况良好，希望能为小橘找到一个有爱心、负责任的长期家庭。</p>
+
+            <h2 class="section-title" style="margin-top: 30px;">生活照片</h2>
+            <div class="photo-gallery">
+                <div class="photo-item">照片1</div>
+                <div class="photo-item">照片2</div>
+                <div class="photo-item">照片3</div>
+                <div class="photo-item">照片4</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部 -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>数据统计</h3>
+                <p>我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。</p>
+                <a href="#" style="color: var(--primary-color);">查看合作救助站 →</a>
+            </div>
+            <div class="footer-section">
+                <h3>联系开发团队</h3>
+                <p>如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。</p>
+                <div class="social-icons">
+                    <img src="https://img.icons8.com/color/24/wechat.png" alt="微信">
+                    <img src="https://img.icons8.com/color/24/qq.png" alt="QQ">
+                    <img src="https://img.icons8.com/color/24/weibo.png" alt="微博">
+                </div>
+            </div>
+        </div>
+        <div class="copyright">
+            2025 FUREVERHOME 流浪动物领养平台 - 让每个生命都有温暖的家
+        </div>
+    </footer>
+    <script>
+        // 用户下拉菜单功能
+        const userSection = document.getElementById('userSection');
+        const userMenu = document.getElementById('userMenu');
+        
+        // 点击用户区域切换菜单显示状态
+        userSection.addEventListener('click', function(e) {
+        e.stopPropagation(); // 阻止事件冒泡
+        userMenu.classList.toggle('show');
+        });
+        
+        // 点击页面其他区域关闭菜单
+        document.addEventListener('click', function() {
+        userMenu.classList.remove('show');
+        });
+        
+        // 防止菜单内部点击时关闭菜单
+        userMenu.addEventListener('click', function(e) {
+        e.stopPropagation();
+        });
+    </script>
+</body>
+</html>
