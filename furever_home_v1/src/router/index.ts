@@ -3,6 +3,7 @@ import Home from '../views/home/Home.vue'
 import PetList from '../views/pet/PetList.vue'
 import PostPet from '../views/pet/PostPet.vue'
 import PetDetail from '../views/pet/PetDetail.vue'
+import ApplyAdoption from '../views/pet/ApplyAdoption.vue'
 import Talk from '../views/talk/Talk.vue'
 import PostList from '../views/forum/PostList.vue'
 import PostDetail from '../views/forum/PostDetail.vue'
@@ -32,6 +33,11 @@ const routes: RouteRecordRaw[] = [
     path: '/pet/:id',
     name: 'PetDetail',
     component: PetDetail
+  },
+  {
+    path: '/pet/:id/apply',
+    name: 'ApplyAdoption',
+    component: ApplyAdoption
   },
   {
     path: '/communication',
