@@ -196,7 +196,7 @@
           </div>
         </div>
       </div>
-      <div class="text-center mt-8 pt-5 border-t border-white/10 text-sm text-[#aaa]">
+      <div class="text-center mt-8 pt-5 border-t border-[rgba(255,255,255,0.1)] text-sm text-[#aaa]">
         2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
       </div>
     </footer>
@@ -209,12 +209,10 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 const goToPetList = () => {
-  console.log('跳转到宠物列表')
   router.push('/pets')
 }
 
 const goToPostPet = () => {
-  console.log('跳转到发布宠物')
   router.push('/post-pet')
 }
 </script>

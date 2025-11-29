@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>沟通对接 - FUREVERHOME</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 全局重置与基础样式 --- */
+        :root {
+            --primary-color: #FF8C00; 
+            --text-orange: #FF8C00;   
+            --bg-color: #F8F9FB;      
+            --card-bg: #FFFFFF;       
+            --text-main: #333333;
+            --text-sub: #666666;
+            
+            --border-color: #E5E7EB;
+            --chat-bg-gray: #F3F4F6;
+            --footer-bg: #1E293B;
+            
+            /* 聊天气泡颜色 */
+            --bubble-sent: #FF8C00;
+            --bubble-sent-text: #FFFFFF;
+            --bubble-received: #FFFFFF;
+            --bubble-received-text: #333333;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+
+        /* --- 顶部导航栏 --- */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0; 
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav ul {
+            display: flex;
+            gap: 30px;
+            font-size: 16px; 
+        }
+
+        nav ul li {
+            cursor: pointer;
+            opacity: 0.9;
+            padding: 5px 0; 
+            border-bottom: 3px solid transparent; 
+            transition: all 0.3s ease;
+        }
+        
+        nav ul li:hover {
+            opacity: 1;
+            font-weight: 500;
+        }
+
+        .user-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* --- 主要内容区域 (聊天布局) --- */
+        main.chat-container {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 20px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 160px); 
+        }
+
+        /* --- 左侧：联系人列表 --- */
+        aside.chat-sidebar {
+            width: 320px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px 20px 10px 20px;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #111;
+        }
+
+        /* 搜索框 */
+        .search-wrapper {
+            position: relative;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 10px 10px 35px;
+            border: 1px solid #F3F4F6;
+            background-color: #F9FAFB;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+        }
+        .search-input:focus {
+            border-color: var(--primary-color);
+            background-color: white;
+        }
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9CA3AF;
+            font-size: 14px;
+        }
+
+        /* 联系人列表 */
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .contact-list::-webkit-scrollbar { width: 6px; }
+        .contact-list::-webkit-scrollbar-thumb { background-color: #E5E7EB; border-radius: 3px; }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .contact-item:hover {
+            background-color: #F9FAFB;
+        }
+
+        .contact-item.active {
+            background-color: #FFF7ED; 
+            border-left-color: var(--primary-color);
+        }
+
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 16px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .avatar-yellow { background-color: #FBBF24; }
+        .avatar-green { background-color: #34D399; }
+        .avatar-blue { background-color: #60A5FA; }
+        .avatar-purple { background-color: #A78BFA; }
+        .avatar-red { background-color: #F87171; }
+
+        .contact-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .contact-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .contact-name {
+            font-weight: bold;
+            font-size: 15px;
+            color: #111;
+        }
+
+        .contact-time {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        .contact-msg {
+            font-size: 13px;
+            color: #6B7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .badge {
+            background-color: #EF4444;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        /* --- 右侧：聊天窗口 --- */
+        section.chat-window {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 聊天头部 */
+        .chat-header {
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 70px; /* 固定高度，保持美观 */
+        }
+
+        .chat-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 消息区域 */
+        .messages-area {
+            flex: 1;
+            background-color: #F9FAFB;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 消息气泡 */
+        .message-row {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+        }
+
+        .msg-received {
+            align-self: flex-start;
+        }
+
+        .msg-sent {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .bubble-received {
+            background-color: var(--bubble-received);
+            color: var(--bubble-received-text);
+            border-top-left-radius: 2px;
+        }
+
+        .bubble-sent {
+            background-color: var(--bubble-sent);
+            color: var(--bubble-sent-text);
+            border-top-right-radius: 2px;
+        }
+
+        .msg-time {
+            font-size: 11px;
+            color: #9CA3AF;
+            margin-top: 5px;
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 15px 25px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background-color: white;
+        }
+
+        .input-icon {
+            font-size: 20px;
+            color: #9CA3AF;
+            cursor: pointer;
+        }
+        .input-icon:hover { color: var(--text-main); }
+
+        .chat-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            outline: none;
+            padding: 5px;
+        }
+
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
+        .send-btn:hover { background-color: #D97706; transform: scale(1.05); }
+
+        /* 页脚 */
+        footer {
+            background-color: var(--footer-bg);
+            color: #94A3B8;
+            padding: 20px 0;
+            font-size: 12px;
+            text-align: center;
+            margin-top: auto;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-paw"></i> FUREVERHOME
+        </div>
+        <nav>
+            <ul>
+                <li>首页</li>
+                <li>宠物列表</li>
+                <li>沟通对接</li>
+                <li>宠物论坛</li>
+                <li>发布宠物</li>
+            </ul>
+        </nav>
+        <div class="user-actions">
+            <i class="fa-solid fa-circle-user" style="font-size: 20px;"></i>
+            <span>用户</span>
+        </div>
+    </header>
+
+    <main class="chat-container">
+        
+        <aside class="chat-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">消息</div>
+                <div class="search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" class="search-input" placeholder="搜索联系人...">
+                </div>
+            </div>
+
+            <div class="contact-list">
+                
+                <div class="contact-item active">
+                    <div class="avatar avatar-yellow">张</div>
+                    <div class="contact-info">
+                        <div class="contact-top">
+                            <span class="contact-name">张同学</span>
+                            <span class="contact-time">10:25</span>
+                        </div>
+                        <div class="contact-msg">关于小橘的领养问题...</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <div class="avatar avatar-green">王</div>
+                    <div class="contact-info">
+                        <div class="contact-top">
+                            <span class="contact-name">王老师</span>
+                            <span class="contact-time">昨天</span>
+                        </div>
+                        <div class="contact-msg">感谢您救助了校园里的流浪猫</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <div class="avatar avatar-blue">宠</div>
+                    <div class="contact-info">
+                        <div class="contact-top">
+                            <span class="contact-name">宠物救助中心</span>
+                            <span class="contact-time">周一</span>
+                        </div>
+                        <div class="contact-msg">新一批流浪猫需要临时寄养</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <div class="avatar avatar-purple">刘</div>
+                    <div class="contact-info">
+                        <div class="contact-top">
+                            <span class="contact-name">刘女士</span>
+                            <span class="contact-time">11月3日</span>
+                        </div>
+                        <div class="contact-msg">我想申请领养小橘</div>
+                    </div>
+                </div>
+
+                <div class="contact-item">
+                    <div class="avatar avatar-red">陈</div>
+                    <div class="contact-info">
+                        <div class="contact-top">
+                            <span class="contact-name">陈同学</span>
+                            <span class="contact-time">11月2日</span>
+                        </div>
+                        <div class="contact-top">
+                            <div class="contact-msg">关于小白的生活习惯...</div>
+                            <div class="badge">3</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <section class="chat-window">
+            
+            <div class="chat-header">
+                <div class="chat-user-info">
+                    <div class="avatar avatar-yellow" style="width:40px; height:40px;">张</div>
+                    <div>
+                        <div style="font-weight:bold;">张同学</div>
+                        </div>
+                </div>
+                </div>
+
+            <div class="messages-area">
+                
+                <div class="message-row msg-received">
+                    <div class="bubble bubble-received">
+                        您好！我在平台看到了您发布的小橘信息，想了解一下领养流程。
+                    </div>
+                    <span class="msg-time">10:15</span>
+                </div>
+
+                <div class="message-row msg-sent">
+                    <div class="bubble bubble-sent">
+                        您好！很高兴您对小橘感兴趣。小橘是一只1岁的橘猫，已经完成疫苗接种和绝育手术，性格非常亲人。
+                    </div>
+                    <span class="msg-time">10:18</span>
+                </div>
+
+                <div class="message-row msg-received">
+                    <div class="bubble bubble-received">
+                        太好了！我家已经有一只猫咪了，不知道小橘能否与其他猫咪相处？
+                    </div>
+                    <span class="msg-time">10:20</span>
+                </div>
+
+                <div class="message-row msg-sent">
+                    <div class="bubble bubble-sent">
+                        小橘性格温和，之前在我这里与其他猫咪相处得很好。如果您有兴趣，我们可以安排一次见面，让两只猫咪先接触一下。
+                    </div>
+                    <span class="msg-time">10:22</span>
+                </div>
+
+            </div>
+
+            <div class="input-area">
+                <i class="fa-regular fa-face-smile input-icon"></i>
+                <i class="fa-solid fa-paperclip input-icon"></i>
+                <input type="text" class="chat-input" placeholder="输入消息...">
+                <button class="send-btn">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+
+        </section>
+
+    </main>
+
+    <footer>
+        <div class="copyright">
+            2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家
+        </div>
+    </footer>
+
+</body>
+</html>

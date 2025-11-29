@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布救助动物 | FUREVERHOME</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 全局重置与基础样式 --- */
+        :root {
+            --primary-color: #FF8C00; 
+            --text-orange: #FF8C00;   
+            --bg-color: #F8F9FB;      
+            --card-bg: #FFFFFF;       
+            --text-main: #333333;
+            --text-sub: #666666;
+            --sidebar-active-bg: #FFE4CF;
+            --sidebar-active-text: #D97706;
+            --footer-bg: #1E293B;
+            --border-color: #E5E7EB;
+            --error-color: #EF4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+
+        /* --- 顶部导航栏 --- */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav ul {
+            display: flex;
+            gap: 30px;
+            font-size: 16px; 
+        }
+
+        nav ul li {
+            cursor: pointer;
+            opacity: 0.9;
+            padding: 5px 0; 
+            border-bottom: 3px solid transparent; 
+            transition: all 0.3s ease;
+        }
+        
+        nav ul li:hover {
+            opacity: 1;
+            font-weight: 500;
+        }
+
+        /* 选中样式类 */
+        .active {
+            opacity: 1;
+            font-weight: 800; 
+            border-bottom-color: white; 
+        }
+
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            cursor: pointer;
+        }
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+        .user-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 8px;
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            display: none;
+            flex-direction: column;
+            min-width: 140px;
+            padding: 8px 0;
+            z-index: 2000;
+            animation: fadeIn 0.2s ease;
+        }
+        .user-menu.show {
+            display: flex;
+        }
+        .user-menu a {
+            padding: 10px 16px;
+            font-size: 14px;
+            color: var(--text-main);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .user-menu a:hover {
+            background: var(--gray);
+        }
+
+        /* --- 个人中心主体布局 --- */
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 30px;
+        }
+
+        /* --- 左侧侧边栏 --- */
+        aside.sidebar {
+            width: 260px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 30px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            height: fit-content;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .profile-summary {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-bottom: 10px;
+        }
+        
+        .profile-img {
+             width: 50px; height: 50px; background:#F3C697; border-radius:50%;
+             display:flex; align-items:center; justify-content:center; color:white;
+        }
+
+        .profile-text h3 { font-size: 16px; font-weight: bold; color: var(--text-main); }
+
+        .menu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            color: #4B5563;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .menu-item:hover { background-color: #F3F4F6; }
+        
+        .menu-item.menu-active { /* 侧边栏激活状态 */
+            background-color: var(--sidebar-active-bg);
+            color: var(--sidebar-active-text);
+            font-weight: 600;
+        }
+
+        .menu-item i { width: 20px; text-align: center; }
+        .logout-btn { color: #EF4444; margin-top: 20px; }
+        .logout-btn:hover { background-color: #FEF2F2; }
+
+        /* --- 右侧内容区 --- */
+        main.main-content { 
+            flex: 1; 
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        .form-container {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            color: var(--primary-color);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-sub);
+            font-size: 14px;
+        }
+
+        .required::after {
+            content: " *";
+            color: var(--error-color);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input {
+            width: auto;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(255, 140, 0, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+            color: var(--text-sub);
+        }
+
+        .upload-text {
+            color: var(--text-sub);
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #9CA3AF;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #E67A2A;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(255, 140, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 460px;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            text-align: center;
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .modal-success .modal-icon {
+            color: #10B981;
+        }
+
+        .modal-error .modal-icon {
+            color: var(--error-color);
+        }
+
+        .modal h2 {
+            color: var(--text-main);
+            margin-bottom: 15px;
+        }
+
+        .modal p {
+            margin-bottom: 25px;
+            color: var(--text-sub);
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 850px) {
+            .container { flex-direction: column; }
+            aside.sidebar { width: 100%; }
+            .menu-list { display: flex; }
+            .form-grid, .contact-grid { grid-template-columns: 1fr; }
+            header { padding: 0 20px; }
+            nav { display: flex; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-paw"></i> FUREVERHOME
+        </div>
+        <nav>
+            <ul>
+                <li>首页</li>
+                <li>宠物列表</li>
+                <li>沟通对接</li>
+                <li>宠物论坛</li>
+                <li class="active">发布宠物</li>
+            </ul>
+        </nav>
+        <!-- 右侧用户头像（可点击） -->
+        <div class="user-section" id="userSection">
+            <div class="user-avatar">👤</div>
+            <span>用户</span>
+            
+            <!-- 用户下拉菜单 -->
+            <div class="user-menu" id="userMenu">
+                <a href="#">用户中心</a>
+                <a href="#">退出登录</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="main-content">
+            <h1 class="page-title">发布待领养动物信息</h1>
+
+            <form id="animalForm">
+                <div class="form-container">
+                    <h2 class="section-title"><i class="fa-solid fa-paw"></i> 宠物基本信息</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="pet-name" class="required">动物名称</label>
+                            <input type="text" id="pet-name" placeholder="例如：豆豆" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pet-age" class="required">年龄(以月为单位)</label>
+                            <input type="text" id="pet-age" placeholder="例如：5" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pet-gender" class="required">性别</label>
+                            <select id="pet-gender" required>
+                                <option value="">请选择</option> 
+                                <option value="公">公</option>
+                                <option value="母">母</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pet-type" class="required">动物种类</label>
+                            <select id="pet-type" required>
+                                <option value="">请选择</option>
+                                <option value="狗">狗</option>
+                                <option value="猫">猫</option>
+                                <option value="兔子">兔子</option>
+                                <option value="仓鼠">仓鼠</option>
+                                <option value="鸟类">鸟类</option>
+                                <option value="鱼类">鱼类</option>
+                                <option value="龟类">龟类</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pet-breed">动物品种</label>
+                            <input type="text" id="pet-breed" placeholder="例如：拉布拉多、布偶猫" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pet-sterilized" class="required">是否绝育</label>
+                            <select id="pet-sterilized" required>
+                                <option value="">请选择</option>
+                                <option value="是">是</option>
+                                <option value="否">否</option>
+                                <option value="未知">未知</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="pet-location" class="required">目前位置</label>
+                            <input type="text" id="pet-location" placeholder="例如：北京市海淀区" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <h2 class="section-title"><i class="fa-solid fa-image"></i> 照片/视频上传</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <div class="upload-text">点击上传或拖拽文件到这里</div>
+                        <div class="upload-hint">支持 JPG, PNG 格式，最多5张照片</div>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <h2 class="section-title"><i class="fa-solid fa-book"></i> 详细描述（救助故事与宠物的健康状态）</h2>
+                    <div class="form-group">
+                        <textarea id="pet-story" placeholder="请详细描述救助的背景、故事和任何特殊需求。"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <h2 class="section-title"><i class="fa-solid fa-address-book"></i> 联系信息</h2>
+                    <div class="contact-grid">
+                        <div class="form-group">
+                            <label for="contact-phone" class="required">联系电话</label>
+                            <input type="tel" id="contact-phone" placeholder="13812345678" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-email" class="required">电子邮箱</label>
+                            <input type="email" id="contact-email" placeholder="user@example.com" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">提交审核</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- 成功模态框 -->
+    <div id="successModal" class="modal modal-success">
+        <div class="modal-content">
+            <div class="modal-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <h2>发布成功！</h2>
+            <p>您发布的宠物信息将展示在平台上。</p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="successConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 失败模态框 -->
+    <div id="errorModal" class="modal modal-error">
+        <div class="modal-content">
+            <div class="modal-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <h2>发布失败</h2>
+            <p id="errorMessage">请检查并完善所有必填信息后重新提交。</p>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" id="errorConfirmBtn">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 文件上传区域交互
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('click', function() {
+            // 在实际应用中，这里应该触发文件选择对话框
+            alert('文件上传功能将在实际应用中实现');
+        });
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--primary-color)';
+            uploadArea.style.backgroundColor = 'rgba(255, 140, 0, 0.05)';
+        });
+        
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.style.borderColor = 'var(--border-color)';
+            uploadArea.style.backgroundColor = 'transparent';
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--border-color)';
+            uploadArea.style.backgroundColor = 'transparent';
+            // 在实际应用中，这里应该处理上传的文件
+            alert('文件拖放上传功能将在实际应用中实现');
+        });
+
+        // 表单提交处理
+        const animalForm = document.getElementById('animalForm');
+        const successModal = document.getElementById('successModal');
+        const errorModal = document.getElementById('errorModal');
+        const errorMessage = document.getElementById('errorMessage');
+        const successConfirmBtn = document.getElementById('successConfirmBtn');
+        const errorConfirmBtn = document.getElementById('errorConfirmBtn');
+
+        // 表单提交事件
+        animalForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 检查必填字段
+            const requiredFields = [
+                'pet-name', 'pet-type', 'pet-breed', 'pet-gender', 'pet-age',
+                'pet-sterilized', 'pet-location', 'contact-phone', 'contact-email'
+            ];
+            
+            let isValid = true;
+            let missingFields = [];
+            
+            requiredFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (!field.value.trim()) {
+                    isValid = false;
+                    missingFields.push(field.previousElementSibling.textContent.replace(' *', ''));
+                }
+            });
+            
+            if (isValid) {
+                // 表单验证通过，显示成功模态框
+                successModal.style.display = 'flex';
+            } else {
+                // 表单验证失败，显示错误模态框
+                errorMessage.textContent = `请完善以下必填信息：${missingFields.join('、')}`;
+                errorModal.style.display = 'flex';
+            }
+        });
+
+        // 模态框按钮事件
+        successConfirmBtn.addEventListener('click', function() {
+            successModal.style.display = 'none';
+            // 在实际应用中，这里可以重定向到其他页面或重置表单
+            animalForm.reset();
+        });
+
+        errorConfirmBtn.addEventListener('click', function() {
+            errorModal.style.display = 'none';
+        });
+
+        // 点击模态框外部关闭
+        [successModal, errorModal].forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        // 用户下拉菜单功能
+        const userSection = document.getElementById('userSection');
+        const userMenu = document.getElementById('userMenu');
+        
+        // 点击用户区域切换菜单显示状态
+        userSection.addEventListener('click', function(e) {
+        e.stopPropagation(); // 阻止事件冒泡
+        userMenu.classList.toggle('show');
+        });
+        
+        // 点击页面其他区域关闭菜单
+        document.addEventListener('click', function() {
+        userMenu.classList.remove('show');
+        });
+        
+        // 防止菜单内部点击时关闭菜单
+        userMenu.addEventListener('click', function(e) {
+        e.stopPropagation();
+        });
+    </script>
+</body>
+</html>

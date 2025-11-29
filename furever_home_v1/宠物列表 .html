@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>宠物列表 - FUREVERHOME</title>
+  <style>
+    :root {
+            --primary: #FF8C42;
+            --primary-dark: #E67A2A;
+            --secondary: #4A90E2;
+            --bg: #FFF9F0;
+            --text-main: #333;
+            --radius: 16px;
+            --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+    body {
+      background: #f5f5f5;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ====== 导航栏 - 图片样式 ====== */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      z-index: 1000;
+    }
+    nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 5%;
+        position: relative;
+        background: #FF8C42;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .logo {
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 1px;
+    }
+    .nav-center {
+        display: flex;
+        gap: 32px;
+        list-style: none;
+        }
+    .nav-center a {
+        position: relative;
+        padding: 6px 0;
+        font-size: 15px;
+        color:#fff;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+    .nav-center a::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: #fff;
+        transition: width 0.3s;
+    }
+    .nav-center a:hover,
+    .nav-center a.active {
+        color: #fff;
+    }
+    .nav-center a:hover::after,
+    .nav-center a.active::after {
+        width: 100%;
+    }
+    .user-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+        cursor: pointer;
+    }
+    .user-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background-color: rgba(255,255,255,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: transform 0.3s;
+    }
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .user-avatar:hover {
+        transform: scale(1.1);
+    }
+    .user-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        margin-top: 8px;
+        background: #fff;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        display: none;
+        flex-direction: column;
+        min-width: 140px;
+        padding: 8px 0;
+        z-index: 2000;
+        animation: fadeIn 0.2s ease;
+    }
+    .user-menu.show {
+        display: flex;
+    }
+    .user-menu a {
+        padding: 10px 16px;
+        font-size: 14px;
+        color: var(--text-main);
+        text-decoration: none;
+        transition: background 0.2s;
+    }
+    .user-menu a:hover {
+        background: var(--gray);
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ====== 主体内容 ====== */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 30px 5%;
+    }
+    .hero-section {
+      margin-top: 80px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .hero-title {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .hero-subtitle {
+      font-size: 16px;
+      color: #666;
+    }
+
+    /* 筛选栏 */
+    .dropdown {
+        padding: 6px 12px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        font-size: 14px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color 0.3s;
+    }
+    .dropdown:hover {
+        border-color: var(--primary);
+    }
+    .filter-bar {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: var(--shadow);
+    }
+    .filter-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .filter-label {
+      font-size: 14px;
+      color: #666;
+      white-space: nowrap;
+    }
+    .filter-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-tag {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #fff;
+    }
+    .filter-tag:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .filter-tag.checked {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .advanced-btn {
+      margin-left: auto;
+      padding: 6px 14px;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #fff;
+      transition: all 0.3s;
+    }
+    .advanced-btn:hover {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* 宠物网格 */
+    .pets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 25px;
+      margin-bottom: 40px;
+    }
+    .pet-card {
+      background: #fff;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      transition: transform 0.3s;
+      cursor: pointer;
+    }
+    .pet-card:hover {
+      transform: translateY(-5px);
+    }
+    .pet-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: #FFE4B5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-weight: bold;
+    }
+    .pet-content {
+      padding: 20px;
+    }
+    .pet-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .pet-info {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .pet-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+    .days-info {
+          background-color: var(--bg);
+          padding: 8px;
+          border-radius: 4px;
+          text-align: center;
+          font-size: 14px;
+          margin-top: 10px;
+      }
+    .status-tag {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status-short {
+      background: #FFF3CD;
+      color: #856404;
+    }
+    .status-long {
+      background: #D1FAE5;
+      color: #059669;
+    }
+    .status-days {
+      background-color: var(--bg);
+      padding: 8px;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .owner-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    /* 分页样式 */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 40px;
+    }
+    .pagination button {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .pagination button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .pagination button.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .pagination button:disabled {
+      color: #ccc;
+      cursor: not-allowed;
+    }
+    .pagination button:disabled:hover {
+      border-color: #ddd;
+      color: #ccc;
+    }
+
+    /* 底部 */
+    footer {
+      background: #2C3E50;
+      color: #fff;
+      padding: 40px 5% 20px;
+      margin-top: 60px;
+    }
+    .footer-content {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      max-width: 1200px;
+      margin: 0 auto;
+      gap: 30px;
+    }
+    .footer-section {
+      flex: 1;
+      min-width: 220px;
+    }
+    .footer-section h3 {
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    .footer-section p {
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #ccc;
+    }
+    .social-icons {
+      margin-top: 10px;
+      display: flex;
+      gap: 12px;
+    }
+    .social-icons img {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      transition: transform 0.3s;
+    }
+    .social-icons img:hover {
+      transform: scale(1.15);
+    }
+    .copyright {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <!-- ====== 导航栏 - 图片样式 ====== -->
+<header>
+  <nav>
+    <!-- 左侧 Logo -->
+    <div class="logo">🐾 FUREVERHOME</div>
+
+    <!-- 中间导航文字 -->
+    <ul class="nav-center">
+      <li><a href="index.html">首页</a></li>
+      <li><a href="#" class="active">宠物列表</a></li>
+      <li><a href="#">沟通对接</a></li>
+      <li><a href="#">宠物论坛</a></li>
+      <li><a href="#">发布救助</a></li>
+    </ul>
+
+    <!-- 右侧用户头像（可点击） -->
+    <div class="user-section" id="userSection">
+        <div class="user-avatar">👤</div>
+        <span>用户</span>
+
+        <!-- 用户下拉菜单 -->
+        <div class="user-menu" id="userMenu">
+          <a href="#">用户中心</a>
+          <a href="#">退出登录</a>
+        </div>
+    </div>
+  </nav>
+</header>
+
+  <!-- ====== 主体内容 ====== -->
+  <div class="container">
+    <!-- Hero -->
+    <section class="hero-section">
+      <h1 class="hero-title">为这些可爱的小生命寻找一个永久的家</h1>
+      <p class="hero-subtitle">领养代替购买，给流浪动物一个温暖的家</p>
+    </section>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <div class="filter-row">
+        <span class="filter-label">筛选条件：</span>
+
+        <!-- 热门推荐 -->
+        <div class="filter-tags">
+          <div class="filter-tag checked">热门推荐</div>
+        </div>
+
+        <!-- 地区（省） -->
+        <span class="filter-label">地区</span>
+        <select class="dropdown" id="province">
+          <option value="">请选择</option>
+          <option>北京市</option>
+          <option>上海市</option>
+          <option>广东省</option>
+          <option>江苏省</option>
+          <option>浙江省</option>
+          <option>四川省</option>
+          <option>湖北省</option>
+          <option>山东省</option>
+          /*未全部列出，待实现*/
+        </select>
+
+        <!-- 种类 -->
+        <span class="filter-label">种类</span>
+        <select class="dropdown" id="type">
+          <option value="">请选择</option>
+          <option>猫</option>
+          <option>狗</option>
+          <option>其他</option>
+        </select>
+
+        <!-- 性别 -->
+        <span class="filter-label">性别</span>
+        <select class="dropdown" id="gender">
+          <option value="">请选择</option>
+          <option>公</option>
+          <option>母</option>
+        </select>
+
+        <!-- 年龄区间 -->
+        <span class="filter-label">年龄</span>
+        <select class="dropdown" id="age">
+          <option value="">请选择</option>
+          <option>0-6个月</option>
+          <option>6-12个月</option>
+          <option>1-3岁</option>
+          <option>3-7岁</option>
+          <option>7岁以上</option>
+        </select>
+
+        <!-- 领养状态 -->
+        <span class="filter-label">领养状态</span>
+        <select class="dropdown" id="adoption-status">
+          <option value="">请选择</option>
+          <option>短期领养</option>
+          <option>长期领养</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 宠物网格 -->
+    <div class="pets-grid">
+      <div class="pet-card" onclick="alert('点击查看小橘详情')">
+        <div class="pet-image">小橘的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">小橘</div>
+          <div class="pet-info">猫 · 1岁 · 已绝育</div>
+          <div class="status-tag status-short">短期领养</div>
+          <div class="owner-info">临时收养者：李同学</div>
+          <div class="days-info">已短期领养 15 天</div>
+        </div>
+      </div>
+
+      <!-- 煤球 -->
+      <div class="pet-card" onclick="alert('点击查看煤球详情')">
+        <div class="pet-image">煤球的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">煤球</div>
+          <div class="pet-info">狗 · 6个月 · 未绝育</div>
+          <div class="status-tag status-long">长期领养</div>
+          <div class="owner-info">临时收养者：王同学</div>
+          <div class="days-info">已长期领养 6 天</div>
+        </div>
+      </div>
+
+      <!-- 雪球 -->
+      <div class="pet-card" onclick="alert('点击查看雪球详情')">
+        <div class="pet-image">雪球的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">雪球</div>
+          <div class="pet-info">猫 · 3岁 · 已绝育</div>
+          <div class="status-tag status-long">长期领养</div>
+          <div class="owner-info">临时收养者：赵同学</div>
+          <div class="days-info">已长期领养 3 天</div>
+        </div>
+      </div>
+
+      <!-- 小黑 -->
+      <div class="pet-card" onclick="alert('点击查看小黑详情')">
+        <div class="pet-image">小黑的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">小黑</div>
+          <div class="pet-info">狗· 8个月 · 未绝育</div>
+          <div class="status-tag status-short">短期领养</div>
+          <div class="owner-info">临时收养者：李同学</div>
+          <div class="days-info">已短期领养 8 天</div>
+        </div>
+      </div>
+      <!-- 灰灰 -->
+      <div class="pet-card" onclick="alert('点击查看灰灰详情')">
+        <div class="pet-image">灰灰的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">灰灰</div>
+          <div class="pet-info">猫 · 5个月 · 已绝育</div>
+          <div class="status-tag status-short">短期领养</div>
+          <div class="owner-info">临时收养者：刘同学</div>
+          <div class="days-info">已短期领养 5 天</div>
+        </div>
+      </div>
+
+      <!-- 小金 -->
+      <div class="pet-card" onclick="alert('点击查看小金详情')">
+        <div class="pet-image">小金的照片</div>
+        <div class="pet-content">
+          <div class="pet-name">小金</div>
+          <div class="pet-info">狗 · 3个月 · 未绝育</div>
+          <div class="status-tag status-long">长期领养</div>
+          <div class="owner-info">临时收养者：陈同学</div>
+          <div class="days-info">已长期领养 26 天</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination">
+      <button class="prev" disabled>上一页</button>
+      <button class="page active">1</button>
+      <button class="page">2</button>
+      <button class="page">3</button>
+      <button class="page">4</button>
+      <button class="page">5</button>
+      <button class="next">下一页</button>
+    </div>
+  </div>
+
+  <!-- 底部 -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h3>数据统计</h3>
+        <p>我们与多家救助站建立了长期合作关系</p>
+        <p>已为 <strong>1,286</strong> 只小动物找到新家</p>
+        <a href="#" style="color: #FF8C42;">查看合作救助站 →</a>
+      </div>
+      <div class="footer-section">
+        <h3>联系开发团队</h3>
+        <p>如果您有任何问题、建议或合作意向，请随时联系我们的开发团队。</p>
+        <div class="social-icons">
+          <img src="https://img.icons8.com/color/24/wechat.png " alt="微信" />
+          <img src="https://img.icons8.com/color/24/qq.png " alt="QQ" />
+          <img src="https://img.icons8.com/color/24/weibo.png " alt="微博" />
+        </div>
+      </div>
+    </div>
+    <div class="copyright">
+      2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
+    </div>
+  </footer>
+
+  <script>
+    // 筛选切换
+    document.querySelectorAll('.filter-tag').forEach(tag => {
+      tag.addEventListener('click', function () {
+        const siblings = this.parentElement.querySelectorAll('.filter-tag');
+        siblings.forEach(s => s.classList.remove('checked'));
+        this.classList.add('checked');
+      });
+    });
+
+    // 用户下拉菜单功能
+    const userSection = document.getElementById('userSection');
+    const userMenu = document.getElementById('userMenu');
+    
+    // 点击用户区域切换菜单显示状态
+    userSection.addEventListener('click', function(e) {
+      e.stopPropagation(); // 阻止事件冒泡
+      userMenu.classList.toggle('show');
+    });
+    
+    // 点击页面其他区域关闭菜单
+    document.addEventListener('click', function() {
+      userMenu.classList.remove('show');
+    });
+    
+    // 防止菜单内部点击时关闭菜单
+    userMenu.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+
+    // 分页功能
+    document.querySelectorAll('.pagination .page').forEach(page => {
+      page.addEventListener('click', function() {
+        document.querySelectorAll('.pagination .page').forEach(p => {
+          p.classList.remove('active');
+        });
+        this.classList.add('active');
+      });
+    });
+
+    document.querySelector('.pagination .prev').addEventListener('click', function() {
+      if (!this.disabled) {
+        const currentPage = document.querySelector('.pagination .page.active');
+        const prevPage = currentPage.previousElementSibling;
+        if (prevPage && prevPage.classList.contains('page')) {
+          currentPage.classList.remove('active');
+          prevPage.classList.add('active');
+        }
+      }
+    });
+
+    document.querySelector('.pagination .next').addEventListener('click', function() {
+      const currentPage = document.querySelector('.pagination .page.active');
+      const nextPage = currentPage.nextElementSibling;
+      if (nextPage && nextPage.classList.contains('page')) {
+        currentPage.classList.remove('active');
+        nextPage.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>
