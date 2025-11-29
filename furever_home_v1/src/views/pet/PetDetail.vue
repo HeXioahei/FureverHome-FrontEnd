@@ -94,12 +94,9 @@ const contactFosterer = () => {
             <!-- 基本信息 -->
             <div class="lg:w-2/3 w-full flex flex-col">
               <div class="flex-grow">
-                <h1 class="text-4xl font-bold text-primary mb-2">
+                <h1 class="text-4xl font-bold text-primary mb-6">
                   {{ currentPet.animal_name }}
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 mb-6">
-                  {{ currentPet.species }} · {{ currentPet.breed }} · {{ currentPet.animal_location }}
-                </p>
 
                 <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                   <div class="border-b border-slate-200 dark:border-zinc-700 pb-3">
@@ -115,12 +112,18 @@ const contactFosterer = () => {
                     </p>
                   </div>
                   <div class="border-b border-slate-200 dark:border-zinc-700 pb-3">
+                    <p class="text-slate-500 dark:text-slate-400">品种</p>
+                    <p class="font-medium text-slate-800 dark:text-slate-200 mt-1">
+                      {{ currentPet.breed }}
+                    </p>
+                  </div>
+                  <div class="border-b border-slate-200 dark:border-zinc-700 pb-3">
                     <p class="text-slate-500 dark:text-slate-400">健康状况</p>
                     <p class="font-medium text-slate-800 dark:text-slate-200 mt-1">
                       {{ currentPet.health_status }}
                     </p>
                   </div>
-                  <div class="border-b border-slate-200 dark:border-zinc-700 pb-3">
+                  <div>
                     <p class="text-slate-500 dark:text-slate-400">性情特点</p>
                     <p class="font-medium text-slate-800 dark:text-slate-200 mt-1">
                       {{ currentPet.short_description }}

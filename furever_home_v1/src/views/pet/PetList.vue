@@ -1,7 +1,154 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { pets, type Pet } from '@/data/pets'
+
+interface Pet {
+  id: number
+  name: string
+  photoText: string
+  fosterer: string
+  location: string // 省份
+  species: 'cat' | 'dog'
+  age: number // 年龄（单位：岁，暂时用于前端筛选）
+  gender: 'male' | 'female'
+  adoption_status: 'adopted' | 'available'
+  breed: string
+  health_status: string
+}
+
+const pets: Pet[] = [
+  {
+    id: 1,
+    name: '小橘',
+    photoText: '小橘的照片',
+    fosterer: '李同学',
+    location: '广东省',
+    species: 'cat',
+    age: 1,
+    gender: 'male',
+    adoption_status: 'available',
+    breed: '橘猫',
+    health_status: '已绝育'
+  },
+  {
+    id: 2,
+    name: '煤球',
+    photoText: '煤球的照片',
+    fosterer: '王同学',
+    location: '北京市',
+    species: 'dog',
+    age: 5,
+    gender: 'female',
+    adoption_status: 'adopted',
+    breed: '黑色中型犬',
+    health_status: '已免疫'
+  },
+  {
+    id: 3,
+    name: '雪球',
+    photoText: '雪球的照片',
+    fosterer: '赵同学',
+    location: '上海市',
+    species: 'cat',
+    age: 3,
+    gender: 'female',
+    adoption_status: 'available',
+    breed: '长毛白猫',
+    health_status: '健康良好'
+  },
+  {
+    id: 4,
+    name: '小黑',
+    photoText: '小黑的照片',
+    fosterer: '李同学',
+    location: '四川省',
+    species: 'dog',
+    age: 7,
+    gender: 'male',
+    adoption_status: 'adopted',
+    breed: '黑色小型犬',
+    health_status: '已绝育'
+  },
+  {
+    id: 5,
+    name: '灰灰',
+    photoText: '灰灰的照片',
+    fosterer: '刘同学',
+    location: '浙江省',
+    species: 'cat',
+    age: 4,
+    gender: 'female',
+    adoption_status: 'available',
+    breed: '蓝猫',
+    health_status: '已免疫'
+  },
+  {
+    id: 6,
+    name: '卷卷',
+    photoText: '卷卷的照片',
+    fosterer: '杨同学',
+    location: '江苏省',
+    species: 'dog',
+    age: 3,
+    gender: 'male',
+    adoption_status: 'available',
+    breed: '泰迪',
+    health_status: '健康良好'
+  },
+  {
+    id: 7,
+    name: '花花',
+    photoText: '花花的照片',
+    fosterer: '张同学',
+    location: '山东省',
+    species: 'cat',
+    age: 2,
+    gender: 'female',
+    adoption_status: 'available',
+    breed: '玳瑁猫',
+    health_status: '已免疫'
+  },
+  {
+    id: 8,
+    name: '豆豆',
+    photoText: '豆豆的照片',
+    fosterer: '王同学',
+    location: '河南省',
+    species: 'dog',
+    age: 1,
+    gender: 'male',
+    adoption_status: 'adopted',
+    breed: '金毛犬',
+    health_status: '健康良好'
+  },
+  {
+    id: 9,
+    name: '咪咪',
+    photoText: '咪咪的照片',
+    fosterer: '赵同学',
+    location: '湖北省',
+    species: 'cat',
+    age: 1,
+    gender: 'female',
+    adoption_status: 'available',
+    breed: '英短',
+    health_status: '已绝育'
+  },
+  {
+    id: 10,
+    name: '旺旺',
+    photoText: '旺旺的照片',
+    fosterer: '李同学',
+    location: '湖南省',
+    species: 'dog',
+    age: 2,
+    gender: 'male',
+    adoption_status: 'adopted',
+    breed: '拉布拉多',
+    health_status: '已免疫'
+  }
+]
+
 const locationFilter = ref('')
 const genderFilter = ref<'all' | Pet['gender']>('all')
 const speciesFilter = ref<'all' | Pet['species']>('all')
@@ -120,8 +267,8 @@ const filteredPets = computed(() => {
               class="text-sm rounded-full border border-gray-300 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 px-5 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="all">全部</option>
-              <option value="available">短期领养</option>
-              <option value="adopted">长期领养</option>
+              <option value="available">未领养</option>
+              <option value="adopted">已领养</option>
             </select>
           </div>
 
@@ -136,19 +283,8 @@ const filteredPets = computed(() => {
         </div>
       </section>
 
-      <!-- 结果数量提示（仅在有结果时显示） -->
-      <section
-        v-if="filteredPets.length > 0"
-        class="mt-4 mb-4 text-sm text-gray-600 dark:text-gray-300"
-      >
-        共找到 {{ filteredPets.length }} 只符合条件的待领养宠物
-      </section>
-
       <!-- Pet cards -->
-      <section
-        v-if="filteredPets.length > 0"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
-      >
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         <article
           v-for="pet in filteredPets"
           :key="pet.id"
@@ -156,7 +292,7 @@ const filteredPets = computed(() => {
         >
           <RouterLink
             :to="{ name: 'PetDetail', params: { id: pet.id } }"
-            class="block hover:shadow-md transition-shadow duration-150 flex-1 flex flex-col"
+            class="flex-1 flex flex-col hover:shadow-md transition-shadow duration-150"
           >
             <div class="bg-orange-100 dark:bg-orange-900/20 h-56 flex items-center justify-center">
               <span class="text-gray-400 dark:text-gray-500">
@@ -168,24 +304,27 @@ const filteredPets = computed(() => {
               <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">
                 {{ pet.name }}
               </h3>
-            <div class="my-4">
-              <span
-                v-if="pet.adoption_status === 'available'"
-                class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-yellow-800 dark:text-yellow-300 bg-yellow-200 dark:bg-yellow-900/50"
-              >
-                短期领养
-              </span>
-              <span
-                v-else
-                class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-zinc-700/80"
-              >
-                长期领养
-              </span>
-            </div>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ pet.breed }} · {{ pet.age }}个月 · {{ pet.health_status }}
+              </p>
+              <div class="my-4">
+                <span
+                  v-if="pet.adoption_status === 'available'"
+                  class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-yellow-800 dark:text-yellow-300 bg-yellow-200 dark:bg-yellow-900/50"
+                >
+                  等待领养
+                </span>
+                <span
+                  v-else
+                  class="text-xs font-semibold inline-block py-1 px-2.5 uppercase rounded-full text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-zinc-700/80"
+                >
+                  已被领养
+                </span>
+              </div>
 
               <div class="mt-auto pt-4 flex justify-end items-center gap-3">
                 <span class="text-sm text-gray-600 dark:text-gray-300">
-                  {{ pet.adoption_status === 'available' ? '短期收养者' : '长期收养者' }}: {{ pet.fosterer }}
+                  临时收养者: {{ pet.fosterer }}
                 </span>
                 <button
                   class="flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-md bg-primary text-white bg-orange-500 transition-colors"
@@ -199,18 +338,6 @@ const filteredPets = computed(() => {
             </div>
           </RouterLink>
         </article>
-      </section>
-
-      <!-- Empty state illustration -->
-      <section
-        v-else
-        class="mt-8 flex flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400"
-      >
-        <span class="material-icons text-5xl mb-3 text-gray-300 dark:text-gray-600">
-          pets
-        </span>
-        <p class="text-base font-medium mb-1">暂时没有符合条件的宠物</p>
-        <p class="text-sm">可以尝试修改筛选条件，或稍后再来看看新发布的待领养宠物。</p>
       </section>
     </main>
 
