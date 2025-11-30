@@ -65,6 +65,11 @@ const routes: RouteRecordRaw[] = [
     component: Profile
   },
   {
+    path: '/profile/:userId',
+    name: 'UserProfile',
+    component: Profile
+  },
+  {
     path: '/user-center',
     name: 'UserCenter',
     component: UserCenter

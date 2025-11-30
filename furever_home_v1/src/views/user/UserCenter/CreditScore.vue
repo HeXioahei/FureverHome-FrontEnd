@@ -33,7 +33,13 @@
               <i :class="review.avatarIcon"></i>
             </div>
             <div class="flex flex-col">
-              <span class="text-base font-bold" style="color: #111;">{{ review.name }}</span>
+              <span 
+                class="text-base font-bold cursor-pointer transition-colors hover:text-[#FF8C42]" 
+                style="color: #111;"
+                @click="router.push({ name: 'UserProfile', params: { userId: review.nameId || getUserIdByName(review.name) } })"
+              >
+                {{ review.name }}
+              </span>
               <span class="text-xs" style="color: #9CA3AF;">{{ review.time }}</span>
             </div>
           </div>
@@ -76,10 +82,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 interface Review {
   id: number;
   name: string;
+  nameId?: number;
   time: string;
   stars: number;
   content: string;
@@ -92,6 +102,7 @@ const reviews = ref<Review[]>([
   {
     id: 1,
     name: '张伟',
+    nameId: 2,
     time: '2天前',
     stars: 5,
     content: '非常有爱心和责任心的领养人，对猫咪"米洛"照顾得无微不至，沟通顺畅，强烈推荐！',
@@ -102,6 +113,7 @@ const reviews = ref<Review[]>([
   {
     id: 2,
     name: '李静',
+    nameId: 4,
     time: '1周前',
     stars: 5,
     content: '沟通很及时，对宠物的了解也很专业。只是约定时间稍微迟到了一点，但总体体验不错。',
@@ -112,6 +124,7 @@ const reviews = ref<Review[]>([
   {
     id: 3,
     name: '王强',
+    nameId: 5,
     time: '3周前',
     stars: 5,
     content: '回复消息不是很及时，但能看出来是很喜欢小动物的人。希望以后多分享一些宠物的近况。',
@@ -120,6 +133,27 @@ const reviews = ref<Review[]>([
     avatarIcon: 'fa-regular fa-circle'
   }
 ]);
+
+// 根据用户名获取用户ID（这里应该从API获取，暂时使用映射）
+function getUserIdByName(name: string): number {
+  const nameToIdMap: Record<string, number> = {
+    '张伟': 2,
+    '李静': 4,
+    '王强': 5,
+    '张同学': 2,
+    '王老师': 3,
+    '刘同学': 4,
+    '陈学姐': 5,
+    '赵同学': 6,
+    '孙老师': 7,
+    '周同学': 8,
+    '吴同学': 9,
+    '郑同学': 10,
+    '钱老师': 11,
+    '李同学': 1
+  };
+  return nameToIdMap[name] || 1;
+}
 </script>
 
 <style scoped>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import SuccessModal from '../../components/common/SuccessModal.vue'
+import ErrorModal from '../../components/common/ErrorModal.vue'
+import ConfirmModal from '../../components/common/ConfirmModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +22,7 @@ const form = ref({
 const agreedToTerms = ref(false)
 const showSuccessModal = ref(false)
 const showErrorModal = ref(false)
+const showCancelConfirmModal = ref(false)
 const errorMessage = ref('')
 
 // Mock宠物数据（实际应该从API获取）
@@ -35,9 +39,16 @@ const goBack = () => {
 }
 
 const cancel = () => {
-  if (confirm('确定要取消领养申请吗？您填写的信息将不会被保存。')) {
-    router.back()
-  }
+  showCancelConfirmModal.value = true
+}
+
+const confirmCancel = () => {
+  router.back()
+  showCancelConfirmModal.value = false
+}
+
+const closeCancelConfirm = () => {
+  showCancelConfirmModal.value = false
 }
 
 const validateForm = (): boolean => {
@@ -247,46 +258,29 @@ const closeErrorModal = () => {
     </div>
 
     <!-- 成功模态框 -->
-    <div
-      v-if="showSuccessModal"
-      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
-      @click="closeSuccessModal"
-    >
-      <div
-        class="bg-white rounded-xl p-8 max-w-[400px] w-[90%] text-center shadow-lg"
-        @click.stop
-      >
-        <h3 class="text-[#FF8C00] mb-4 text-xl font-bold">提交成功！</h3>
-        <p class="mb-5 leading-relaxed">您的领养申请已提交成功！请等待短期领养者同意。</p>
-        <button
-          class="px-5 py-2.5 bg-[#FF8C00] text-white rounded-lg font-semibold transition-all hover:bg-[#e6722a]"
-          @click="closeSuccessModal"
-        >
-          确定
-        </button>
-      </div>
-    </div>
+    <SuccessModal
+      :visible="showSuccessModal"
+      title="申请成功！"
+      message="您的领养申请已提交成功!请等待短期领养者同意。"
+      @close="closeSuccessModal"
+    />
 
     <!-- 错误模态框 -->
-    <div
-      v-if="showErrorModal"
-      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
-      @click="closeErrorModal"
-    >
-      <div
-        class="bg-white rounded-xl p-8 max-w-[400px] w-[90%] text-center shadow-lg"
-        @click.stop
-      >
-        <h3 class="text-[#FF8C00] mb-4 text-xl font-bold">信息不完整</h3>
-        <p class="mb-5 leading-relaxed">{{ errorMessage }}</p>
-        <button
-          class="px-5 py-2.5 bg-[#FF8C00] text-white rounded-lg font-semibold transition-all hover:bg-[#e6722a]"
-          @click="closeErrorModal"
-        >
-          确定
-        </button>
-      </div>
-    </div>
+    <ErrorModal
+      :visible="showErrorModal"
+      title="信息不完整"
+      :message="errorMessage"
+      @close="closeErrorModal"
+    />
+
+    <!-- 取消确认弹窗 -->
+    <ConfirmModal
+      :visible="showCancelConfirmModal"
+      title="确认操作"
+      message="确定要取消领养申请吗？您填写的信息将不会被保存。"
+      @confirm="confirmCancel"
+      @cancel="closeCancelConfirm"
+    />
 
     <!-- Footer -->
     <footer class="bg-[#1E293B] text-white py-10 px-[5%] mt-16">

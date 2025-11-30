@@ -160,11 +160,20 @@
         </button>
       </div>
     </div>
+
+    <!-- 成功弹窗 -->
+    <SuccessModal
+      :visible="showSuccessModal"
+      title="保存成功！"
+      message="您的信息已成功保存。"
+      @close="closeSuccessModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import SuccessModal from '../../../components/common/SuccessModal.vue';
 
 interface FormData {
   username: string;
@@ -184,6 +193,8 @@ const formData = ref<FormData>({
   petProofIntro: ''
 });
 
+const showSuccessModal = ref(false);
+
 function handleModifyPassword() {
   alert('修改密码功能待实现');
 }
@@ -193,8 +204,12 @@ function handleFileUpload() {
 }
 
 function handleSave() {
-  alert('保存成功！');
+  showSuccessModal.value = true;
   console.log('保存的数据：', formData.value);
+}
+
+function closeSuccessModal() {
+  showSuccessModal.value = false;
 }
 </script>
 

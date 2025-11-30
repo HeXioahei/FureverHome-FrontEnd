@@ -6,7 +6,10 @@
 
     <!-- 第一行：总统计 -->
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-      <div class="group flex flex-col gap-2 rounded-xl p-6 bg-[#3498DB] text-white shadow-md hover:shadow-lg transition-shadow">
+      <div 
+        class="group flex flex-col gap-2 rounded-xl p-6 bg-[#3498DB] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+        @click="router.push({ name: 'AdminPosts', query: { tab: 'published' } })"
+      >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">帖子总量</p>
           <span class="material-symbols-outlined">article</span>
@@ -14,7 +17,10 @@
         <p class="tracking-light text-4xl font-bold leading-tight">{{ stats.totalPosts }}</p>
         <p class="text-sm text-blue-100">总发布帖子</p>
       </div>
-      <div class="group flex flex-col gap-2 rounded-xl p-6 bg-[#2ECC71] text-white shadow-md hover:shadow-lg transition-shadow">
+      <div 
+        class="group flex flex-col gap-2 rounded-xl p-6 bg-[#2ECC71] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+        @click="router.push({ name: 'AdminPets', query: { tab: 'longTerm' } })"
+      >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">长期宠物总量</p>
           <span class="material-symbols-outlined">pets</span>
@@ -22,7 +28,10 @@
         <p class="tracking-light text-4xl font-bold leading-tight">{{ stats.totalLongTermPets }}</p>
         <p class="text-sm text-green-100">长期领养宠物</p>
       </div>
-      <div class="group flex flex-col gap-2 rounded-xl p-6 bg-[#E67E22] text-white shadow-md hover:shadow-lg transition-shadow">
+      <div 
+        class="group flex flex-col gap-2 rounded-xl p-6 bg-[#E67E22] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+        @click="router.push({ name: 'AdminPets', query: { tab: 'shortTerm' } })"
+      >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">短期宠物总量</p>
           <span class="material-symbols-outlined">pets</span>
@@ -36,7 +45,7 @@
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-6">
       <div 
         class="group flex flex-col gap-2 rounded-xl p-6 bg-[#3498DB] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-        @click="$router.push({ name: 'AdminPosts', query: { tab: 'pending' } })"
+        @click="router.push({ name: 'AdminPosts', query: { tab: 'pending' } })"
       >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">待审核的帖子</p>
@@ -47,7 +56,7 @@
       </div>
       <div 
         class="group flex flex-col gap-2 rounded-xl p-6 bg-[#2ECC71] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-        @click="$router.push({ name: 'AdminPets', query: { tab: 'pending' } })"
+        @click="router.push({ name: 'AdminPets', query: { tab: 'pending' } })"
       >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">待审核的宠物</p>
@@ -58,7 +67,7 @@
       </div>
       <div 
         class="group flex flex-col gap-2 rounded-xl p-6 bg-[#E74C3C] text-white shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-        @click="$router.push({ name: 'AdminApplications' })"
+        @click="router.push({ name: 'AdminApplications' })"
       >
         <div class="flex justify-between items-center">
           <p class="text-base font-medium leading-normal">待审核的申请</p>
@@ -73,6 +82,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 interface Stats {
   totalPosts: number;

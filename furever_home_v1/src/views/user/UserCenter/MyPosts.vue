@@ -5,9 +5,10 @@
     <div class="flex flex-col gap-5">
       <div 
         v-for="post in posts" 
-        :key="post.id"
-        class="bg-white rounded-xl p-6 shadow-sm flex flex-col border"
+        :key="post.id" 
+        class="bg-white rounded-xl p-6 shadow-sm flex flex-col border cursor-pointer transition-transform hover:-translate-y-1"
         style="border-color: #F3F4F6;"
+        @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
       >
         <!-- 头部用户信息 -->
         <div class="flex items-center mb-3">
@@ -41,20 +42,29 @@
           </div>
         </div>
 
-        <!-- 底部数据栏 -->
-        <div class="flex items-center gap-6 text-xs" style="color: #6B7280;">
-          <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
-            <i class="fa-solid fa-heart text-sm"></i>
-            {{ post.likes }}
+        <!-- 底部数据栏和操作按钮 -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-6 text-xs" style="color: #6B7280;">
+            <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
+              <i class="fa-solid fa-heart text-sm"></i>
+              {{ post.likes }}
+            </div>
+            <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
+              <i class="fa-solid fa-comment text-sm"></i>
+              {{ post.comments }}
+            </div>
+            <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
+              <i class="fa-solid fa-eye text-sm"></i>
+              {{ post.views }}
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
-            <i class="fa-solid fa-comment text-sm"></i>
-            {{ post.comments }}
-          </div>
-          <div class="flex items-center gap-1.5 cursor-pointer hover:text-[#FF8C00]">
-            <i class="fa-solid fa-eye text-sm"></i>
-            {{ post.views }}
-          </div>
+          <button
+            class="px-4 py-1.5 text-sm font-medium rounded-lg cursor-pointer transition-all hover:opacity-90"
+            style="background-color: #EF4444; color: white;"
+            @click.stop="handleDelete(post)"
+          >
+            <i class="fa-solid fa-trash"></i> 删除
+          </button>
         </div>
       </div>
     </div>
@@ -88,11 +98,33 @@
         </button>
       </div>
     </div>
+
+    <!-- 删除确认弹窗 -->
+    <ConfirmModal
+      :visible="showDeleteConfirmModal"
+      title="确认删除"
+      message="确定要删除这条帖子吗？删除后无法恢复。"
+      @confirm="confirmDelete"
+      @cancel="closeDeleteConfirm"
+    />
+
+    <!-- 删除成功弹窗 -->
+    <SuccessModal
+      :visible="showDeleteSuccessModal"
+      title="删除成功"
+      message="帖子已成功删除。"
+      @close="closeDeleteSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import ConfirmModal from '../../../components/common/ConfirmModal.vue';
+import SuccessModal from '../../../components/common/SuccessModal.vue';
+
+const router = useRouter();
 
 interface Post {
   id: number;
@@ -143,6 +175,38 @@ const posts = ref<Post[]>([
 const currentPage = ref(1);
 const pageSize = 10;
 const totalPages = computed(() => Math.ceil(posts.value.length / pageSize));
+
+const showDeleteConfirmModal = ref(false);
+const showDeleteSuccessModal = ref(false);
+const postToDelete = ref<Post | null>(null);
+
+function handleDelete(post: Post) {
+  postToDelete.value = post;
+  showDeleteConfirmModal.value = true;
+}
+
+function confirmDelete() {
+  if (postToDelete.value) {
+    // 从列表中删除
+    const index = posts.value.findIndex(p => p.id === postToDelete.value!.id);
+    if (index > -1) {
+      posts.value.splice(index, 1);
+    }
+    showDeleteSuccessModal.value = true;
+    // 这里可以调用API删除帖子
+  }
+  showDeleteConfirmModal.value = false;
+  postToDelete.value = null;
+}
+
+function closeDeleteConfirm() {
+  showDeleteConfirmModal.value = false;
+  postToDelete.value = null;
+}
+
+function closeDeleteSuccess() {
+  showDeleteSuccessModal.value = false;
+}
 </script>
 
 <style scoped>

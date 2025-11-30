@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ImageViewer from '../../components/common/ImageViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,20 +68,33 @@ const currentPet = computed<PetDetail | undefined>(() => {
 })
 
 const mainImage = ref(0)
+const showImageViewer = ref(false)
+const imageViewerIndex = ref(0)
 
 const goToFostererProfile = () => {
-  // TODO: 未来接入临时收养者主页路由
-  console.log('查看主页')
+  // 跳转到临时收养者的个人主页
+  const userId = Number(currentPet.value?.publisher.user_id) || 1
+  router.push({ name: 'UserProfile', params: { userId } })
 }
 
 const contactFosterer = () => {
-  // 跳转到沟通对接页面
-  router.push({ name: 'Communication' })
+  // 跳转到沟通对接页面，并传递用户ID
+  const userId = Number(currentPet.value?.publisher.user_id) || 1
+  router.push({ name: 'Communication', query: { userId } })
 }
 
 const requestAdoption = () => {
   // 跳转到申请领养页面
   router.push({ name: 'ApplyAdoption', params: { id: petId.value } })
+}
+
+const openImageViewer = (index: number) => {
+  imageViewerIndex.value = index
+  showImageViewer.value = true
+}
+
+const closeImageViewer = () => {
+  showImageViewer.value = false
 }
 </script>
 
@@ -90,7 +104,10 @@ const requestAdoption = () => {
       <!-- 宠物档案卡片 -->
       <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8 flex flex-col lg:flex-row">
         <!-- 左侧图片区域 -->
-        <div class="flex-1 lg:min-w-[380px] bg-[#FFE4B5] flex items-center justify-center p-8">
+        <div 
+          class="flex-1 lg:min-w-[380px] bg-[#FFE4B5] flex items-center justify-center p-8 cursor-pointer"
+          @click="openImageViewer(mainImage)"
+        >
           <img
             v-if="currentPet.photo_urls[mainImage]"
             :src="currentPet.photo_urls[mainImage]"
@@ -184,7 +201,7 @@ const requestAdoption = () => {
             v-for="(url, index) in currentPet.photo_urls"
             :key="index"
             class="h-[150px] bg-[#f0f0f0] rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-            @click="mainImage = index"
+            @click="openImageViewer(index)"
           >
             <img
               v-if="url"
@@ -197,6 +214,15 @@ const requestAdoption = () => {
         </div>
       </div>
     </main>
+
+    <!-- 图片查看器 -->
+    <ImageViewer
+      v-if="currentPet"
+      :visible="showImageViewer"
+      :images="currentPet.photo_urls"
+      :initial-index="imageViewerIndex"
+      @close="closeImageViewer"
+    />
 
     <!-- 未找到宠物 -->
     <main v-else class="max-w-[1200px] mx-auto py-16 px-5">

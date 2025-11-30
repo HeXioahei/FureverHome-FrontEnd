@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import SuccessModal from '../../components/common/SuccessModal.vue'
+import ErrorModal from '../../components/common/ErrorModal.vue'
+import ImageViewer from '../../components/common/ImageViewer.vue'
 
 interface PetForm {
   name: string
@@ -35,6 +38,7 @@ const form = ref<PetForm>({
 const uploadedFiles = ref<File[]>([])
 const showSuccessModal = ref(false)
 const showErrorModal = ref(false)
+const showFileLimitModal = ref(false)
 const errorMessage = ref('')
 
 const handleFileUpload = (event: Event) => {
@@ -42,7 +46,7 @@ const handleFileUpload = (event: Event) => {
   if (target.files) {
     const newFiles = Array.from(target.files)
     if (uploadedFiles.value.length + newFiles.length > 5) {
-      alert('最多只能上传5张照片')
+      showFileLimitModal.value = true
       return
     }
     uploadedFiles.value.push(...newFiles)
@@ -51,6 +55,26 @@ const handleFileUpload = (event: Event) => {
 
 const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
+}
+
+const getFileUrl = (file: File) => {
+  return URL.createObjectURL(file)
+}
+
+const showImageViewer = ref(false)
+const imageViewerIndex = ref(0)
+
+const openImageViewer = (index: number) => {
+  imageViewerIndex.value = index
+  showImageViewer.value = true
+}
+
+const closeImageViewer = () => {
+  showImageViewer.value = false
+}
+
+const getImageUrls = () => {
+  return uploadedFiles.value.map(file => getFileUrl(file))
 }
 
 const triggerFileInput = () => {
@@ -265,17 +289,18 @@ const closeErrorModal = () => {
               <div
                 v-for="(file, index) in uploadedFiles"
                 :key="index"
-                class="relative w-24 h-24 rounded-lg overflow-hidden border border-[#E5E7EB]"
+                class="relative w-24 h-24 rounded-lg overflow-hidden border border-[#E5E7EB] cursor-pointer"
+                @click="openImageViewer(index)"
               >
                 <img
-                  :src="URL.createObjectURL(file)"
+                  :src="getFileUrl(file)"
                   :alt="file.name"
                   class="w-full h-full object-cover"
                 />
                 <button
                   type="button"
-                  class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                  @click="removeFile(index)"
+                  class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 z-10"
+                  @click.stop="removeFile(index)"
                 >
                   ×
                 </button>
@@ -345,55 +370,35 @@ const closeErrorModal = () => {
     </div>
 
     <!-- 成功模态框 -->
-    <div
-      v-if="showSuccessModal"
-      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
-      @click="closeSuccessModal"
-    >
-      <div
-        class="bg-white rounded-xl w-[90%] max-w-[460px] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] text-center"
-        @click.stop
-      >
-        <div class="text-[60px] mb-5 text-[#10B981]">
-          <i class="fa-solid fa-circle-check"></i>
-        </div>
-        <h2 class="text-[#333333] mb-4">发布成功！</h2>
-        <p class="mb-6 text-[#666666]">您发布的宠物信息将展示在平台上。</p>
-        <div class="flex justify-center gap-2.5">
-          <button
-            class="px-8 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all border-none bg-[#FF8C00] text-white hover:bg-[#E67A2A]"
-            @click="closeSuccessModal"
-          >
-            确定
-          </button>
-        </div>
-      </div>
-    </div>
+    <SuccessModal
+      :visible="showSuccessModal"
+      title="发布成功！"
+      message="您发布的宠物信息将展示在平台上。"
+      @close="closeSuccessModal"
+    />
 
     <!-- 失败模态框 -->
-    <div
-      v-if="showErrorModal"
-      class="fixed inset-0 bg-black/50 z-[3000] flex items-center justify-center"
-      @click="closeErrorModal"
-    >
-      <div
-        class="bg-white rounded-xl w-[90%] max-w-[460px] p-8 shadow-[0_8px_30px_rgba(0,0,0,0.15)] text-center"
-        @click.stop
-      >
-        <div class="text-[60px] mb-5 text-[#EF4444]">
-          <i class="fa-solid fa-circle-exclamation"></i>
-        </div>
-        <h2 class="text-[#333333] mb-4">发布失败</h2>
-        <p class="mb-6 text-[#666666]">{{ errorMessage }}</p>
-        <div class="flex justify-center gap-2.5">
-          <button
-            class="px-8 py-3 rounded-lg text-base font-semibold cursor-pointer transition-all border-none bg-[#FF8C00] text-white hover:bg-[#E67A2A]"
-            @click="closeErrorModal"
-          >
-            确定
-          </button>
-        </div>
-      </div>
-    </div>
+    <ErrorModal
+      :visible="showErrorModal"
+      title="发布失败"
+      :message="errorMessage"
+      @close="closeErrorModal"
+    />
+
+    <!-- 文件数量限制提示 -->
+    <ErrorModal
+      :visible="showFileLimitModal"
+      title="提示"
+      message="最多只能上传5张照片"
+      @close="showFileLimitModal = false"
+    />
+
+    <!-- 图片查看器 -->
+    <ImageViewer
+      :visible="showImageViewer"
+      :images="getImageUrls()"
+      :initial-index="imageViewerIndex"
+      @close="closeImageViewer"
+    />
   </div>
 </template>
