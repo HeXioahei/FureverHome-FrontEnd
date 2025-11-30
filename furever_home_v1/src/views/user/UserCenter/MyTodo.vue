@@ -17,7 +17,7 @@
           <div class="text-xs" style="color: #9CA3AF;">{{ todo.date }}</div>
         </div>
 
-        <div class="flex flex-col gap-4 mb-5">
+        <div class="flex flex-col gap-4 mb-5 cursor-pointer" @click="handleViewDetail(todo)">
           <div class="flex-1">
             <div class="text-base font-bold mb-2.5" style="color: #1F2937;">{{ todo.title }}</div>
             
@@ -26,7 +26,13 @@
               <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-0.5">
                 <i class="fa-regular fa-circle"></i>
               </div>
-              <span class="font-bold" style="color: #111;">{{ todo.requester }}</span>
+              <span 
+                class="font-bold cursor-pointer transition-colors hover:text-[#FF8C00]" 
+                style="color: #111;"
+                @click.stop="router.push({ name: 'UserProfile', params: { userId: todo.requesterId || 1 } })"
+              >
+                {{ todo.requester }}
+              </span>
             </div>
 
             <div class="bg-gray-50 p-4 rounded-lg text-xs leading-relaxed" style="color: #4B5563;">
@@ -83,11 +89,60 @@
         </button>
       </div>
     </div>
+
+    <!-- 成功弹窗 -->
+    <SuccessModal
+      :visible="showSuccessModal"
+      title="操作成功"
+      :message="successMessage"
+      @close="closeSuccessModal"
+    />
+
+    <!-- 错误/提示弹窗 -->
+    <ErrorModal
+      :visible="showErrorModal"
+      title="提示"
+      :message="errorMessage"
+      @close="closeErrorModal"
+    />
+
+    <!-- 确认弹窗 - 同意申请 -->
+    <ConfirmModal
+      :visible="showConfirmModal"
+      title="确认操作"
+      :message="confirmMessage"
+      @confirm="onConfirmConfirm"
+      @cancel="showConfirmModal = false; currentTodo = null"
+    />
+
+    <!-- 确认弹窗 - 婉拒申请 -->
+    <ConfirmModal
+      :visible="showRejectModal"
+      title="确认操作"
+      :message="confirmMessage"
+      @confirm="onRejectConfirm"
+      @cancel="showRejectModal = false; currentTodo = null"
+    />
+
+    <!-- 申请详情弹窗 -->
+    <ApplicationDetailModal
+      v-if="currentTodo"
+      :visible="showApplicationDetailModal"
+      :application="currentTodo"
+      @close="closeApplicationDetailModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import SuccessModal from '../../../components/common/SuccessModal.vue';
+import ErrorModal from '../../../components/common/ErrorModal.vue';
+import ConfirmModal from '../../../components/common/ConfirmModal.vue';
+import ApplicationDetailModal from '../../../components/common/ApplicationDetailModal.vue';
+
+const router = useRouter();
 
 interface Todo {
   id: number;
@@ -96,9 +151,15 @@ interface Todo {
   date: string;
   title: string;
   requester: string;
+  requesterId?: number;
   reason: string;
   showConfirm: boolean;
   showReject: boolean;
+  // 申请详情相关字段
+  phone?: string;
+  email?: string;
+  address?: string;
+  petName?: string;
 }
 
 const todos = ref<Todo[]>([
@@ -109,9 +170,14 @@ const todos = ref<Todo[]>([
     date: '2024-01-15 14:30',
     title: '对"巴迪"的领养申请',
     requester: '张同学',
+    requesterId: 2,
     reason: '我是一名大学生，有稳定的住所和充足的时间照顾宠物。之前有养过金毛犬的经验，对狗狗的护理和训练都有一定了解。希望能给巴迪一个温暖的家。',
     showConfirm: true,
-    showReject: true
+    showReject: true,
+    phone: '138-****-2640',
+    email: 'zhang@example.com',
+    address: '上海市徐汇区桂林路 188 弄',
+    petName: '巴迪'
   },
   {
     id: 2,
@@ -120,28 +186,83 @@ const todos = ref<Todo[]>([
     date: '2024-01-14 10:20',
     title: '对"米洛"的领养申请',
     requester: '王同学',
+    requesterId: 3,
     reason: '家里已经有一只猫咪，想再领养一只作伴。有丰富的养猫经验，会定期带猫咪体检和打疫苗。',
     showConfirm: true,
-    showReject: true
+    showReject: true,
+    phone: '139-****-5678',
+    email: 'wang@example.com',
+    address: '北京市海淀区中关村大街 1 号',
+    petName: '米洛'
   }
 ]);
 
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const showConfirmModal = ref(false);
+const showRejectModal = ref(false);
+const showApplicationDetailModal = ref(false);
+const successMessage = ref('');
+const errorMessage = ref('');
+const currentTodo = ref<Todo | null>(null);
+const confirmMessage = ref('');
+
 function handleConfirm(todo: Todo) {
-  if (confirm(`确定同意${todo.requester}的领养申请吗？`)) {
-    alert('已同意领养申请');
-    // 这里可以调用API更新状态
-  }
+  currentTodo.value = todo;
+  confirmMessage.value = `确定同意${todo.requester}的领养申请吗？`;
+  showConfirmModal.value = true;
+}
+
+function handleViewDetail(todo: Todo) {
+  currentTodo.value = todo;
+  showApplicationDetailModal.value = true;
 }
 
 function handleContact(todo: Todo) {
-  alert(`联系${todo.requester}功能待实现`);
+  // 跳转到沟通对接页面，并传递申请人ID
+  router.push({ 
+    name: 'Communication', 
+    query: { userId: todo.requesterId || 1 } 
+  });
+}
+
+function closeApplicationDetailModal() {
+  showApplicationDetailModal.value = false;
+  currentTodo.value = null;
 }
 
 function handleReject(todo: Todo) {
-  if (confirm(`确定要婉拒${todo.requester}的领养申请吗？`)) {
-    alert('已婉拒申请');
+  currentTodo.value = todo;
+  confirmMessage.value = `确定要婉拒${todo.requester}的领养申请吗？`;
+  showRejectModal.value = true;
+}
+
+function onConfirmConfirm() {
+  if (currentTodo.value) {
+    successMessage.value = '已同意领养申请';
+    showSuccessModal.value = true;
     // 这里可以调用API更新状态
   }
+  showConfirmModal.value = false;
+  currentTodo.value = null;
+}
+
+function onRejectConfirm() {
+  if (currentTodo.value) {
+    successMessage.value = '已婉拒申请';
+    showSuccessModal.value = true;
+    // 这里可以调用API更新状态
+  }
+  showRejectModal.value = false;
+  currentTodo.value = null;
+}
+
+function closeSuccessModal() {
+  showSuccessModal.value = false;
+}
+
+function closeErrorModal() {
+  showErrorModal.value = false;
 }
 </script>
 

@@ -67,11 +67,30 @@
         </button>
       </div>
     </div>
+
+    <!-- 撤销确认弹窗 -->
+    <ConfirmModal
+      :visible="showCancelConfirmModal"
+      title="确认操作"
+      :message="cancelMessage"
+      @confirm="confirmCancel"
+      @cancel="closeCancelConfirm"
+    />
+
+    <!-- 撤销成功弹窗 -->
+    <SuccessModal
+      :visible="showCancelSuccessModal"
+      title="操作成功"
+      message="已撤销申请"
+      @close="closeCancelSuccessModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import SuccessModal from '../../../components/common/SuccessModal.vue';
+import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 
 interface Application {
   id: number;
@@ -153,11 +172,33 @@ function getStatusColor(status: string) {
   return colors[status] || '#6B7280';
 }
 
+const showCancelSuccessModal = ref(false);
+const showCancelConfirmModal = ref(false);
+const applicationToCancel = ref<Application | null>(null);
+const cancelMessage = ref('');
+
 function handleCancel(application: Application) {
-  if (confirm(`确定要撤销对"${application.petName}"的申请吗？`)) {
-    alert('已撤销申请');
+  applicationToCancel.value = application;
+  cancelMessage.value = `确定要撤销对"${application.petName}"的申请吗？`;
+  showCancelConfirmModal.value = true;
+}
+
+function confirmCancel() {
+  if (applicationToCancel.value) {
+    showCancelSuccessModal.value = true;
     // 这里可以调用API更新状态
   }
+  showCancelConfirmModal.value = false;
+  applicationToCancel.value = null;
+}
+
+function closeCancelConfirm() {
+  showCancelConfirmModal.value = false;
+  applicationToCancel.value = null;
+}
+
+function closeCancelSuccessModal() {
+  showCancelSuccessModal.value = false;
 }
 </script>
 

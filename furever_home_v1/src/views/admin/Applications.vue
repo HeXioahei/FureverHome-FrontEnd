@@ -31,30 +31,18 @@
               <span>{{ app.time }}</span>
             </div>
           </div>
-          <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-            <div class="flex items-center gap-3">
-              <div>
-                <p>申请者</p>
-              </div>
-              <div>
-                <p class="text-gray-900 dark:text-white">{{ app.applicant }}</p>
-              </div>
+          <div class="space-y-2.5 text-xs text-gray-600 dark:text-gray-400">
+            <div class="flex items-center gap-2">
+              <p class="text-gray-500 dark:text-gray-400">申请者：</p>
+              <p class="text-gray-900 dark:text-white font-medium">{{ app.applicant }}</p>
             </div>
-            <div class="flex items-center gap-3">
-              <div>
-                <p>被申请用户</p>
-              </div>
-              <div>
-                <p class="text-gray-900 dark:text-white">{{ app.targetUser }}</p>
-              </div>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-500 dark:text-gray-400">被申请用户：</p>
+              <p class="text-gray-900 dark:text-white font-medium">{{ app.targetUser }}</p>
             </div>
-            <div class="flex items-center gap-3">
-              <div>
-                <p>申请的宠物：</p>
-              </div>
-              <div>
-                <p class="text-gray-900 dark:text-white">{{ app.petName }}</p>
-              </div>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-500 dark:text-gray-400">申请的宠物：</p>
+              <p class="text-gray-900 dark:text-white font-medium">{{ app.petName }}</p>
             </div>
           </div>
           <div class="flex items-center gap-2 justify-end">
@@ -142,6 +130,14 @@
       @close="showRejectModal = false"
       @confirm="onRejectConfirm"
     />
+    <ConfirmModal
+      :visible="showConfirmModal"
+      :title="confirmAction === 'approve' ? '确认审核通过' : '确认审核不通过'"
+      :message="confirmAction === 'approve' ? '确定要通过该申请的审核吗？' : '确定要拒绝该申请的审核吗？'"
+      @confirm="onConfirmModalConfirm"
+      @cancel="onConfirmModalCancel"
+      @close="onConfirmModalCancel"
+    />
   </div>
 </template>
 
@@ -150,6 +146,7 @@ import { ref, computed } from 'vue';
 import ApplicationDetailModal from '../../components/admin/ApplicationDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
+import ConfirmModal from '../../components/admin/ConfirmModal.vue';
 
 interface Application {
   id: number;
@@ -201,16 +198,20 @@ const paginatedApplications = computed(() => {
 const showApplicationDetailModal = ref(false);
 const showApproveModal = ref(false);
 const showRejectModal = ref(false);
+const showConfirmModal = ref(false);
+const confirmAction = ref<'approve' | 'reject' | null>(null);
 const selectedApplication = ref<Application | null>(null);
 
 function handleApprove(app: Application) {
   selectedApplication.value = app;
-  showApproveModal.value = true;
+  confirmAction.value = 'approve';
+  showConfirmModal.value = true;
 }
 
 function handleReject(app: Application) {
   selectedApplication.value = app;
-  showRejectModal.value = true;
+  confirmAction.value = 'reject';
+  showConfirmModal.value = true;
 }
 
 function handleViewDetail(app: Application) {
@@ -218,24 +219,44 @@ function handleViewDetail(app: Application) {
   showApplicationDetailModal.value = true;
 }
 
-function onApproveConfirm() {
-  if (selectedApplication.value) {
+function onConfirmModalConfirm() {
+  if (!selectedApplication.value || !confirmAction.value) return;
+  
+  showConfirmModal.value = false;
+  
+  // 执行操作
+  if (confirmAction.value === 'approve') {
     // TODO: 调用API审核通过
     console.log('审核通过:', selectedApplication.value);
     // 从列表中移除
     const index = applications.value.findIndex(a => a.id === selectedApplication.value!.id);
     if (index > -1) applications.value.splice(index, 1);
-  }
-}
-
-function onRejectConfirm() {
-  if (selectedApplication.value) {
+    showApproveModal.value = true;
+  } else if (confirmAction.value === 'reject') {
     // TODO: 调用API审核拒绝
     console.log('审核拒绝:', selectedApplication.value);
     // 从列表中移除
     const index = applications.value.findIndex(a => a.id === selectedApplication.value!.id);
     if (index > -1) applications.value.splice(index, 1);
+    showRejectModal.value = true;
   }
+}
+
+function onConfirmModalCancel() {
+  showConfirmModal.value = false;
+  confirmAction.value = null;
+}
+
+function onApproveConfirm() {
+  showApproveModal.value = false;
+  selectedApplication.value = null;
+  confirmAction.value = null;
+}
+
+function onRejectConfirm() {
+  showRejectModal.value = false;
+  selectedApplication.value = null;
+  confirmAction.value = null;
 }
 </script>
 

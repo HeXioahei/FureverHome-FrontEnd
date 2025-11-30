@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import ImageViewer from '../../components/common/ImageViewer.vue'
 
 interface Pet {
   id: number
@@ -157,6 +158,28 @@ const goToPage = (page: number) => {
 const goToPetDetail = (id: number) => {
   router.push({ name: 'PetDetail', params: { id } })
 }
+
+const showImageViewer = ref(false)
+const imageViewerIndex = ref(0)
+const currentImageList = ref<string[]>([])
+
+const openImageViewer = (imageUrl: string, event?: Event) => {
+  if (event) {
+    event.stopPropagation()
+  }
+  // 获取所有宠物的图片URL列表
+  const allImages = pets.map(p => p.photo_url).filter(url => url)
+  const index = allImages.indexOf(imageUrl)
+  if (index > -1) {
+    currentImageList.value = allImages
+    imageViewerIndex.value = index
+    showImageViewer.value = true
+  }
+}
+
+const closeImageViewer = () => {
+  showImageViewer.value = false
+}
 </script>
 
 <template>
@@ -256,7 +279,8 @@ const goToPetDetail = (id: number) => {
               v-if="pet.photo_url"
               :src="pet.photo_url"
               :alt="pet.name"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover cursor-pointer"
+              @click="openImageViewer(pet.photo_url, $event)"
             />
             <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
           </div>
@@ -342,5 +366,13 @@ const goToPetDetail = (id: number) => {
         2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
       </div>
     </footer>
+
+    <!-- 图片查看器 -->
+    <ImageViewer
+      :visible="showImageViewer"
+      :images="currentImageList"
+      :initial-index="imageViewerIndex"
+      @close="closeImageViewer"
+    />
   </div>
 </template>

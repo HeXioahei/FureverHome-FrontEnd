@@ -8,8 +8,8 @@
       class="bg-white rounded-xl p-8 max-w-[400px] w-[90%] text-center shadow-lg"
       @click.stop
     >
-      <h3 class="text-[#FF8C00] mb-4 text-xl font-bold">信息已成功提交！</h3>
-      <p class="mb-5 leading-relaxed text-[#333333]">您的宠物信息已提交，平台将在24小时内完成审核。审核结果将通过站内信通知您。您也可以随时在【个人主页】-【我的内容】中查看进度。</p>
+      <h3 class="text-[#FF8C00] mb-4 text-xl font-bold">{{ title }}</h3>
+      <p class="mb-5 leading-relaxed text-[#333333]">{{ message }}</p>
       <button
         class="px-5 py-2.5 bg-[#FF8C00] text-white rounded-lg font-semibold transition-all hover:bg-[#e6722a]"
         @click="handleClose"
@@ -21,18 +21,20 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-
 interface Props {
   visible: boolean
+  title: string
+  message: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
-const router = useRouter()
+const emit = defineEmits<{
+  close: []
+}>()
 
 const handleClose = () => {
-  router.push('/')
+  emit('close')
 }
 </script>
 

@@ -42,12 +42,22 @@
         <component :is="currentComponent" />
       </main>
     </div>
+
+    <!-- 退出登录确认弹窗 -->
+    <ConfirmModal
+      :visible="showLogoutConfirmModal"
+      title="确认操作"
+      message="确定要退出登录吗？"
+      @confirm="confirmLogout"
+      @cancel="closeLogoutConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ConfirmModal from '../../components/common/ConfirmModal.vue';
 import MyHome from './UserCenter/MyHome.vue';
 import MyTodo from './UserCenter/MyTodo.vue';
 import MyPosts from './UserCenter/MyPosts.vue';
@@ -85,15 +95,24 @@ const currentComponent = computed(() => {
   return item?.component || MyHome;
 });
 
+const showLogoutConfirmModal = ref(false);
+
 function handleMenuClick(item: MenuItem) {
   if (item.isLogout) {
-    if (confirm('确定要退出登录吗？')) {
-      router.push('/login');
-    }
+    showLogoutConfirmModal.value = true;
     return;
   }
   activeMenu.value = item.key;
   router.push({ path: '/user-center', query: { menu: item.key } });
+}
+
+function confirmLogout() {
+  router.push('/login');
+  showLogoutConfirmModal.value = false;
+}
+
+function closeLogoutConfirm() {
+  showLogoutConfirmModal.value = false;
 }
 
 // 监听路由变化

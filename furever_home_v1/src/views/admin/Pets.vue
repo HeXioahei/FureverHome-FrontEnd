@@ -30,7 +30,7 @@
           :class="activeTab === 'pending' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
           @click="activeTab = 'pending'"
         >
-          待审核的短期宠物列表
+          待审核的宠物列表
         </button>
         <button
           class="py-4 px-6 transition-colors"
@@ -48,14 +48,14 @@
         </button>
       </div>
 
-      <!-- 待审核短期宠物 -->
+      <!-- 待审核宠物 -->
       <div v-if="activeTab === 'pending'" class="pet-tab">
         <div class="p-5 flex flex-wrap gap-4 justify-between items-center border-b border-gray-100 dark:border-gray-800">
           <div class="relative">
             <input
               v-model="pendingSearch"
               type="text"
-              placeholder="搜索短期宠物..."
+              placeholder="搜索宠物..."
               class="pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
@@ -67,24 +67,47 @@
             :key="pet.id"
             class="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1C202B] shadow-sm p-5 flex flex-col gap-4"
           >
-            <span class="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700">#{{ pet.id }}</span>
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700">#{{ pet.id }}</span>
+              <span 
+                v-if="pet.petType"
+                class="px-2 py-1 rounded-full text-xs font-medium"
+                :class="pet.petType === 'shortTerm' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'"
+              >
+                {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
+              </span>
+            </div>
             <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
               {{ pet.name }} 的照片
             </div>
             <div class="flex items-center gap-3">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ pet.category }}</p>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ pet.category }}</p>
               </div>
             </div>
-            <div class="text-sm text-gray-600 dark:text-gray-400 space-y-3">
-              <div class="flex items-center gap-3">
-                <p class="text-xs text-gray-500 dark:text-gray-400">发布者</p>
-                <div>
-                  <p class="text-gray-900 dark:text-white">{{ pet.publisher }}</p>
+            <!-- <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
+                {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+              </div>
+            </div> -->
+            <div class="text-xs text-gray-600 dark:text-gray-400 space-y-2">
+              <div class="flex items-center gap-2">
+                <p class="text-gray-500 dark:text-gray-400">领养者：</p>
+                <!-- <p class="text-gray-900 dark:text-white font-medium">{{ pet.adopterName || pet.publisher }}</p> -->
+                <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                  <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
+                    {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+                  </div>
                 </div>
               </div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">发布时间：{{ pet.publishedAt }}</p>
+              <p class="text-gray-500 dark:text-gray-400">申请时间：{{ pet.publishedAt }}</p>
             </div>
             <div class="flex items-center gap-2 justify-end">
               <button
@@ -162,14 +185,31 @@
             :key="pet.id"
             class="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1C202B] shadow-sm p-5 flex flex-col gap-4"
           >
-            <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ pet.id }}</span>
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ pet.id }}</span>
+              <span 
+                v-if="pet.petType"
+                class="px-2 py-1 rounded-full text-xs font-medium"
+                :class="pet.petType === 'shortTerm' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'"
+              >
+                {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
+              </span>
+            </div>
             <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
               {{ pet.name }} 的照片
             </div>
             <div class="flex items-center gap-3">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ pet.category }}</p>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ pet.category }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
+                {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
               </div>
             </div>
             <div class="flex items-center gap-2 justify-end">
@@ -241,14 +281,31 @@
             :key="pet.id"
             class="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1C202B] shadow-sm p-5 flex flex-col gap-4"
           >
-            <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ pet.id }}</span>
+            <div class="flex items-center justify-between gap-2">
+              <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ pet.id }}</span>
+              <span 
+                v-if="pet.petType"
+                class="px-2 py-1 rounded-full text-xs font-medium"
+                :class="pet.petType === 'shortTerm' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'"
+              >
+                {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
+              </span>
+            </div>
             <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
               {{ pet.name }} 的照片
             </div>
             <div class="flex items-center gap-3">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ pet.category }}</p>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ pet.category }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
+                {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
               </div>
             </div>
             <div class="flex items-center gap-2 justify-end">
@@ -313,7 +370,9 @@
         gender: '未知',
         age: '未知',
         neutered: '未知',
-        description: `${selectedPet.name}的详细信息`
+        description: `${selectedPet.name}的详细信息`,
+        adopterName: selectedPet.adopterName || selectedPet.publisher,
+        adopterAvatar: selectedPet.adopterAvatar || selectedPet.publisher?.charAt(0) || '领'
       } : undefined"
       @close="showPetDetailModal = false"
     />
@@ -335,6 +394,14 @@
       @close="showDeleteSuccessModal = false"
       @confirm="onDeleteConfirm"
     />
+    <ConfirmModal
+      :visible="showConfirmModal"
+      :title="confirmAction === 'approve' ? '确认审核通过' : confirmAction === 'reject' ? '确认审核不通过' : '确认删除'"
+      :message="confirmAction === 'approve' ? '确定要通过该宠物的审核吗？' : confirmAction === 'reject' ? '确定要拒绝该宠物的审核吗？' : '确定要删除该宠物吗？此操作不可恢复。'"
+      @confirm="onConfirmModalConfirm"
+      @cancel="onConfirmModalCancel"
+      @close="onConfirmModalCancel"
+    />
   </div>
 </template>
 
@@ -345,6 +412,7 @@ import PetDetailModal from '../../components/admin/PetDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
+import ConfirmModal from '../../components/admin/ConfirmModal.vue';
 
 interface Pet {
   id: number;
@@ -352,6 +420,9 @@ interface Pet {
   category: string;
   publisher: string;
   publishedAt: string;
+  adopterName?: string;
+  adopterAvatar?: string;
+  petType?: 'shortTerm' | 'longTerm';
 }
 
 const route = useRoute();
@@ -376,33 +447,57 @@ const categoryPool = ['猫  英短', '狗  拉布拉多', '猫  布偶', '狗  �
 const publisherPool = ['何管理员', '周志愿者', '吴站长', '郑审核员', '冯老师'];
 
 const generatePendingPets = (): Pet[] => {
-  return Array.from({ length: 18 }, (_, i) => ({
-    id: 5201 + i,
-    name: namePool[(i + 4) % namePool.length],
-    category: categoryPool[(i + 5) % categoryPool.length],
-    publisher: publisherPool[i % publisherPool.length],
-    publishedAt: `2023-07-${(i % 20) + 1} ${9 + (i % 8)}:${(i * 5) % 60}`
-  }));
+  return Array.from({ length: 18 }, (_, i) => {
+    const name = namePool[(i + 4) % namePool.length] || '未知';
+    const category = categoryPool[(i + 5) % categoryPool.length] || '未知';
+    const publisher = publisherPool[i % publisherPool.length] || '未知';
+    return {
+      id: 5201 + i,
+      name,
+      category,
+      publisher,
+      publishedAt: `2023-07-${(i % 20) + 1} ${9 + (i % 8)}:${(i * 5) % 60}`,
+      adopterName: publisher,
+      adopterAvatar: publisher.charAt(0),
+      petType: (i % 2 === 0 ? 'shortTerm' : 'longTerm') as 'shortTerm' | 'longTerm'
+    };
+  });
 };
 
 const generateShortTermPets = (): Pet[] => {
-  return Array.from({ length: 48 }, (_, i) => ({
-    id: 5001 + i,
-    name: namePool[i % namePool.length],
-    category: categoryPool[i % categoryPool.length],
-    publisher: publisherPool[i % publisherPool.length],
-    publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`
-  }));
+  return Array.from({ length: 48 }, (_, i) => {
+    const name = namePool[i % namePool.length] || '未知';
+    const category = categoryPool[i % categoryPool.length] || '未知';
+    const publisher = publisherPool[i % publisherPool.length] || '未知';
+    return {
+      id: 5001 + i,
+      name,
+      category,
+      publisher,
+      publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`,
+      adopterName: publisher,
+      adopterAvatar: publisher.charAt(0),
+      petType: 'shortTerm' as 'shortTerm' | 'longTerm'
+    };
+  });
 };
 
 const generateLongTermPets = (): Pet[] => {
-  return Array.from({ length: 32 }, (_, i) => ({
-    id: 3001 + i,
-    name: namePool[i % namePool.length],
-    category: categoryPool[i % categoryPool.length],
-    publisher: publisherPool[i % publisherPool.length],
-    publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`
-  }));
+  return Array.from({ length: 32 }, (_, i) => {
+    const name = namePool[i % namePool.length] || '未知';
+    const category = categoryPool[i % categoryPool.length] || '未知';
+    const publisher = publisherPool[i % publisherPool.length] || '未知';
+    return {
+      id: 3001 + i,
+      name,
+      category,
+      publisher,
+      publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`,
+      adopterName: publisher,
+      adopterAvatar: publisher.charAt(0),
+      petType: 'longTerm' as 'shortTerm' | 'longTerm'
+    };
+  });
 };
 
 const pendingPets = ref<Pet[]>(generatePendingPets());
@@ -466,16 +561,20 @@ const showPetDetailModal = ref(false);
 const showApproveModal = ref(false);
 const showRejectModal = ref(false);
 const showDeleteSuccessModal = ref(false);
+const showConfirmModal = ref(false);
+const confirmAction = ref<'approve' | 'reject' | 'delete' | null>(null);
 const selectedPet = ref<Pet | null>(null);
 
 function handleApprove(pet: Pet) {
   selectedPet.value = pet;
-  showApproveModal.value = true;
+  confirmAction.value = 'approve';
+  showConfirmModal.value = true;
 }
 
 function handleReject(pet: Pet) {
   selectedPet.value = pet;
-  showRejectModal.value = true;
+  confirmAction.value = 'reject';
+  showConfirmModal.value = true;
 }
 
 function handleViewDetail(pet: Pet) {
@@ -485,26 +584,26 @@ function handleViewDetail(pet: Pet) {
 
 function handleDelete(pet: Pet) {
   selectedPet.value = pet;
-  // TODO: 调用API删除
-  showDeleteSuccessModal.value = true;
+  confirmAction.value = 'delete';
+  showConfirmModal.value = true;
 }
 
-function onApproveConfirm() {
-  if (selectedPet.value) {
+function onConfirmModalConfirm() {
+  if (!selectedPet.value || !confirmAction.value) return;
+  
+  showConfirmModal.value = false;
+  
+  // 执行操作
+  if (confirmAction.value === 'approve') {
     // TODO: 调用API审核通过
     console.log('审核通过:', selectedPet.value);
-  }
-}
-
-function onRejectConfirm() {
-  if (selectedPet.value) {
+    showApproveModal.value = true;
+  } else if (confirmAction.value === 'reject') {
     // TODO: 调用API审核拒绝
     console.log('审核拒绝:', selectedPet.value);
-  }
-}
-
-function onDeleteConfirm() {
-  if (selectedPet.value) {
+    showRejectModal.value = true;
+  } else if (confirmAction.value === 'delete') {
+    // TODO: 调用API删除
     // 从列表中移除
     if (activeTab.value === 'pending') {
       const index = pendingPets.value.findIndex(p => p.id === selectedPet.value!.id);
@@ -516,7 +615,31 @@ function onDeleteConfirm() {
       const index = longTermPets.value.findIndex(p => p.id === selectedPet.value!.id);
       if (index > -1) longTermPets.value.splice(index, 1);
     }
+    showDeleteSuccessModal.value = true;
   }
+}
+
+function onConfirmModalCancel() {
+  showConfirmModal.value = false;
+  confirmAction.value = null;
+}
+
+function onApproveConfirm() {
+  showApproveModal.value = false;
+  selectedPet.value = null;
+  confirmAction.value = null;
+}
+
+function onRejectConfirm() {
+  showRejectModal.value = false;
+  selectedPet.value = null;
+  confirmAction.value = null;
+}
+
+function onDeleteConfirm() {
+  showDeleteSuccessModal.value = false;
+  selectedPet.value = null;
+  confirmAction.value = null;
 }
 
 onMounted(() => {

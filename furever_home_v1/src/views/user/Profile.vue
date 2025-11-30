@@ -11,20 +11,40 @@
         <div class="flex-1 min-w-[300px] p-8" style="background-color: #FFF9F0;">
           <!-- 用户头像和信息 -->
           <div class="flex items-center mb-5">
-            <div class="w-20 h-20 rounded-full mr-5 flex items-center justify-center font-bold text-gray-600 text-2xl" style="background-color: #FFD700;">
+            <div 
+              class="w-20 h-20 rounded-full mr-5 flex items-center justify-center font-bold text-gray-600 text-2xl cursor-pointer transition-transform hover:scale-105" 
+              style="background-color: #FFD700;"
+              @click="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
+            >
               {{ user.name.charAt(0) }}
             </div>
             <div>
-              <h1 class="text-2xl mb-1" style="color: #FF8C42;">{{ user.name }}</h1>
+              <h1 
+                class="text-2xl mb-1 cursor-pointer transition-colors hover:text-[#E67A2A]" 
+                style="color: #FF8C42;"
+                @click="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
+              >
+                {{ user.name }}
+              </h1>
             </div>
           </div>
-          <!-- 个人中心按钮 -->
+          <!-- 个人中心按钮（仅在自己的主页显示） -->
           <RouterLink 
+            v-if="isOwnProfile"
             to="/user-center" 
             class="block w-full px-4 py-2.5 mb-5 text-center text-white font-semibold rounded-2xl transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
             style="background-color: #FF8C42;"
           >
             个人中心
+          </RouterLink>
+          <!-- 联系TA按钮（仅在他人主页显示） -->
+          <RouterLink 
+            v-if="!isOwnProfile"
+            :to="{ name: 'Communication', query: { userId: viewedUserId } }" 
+            class="block w-full px-4 py-2.5 mb-5 text-center text-white font-semibold rounded-2xl transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
+            style="background-color: #FF8C42;"
+          >
+            联系TA
           </RouterLink>
 
           <!-- 基本信息 -->
@@ -58,9 +78,9 @@
           <!-- 爱宠证明档案 -->
           <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">爱宠证明档案</h2>
           <h3 class="font-semibold text-gray-700 mb-2">养宠经历</h3>
-          <ul class="ml-5 mb-4 text-gray-600 leading-7" style="list-style-type: disc;">
-            <li v-for="exp in experiences" :key="exp.id">{{ exp.text }}</li>
-          </ul>
+          <p class="mb-4 text-gray-600 leading-7">
+            {{ experiences.map(exp => exp.text).join(' ') }}
+          </p>
 
           <h3 class="font-semibold text-gray-700 mb-2">证明材料</h3>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 mt-4">
@@ -87,7 +107,9 @@
           <!-- 他人评价 -->
           <div class="flex justify-between items-center my-6 pb-2.5 border-b-2" style="border-color: #FFF9F0;">
             <h2 class="text-xl m-0" style="color: #FF8C42;">他人评价</h2>
+            <!-- 添加评价按钮（仅在他人主页显示） -->
             <button 
+              v-if="!isOwnProfile"
               type="button" 
               class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
               style="background-color: #FF8C42;"
@@ -104,7 +126,12 @@
               class="bg-white rounded-2xl p-4 mb-4 shadow-sm"
             >
               <div class="flex justify-between mb-2.5">
-                <div class="font-bold">{{ eva.author }}</div>
+                <div 
+                  class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
+                  @click="router.push({ name: 'UserProfile', params: { userId: getUserIdByName(eva.author) } })"
+                >
+                  {{ eva.author }}
+                </div>
                 <div class="text-gray-500 text-sm">{{ eva.date }}</div>
               </div>
               <div class="text-yellow-400 mb-1">
@@ -143,7 +170,8 @@
             <div 
               v-for="pet in shortTermAdoptions.slice(0, 2)" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1"
+              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
               <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
                 {{ pet.name }}的照片
@@ -176,7 +204,8 @@
             <div 
               v-for="pet in longTermAdoptions.slice(0, 2)" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1"
+              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
               <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
                 {{ pet.name }}的照片
@@ -211,7 +240,8 @@
             <div 
               v-for="post in recentPosts.slice(0, 2)" 
               :key="post.id" 
-              class="bg-white rounded-2xl p-5 shadow-md"
+              class="bg-white rounded-2xl p-5 shadow-md cursor-pointer transition-transform hover:-translate-y-1"
+              @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
             >
               <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
               <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
@@ -295,7 +325,12 @@
               class="bg-white rounded-2xl p-4 shadow-sm"
             >
               <div class="flex justify-between mb-2.5">
-                <div class="font-bold">{{ eva.author }}</div>
+                <div 
+                  class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
+                  @click="router.push({ name: 'UserProfile', params: { userId: getUserIdByName(eva.author) } })"
+                >
+                  {{ eva.author }}
+                </div>
                 <div class="text-gray-500 text-sm">{{ eva.date }}</div>
               </div>
               <div class="text-yellow-400 mb-1">
@@ -361,7 +396,8 @@
             <div 
               v-for="pet in paginatedShortTermPets" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1"
+              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
               <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
                 {{ pet.name }}的照片
@@ -435,7 +471,8 @@
             <div 
               v-for="pet in paginatedLongTermPets" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1"
+              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
               <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
                 {{ pet.name }}的照片
@@ -509,15 +546,25 @@
             <div 
               v-for="post in paginatedPosts" 
               :key="post.id" 
-              class="bg-white rounded-2xl shadow-lg p-6 transition-transform hover:-translate-y-1"
+              class="bg-white rounded-2xl shadow-lg p-6 transition-transform hover:-translate-y-1 cursor-pointer"
+              @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
             >
               <div class="flex flex-col gap-2 mb-4">
                 <div class="flex items-center gap-3 text-gray-600 text-sm">
                   <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-semibold" style="background-color: #F3C697;">
+                    <div 
+                      class="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-semibold cursor-pointer transition-transform hover:scale-105" 
+                      style="background-color: #F3C697;"
+                      @click.stop="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
+                    >
                       {{ user.name.charAt(0) }}
                     </div>
-                    <span>{{ user.name }}</span>
+                    <span 
+                      class="cursor-pointer transition-colors hover:text-[#FF8C42]"
+                      @click.stop="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
+                    >
+                      {{ user.name }}
+                    </span>
                   </div>
                   <span>{{ post.date }}</span>
                 </div>
@@ -580,6 +627,22 @@
       </div>
     </div>
 
+    <!-- 评价成功弹窗 -->
+    <SuccessModal
+      :visible="showReviewSuccessModal"
+      title="评价提交成功！"
+      message="您的评价已成功提交。"
+      @close="closeReviewSuccessModal"
+    />
+
+    <!-- 评价错误/提示弹窗 -->
+    <ErrorModal
+      :visible="showReviewErrorModal"
+      title="提示"
+      :message="reviewErrorMessage"
+      @close="closeReviewErrorModal"
+    />
+
     <!-- Footer -->
     <footer class="text-white py-10 mt-12 px-[5%]" style="background-color: #2C3E50;">
       <div class="flex flex-wrap justify-between max-w-6xl mx-auto">
@@ -607,7 +670,26 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter, useRoute } from 'vue-router';
+import SuccessModal from '../../components/common/SuccessModal.vue';
+import ErrorModal from '../../components/common/ErrorModal.vue';
+
+const router = useRouter();
+const route = useRoute();
+
+// 获取当前登录用户ID（这里应该从登录状态获取，暂时使用固定值）
+const currentUserId = ref(1);
+
+// 获取查看的用户ID（从路由参数获取，如果没有参数则认为是查看自己的主页）
+const viewedUserId = computed(() => {
+  const userId = route.params.userId;
+  return userId ? Number(userId) : currentUserId.value;
+});
+
+// 判断是否是查看自己的主页
+const isOwnProfile = computed(() => {
+  return viewedUserId.value === currentUserId.value;
+});
 
 interface Stat { key: string; label: string; value: number; }
 interface Experience { id: number; text: string; }
@@ -855,25 +937,40 @@ const paginatedPosts = computed(() => {
 
 const allPetsCount = computed(() => shortTermAdoptions.value.length + longTermAdoptions.value.length);
 
+const showReviewSuccessModal = ref(false);
+const showReviewErrorModal = ref(false);
+const reviewErrorMessage = ref('');
+
 function handleProofClick(proof: Proof) {
   if (proof.status === 'rejected' && proof.reason) {
-    alert('拒绝理由：' + proof.reason + '\n您可以点击"重新提交"按钮再次上传。');
+    reviewErrorMessage.value = '拒绝理由：' + proof.reason + '\n您可以点击"重新提交"按钮再次上传。';
+    showReviewErrorModal.value = true;
   }
 }
 
 function submitReview() {
   if (currentRating.value === 0) {
-    alert('请选择评分');
+    reviewErrorMessage.value = '请选择评分';
+    showReviewErrorModal.value = true;
     return;
   }
   if (!reviewText.value.trim()) {
-    alert('请输入评价内容');
+    reviewErrorMessage.value = '请输入评价内容';
+    showReviewErrorModal.value = true;
     return;
   }
-  alert('评价提交成功！');
+  showReviewSuccessModal.value = true;
   showReviewModal.value = false;
   currentRating.value = 0;
   reviewText.value = '';
+}
+
+function closeReviewSuccessModal() {
+  showReviewSuccessModal.value = false;
+}
+
+function closeReviewErrorModal() {
+  showReviewErrorModal.value = false;
 }
 
 // 打开弹窗时重置分页
@@ -895,6 +992,33 @@ function openLongTermPetsModal() {
 function openPostsModal() {
   showAllPostsModal.value = true;
   currentPostPage.value = 1;
+}
+
+// 根据用户名获取用户ID（这里应该从API获取，暂时使用映射）
+function getUserIdByName(name: string): number {
+  const nameToIdMap: Record<string, number> = {
+    '张同学': 2,
+    '王老师': 3,
+    '刘同学': 4,
+    '陈学姐': 5,
+    '赵同学': 6,
+    '孙老师': 7,
+    '周同学': 8,
+    '吴同学': 9,
+    '郑同学': 10,
+    '钱老师': 11,
+    '李同学': 1,
+    '周老师': 12,
+    '吴学姐': 13,
+    '郑老师': 14,
+    '钱同学': 15,
+    '冯同学': 16,
+    '陈老师': 17,
+    '褚同学': 18,
+    '卫老师': 19,
+    '蒋同学': 20
+  };
+  return nameToIdMap[name] || 1;
 }
 </script>
 

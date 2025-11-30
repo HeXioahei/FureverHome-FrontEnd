@@ -55,8 +55,8 @@
             </div>
             <div class="flex items-start gap-3">
               <div>
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ post.title }}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{{ post.excerpt }}</p>
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ post.title }}</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{{ post.excerpt }}</p>
               </div>
             </div>
             <div class="flex items-center justify-end gap-2">
@@ -236,6 +236,14 @@
       @close="showDeleteSuccessModal = false"
       @confirm="onDeleteConfirm"
     />
+    <ConfirmModal
+      :visible="showConfirmModal"
+      :title="confirmAction === 'approve' ? '确认审核通过' : confirmAction === 'reject' ? '确认审核不通过' : '确认删除'"
+      :message="confirmAction === 'approve' ? '确定要通过该帖子的审核吗？' : confirmAction === 'reject' ? '确定要拒绝该帖子的审核吗？' : '确定要删除该帖子吗？此操作不可恢复。'"
+      @confirm="onConfirmModalConfirm"
+      @cancel="onConfirmModalCancel"
+      @close="onConfirmModalCancel"
+    />
   </div>
 </template>
 
@@ -246,6 +254,7 @@ import PostDetailModal from '../../components/admin/PostDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
+import ConfirmModal from '../../components/admin/ConfirmModal.vue';
 
 interface Post {
   id: number;
@@ -328,16 +337,20 @@ const showPostDetailModal = ref(false);
 const showApproveModal = ref(false);
 const showRejectModal = ref(false);
 const showDeleteSuccessModal = ref(false);
+const showConfirmModal = ref(false);
+const confirmAction = ref<'approve' | 'reject' | 'delete' | null>(null);
 const selectedPost = ref<Post | null>(null);
 
 function handleApprove(post: Post) {
   selectedPost.value = post;
-  showApproveModal.value = true;
+  confirmAction.value = 'approve';
+  showConfirmModal.value = true;
 }
 
 function handleReject(post: Post) {
   selectedPost.value = post;
-  showRejectModal.value = true;
+  confirmAction.value = 'reject';
+  showConfirmModal.value = true;
 }
 
 function handleViewDetail(post: Post) {
@@ -347,26 +360,26 @@ function handleViewDetail(post: Post) {
 
 function handleDelete(post: Post) {
   selectedPost.value = post;
-  // TODO: 调用API删除
-  showDeleteSuccessModal.value = true;
+  confirmAction.value = 'delete';
+  showConfirmModal.value = true;
 }
 
-function onApproveConfirm() {
-  if (selectedPost.value) {
+function onConfirmModalConfirm() {
+  if (!selectedPost.value || !confirmAction.value) return;
+  
+  showConfirmModal.value = false;
+  
+  // 执行操作
+  if (confirmAction.value === 'approve') {
     // TODO: 调用API审核通过
     console.log('审核通过:', selectedPost.value);
-  }
-}
-
-function onRejectConfirm() {
-  if (selectedPost.value) {
+    showApproveModal.value = true;
+  } else if (confirmAction.value === 'reject') {
     // TODO: 调用API审核拒绝
     console.log('审核拒绝:', selectedPost.value);
-  }
-}
-
-function onDeleteConfirm() {
-  if (selectedPost.value) {
+    showRejectModal.value = true;
+  } else if (confirmAction.value === 'delete') {
+    // TODO: 调用API删除
     // 从列表中移除
     if (activeTab.value === 'pending') {
       const index = pendingPosts.value.findIndex(p => p.id === selectedPost.value!.id);
@@ -375,7 +388,31 @@ function onDeleteConfirm() {
       const index = publishedPosts.value.findIndex(p => p.id === selectedPost.value!.id);
       if (index > -1) publishedPosts.value.splice(index, 1);
     }
+    showDeleteSuccessModal.value = true;
   }
+}
+
+function onConfirmModalCancel() {
+  showConfirmModal.value = false;
+  confirmAction.value = null;
+}
+
+function onApproveConfirm() {
+  showApproveModal.value = false;
+  selectedPost.value = null;
+  confirmAction.value = null;
+}
+
+function onRejectConfirm() {
+  showRejectModal.value = false;
+  selectedPost.value = null;
+  confirmAction.value = null;
+}
+
+function onDeleteConfirm() {
+  showDeleteSuccessModal.value = false;
+  selectedPost.value = null;
+  confirmAction.value = null;
 }
 
 onMounted(() => {
