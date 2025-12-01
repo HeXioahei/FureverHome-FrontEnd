@@ -59,6 +59,7 @@ import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ConfirmModal from '../../components/common/ConfirmModal.vue';
 import MyHome from './UserCenter/MyHome.vue';
+import MyPets from './UserCenter/MyPets.vue';
 import MyTodo from './UserCenter/MyTodo.vue';
 import MyPosts from './UserCenter/MyPosts.vue';
 import MyApplications from './UserCenter/MyApplications.vue';
@@ -80,6 +81,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { key: 'home', label: '我的主页', icon: 'fa-solid fa-house', component: MyHome },
+  { key: 'pets', label: '我的宠物', icon: 'fa-solid fa-paw', component: MyPets },
   { key: 'todo', label: '我的待办', icon: 'fa-solid fa-list-check', component: MyTodo },
   { key: 'posts', label: '我的帖子', icon: 'fa-regular fa-file-lines', component: MyPosts },
   { key: 'applications', label: '我的申请', icon: 'fa-regular fa-paste', component: MyApplications },

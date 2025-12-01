@@ -46,9 +46,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
+import { getCurrentUser, type CurrentUserInfo } from '../../../api/userApi';
 
-const userName = ref('李同学');
+const userName = ref('用户');
 
 interface Activity {
   id: number;
@@ -85,6 +86,27 @@ const activities = ref<Activity[]>([
     iconColor: '#D97706'
   }
 ]);
+
+async function loadCurrentUser() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data: CurrentUserInfo = res.data;
+      userName.value = data.userName || userName.value;
+    } else {
+      const cachedName = localStorage.getItem('userName');
+      if (cachedName) userName.value = cachedName;
+    }
+  } catch (error) {
+    const cachedName = localStorage.getItem('userName');
+    if (cachedName) userName.value = cachedName;
+    console.error('获取当前用户信息失败（MyHome）', error);
+  }
+}
+
+onMounted(() => {
+  loadCurrentUser();
+});
 </script>
 
 <style scoped>

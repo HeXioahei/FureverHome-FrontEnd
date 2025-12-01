@@ -95,3 +95,11 @@ const goPasswordLogin = () => router.push('/login/password')
 const goRegister = () => router.push('/register')
 const goChangeEmail = () => router.push('/login')
 </script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined');
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+</style>

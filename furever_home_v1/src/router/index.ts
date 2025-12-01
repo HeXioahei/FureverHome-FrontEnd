@@ -19,6 +19,7 @@ import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminPosts from '../views/admin/Posts.vue'
 import AdminPets from '../views/admin/Pets.vue'
 import AdminApplications from '../views/admin/Applications.vue'
+import AdminLogin from '../views/admin/AdminLogin.vue'
 
 // 来自 cwx 的新增发布帖子页面
 import PostNew from '../views/forum/PostNew.vue'
@@ -96,6 +97,11 @@ const routes: RouteRecordRaw[] = [
   },
 
   // 后台管理
+  {
+    path: '/admin/login',
+    name: 'AdminLogin',
+    component: AdminLogin
+  },
   {
     path: '/admin',
     component: AdminLayout,

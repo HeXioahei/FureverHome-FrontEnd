@@ -32,10 +32,19 @@ class HttpClient {
   }
 
   /**
-   * 获取token
+   * 获取前台/后台 token
+   * - bearerToken：通用 Bearer token（如后台、其他接口）
+   * - saTokenName / saTokenValue：Sa-Token 风格的 token（例如 header: satoken: xxx）
    */
-  private getToken(): string | null {
-    return localStorage.getItem('token') || sessionStorage.getItem('token')
+  private getAuthTokens(): {
+    bearerToken: string | null
+    saTokenName: string | null
+    saTokenValue: string | null
+  } {
+    const bearerToken = localStorage.getItem('token') || sessionStorage.getItem('token')
+    const saTokenName = localStorage.getItem('saTokenName')
+    const saTokenValue = localStorage.getItem('saTokenValue')
+    return { bearerToken, saTokenName, saTokenValue }
   }
 
   /**
@@ -92,15 +101,19 @@ class HttpClient {
     const fullURL = this.buildURL(url, params)
 
     // 设置请求头
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...fetchConfig.headers,
+      ...(fetchConfig.headers as Record<string, string>),
     }
 
     // 添加token
-    const token = this.getToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
+    const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
+    if (bearerToken) {
+      headers['Authorization'] = `Bearer ${bearerToken}`
+    }
+    if (saTokenName && saTokenValue) {
+      // Sa-Token 约定的 header 名称 + token 值，需要带上 Bearer 前缀
+      headers[saTokenName] = `Bearer ${saTokenValue}`
     }
 
     // 创建AbortController用于超时控制
@@ -199,12 +212,15 @@ class HttpClient {
     config?: RequestConfig
   ): Promise<ApiResponse<T>> {
     const fullURL = this.buildURL(url)
-    const headers: HeadersInit = {}
+    const headers: Record<string, string> = {}
 
     // 添加token
-    const token = this.getToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
+    const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
+    if (bearerToken) {
+      headers['Authorization'] = `Bearer ${bearerToken}`
+    }
+    if (saTokenName && saTokenValue) {
+      headers[saTokenName] = `Bearer ${saTokenValue}`
     }
 
     const controller = new AbortController()

@@ -7,12 +7,32 @@
         <!-- 头像 -->
         <label class="text-sm font-medium text-right" style="color: #4B5563;">头像</label>
         <div class="flex items-center gap-5">
-          <div class="w-20 h-20 rounded-full flex items-center justify-center text-3xl text-white border-2 border-white shadow-md" style="background-color: #F3C697;">
-            <i class="fa-regular fa-circle"></i>
+          <div
+            class="w-20 h-20 rounded-full flex items-center justify-center text-3xl text-white border-2 border-white shadow-md overflow-hidden bg-cover bg-center"
+            :style="avatarUrl ? '' : 'background-color: #F3C697;'"
+          >
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt="头像预览"
+              class="w-full h-full object-cover"
+            />
+            <i v-else class="fa-regular fa-circle"></i>
           </div>
-          <button class="px-4 py-2 bg-white border border-gray-300 rounded-md text-xs cursor-pointer transition-colors hover:border-[#FF8C00] hover:text-[#FF8C00]" style="color: #4B5563;">
+          <button
+            class="px-4 py-2 bg-white border border-gray-300 rounded-md text-xs cursor-pointer transition-colors hover:border-[#FF8C00] hover:text-[#FF8C00]"
+            style="color: #4B5563;"
+            @click="triggerAvatarSelect"
+          >
             <i class="fa-solid fa-camera"></i> 更换头像
           </button>
+          <input
+            ref="avatarInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onAvatarSelected"
+          />
         </div>
 
         <!-- 用户ID -->
@@ -26,14 +46,14 @@
           />
         </div>
 
-        <!-- 用户名 -->
+        <!-- 用户名（不可编辑） -->
         <label class="text-sm font-medium text-right" style="color: #4B5563;">用户名</label>
         <div class="relative max-w-[500px]">
           <input 
             type="text" 
-            v-model="formData.username"
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-md bg-gray-50 text-sm outline-none transition-colors focus:border-[#FF8C00] focus:bg-white"
-            style="color: #111;"
+            :value="userName"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500 cursor-not-allowed outline-none"
+            disabled
           />
         </div>
 
@@ -140,11 +160,27 @@
           <div 
             class="border-2 border-dashed border-gray-300 bg-gray-50 rounded-md p-5 text-center cursor-pointer text-xs transition-colors hover:border-[#FF8C00] hover:bg-[#FFF7ED]"
             style="color: #6B7280;"
-            @click="handleFileUpload"
+            @click="triggerProofSelect"
           >
             <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1 block"></i>
-            <div>点击上传文件或图片</div>
-            <div class="text-xs mt-1" style="color: #999;">支持 JPG, PNG, PDF 格式</div>
+            <div>点击上传文件或图片（最多3张）</div>
+            <div class="text-xs mt-1" style="color: #999;">支持 JPG, PNG 格式</div>
+          </div>
+          <input
+            ref="proofInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onProofSelected"
+          />
+          <div v-if="proofPhotos.length" class="mt-3 flex flex-wrap gap-3">
+            <div
+              v-for="url in proofPhotos"
+              :key="url"
+              class="w-24 h-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
+            >
+              <img :src="url" alt="爱宠证明" class="w-full h-full object-cover" />
+            </div>
           </div>
         </div>
       </div>
@@ -168,15 +204,30 @@
       message="您的信息已成功保存。"
       @close="closeSuccessModal"
     />
+    <!-- 错误弹窗（例如超出上传数量限制） -->
+    <ErrorModal
+      :visible="showErrorModal"
+      title="提示"
+      :message="errorMessage"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
+import ErrorModal from '../../../components/common/ErrorModal.vue';
+import {
+  getCurrentUser,
+  updateCurrentUser,
+  Sex,
+  type CurrentUserInfo,
+  type UpdateUserRequest
+} from '../../../api/userApi';
+import { uploadImage } from '../../../api/storageApi';
 
 interface FormData {
-  username: string;
   age: number;
   email: string;
   gender: string;
@@ -185,32 +236,151 @@ interface FormData {
 }
 
 const formData = ref<FormData>({
-  username: '李同学',
-  age: 21,
-  email: 'student_li@university.edu.cn',
-  gender: 'male',
-  location: '福州市 大学城',
+  age: 0,
+  email: '',
+  gender: 'secret',
+  location: '',
   petProofIntro: ''
 });
 
 const showSuccessModal = ref(false);
+const isLoading = ref(false);
+const avatarUrl = ref<string>('');
+const avatarInputRef = ref<HTMLInputElement | null>(null);
+const userName = ref<string>('');
+const proofPhotos = ref<string[]>([]);
+const proofInputRef = ref<HTMLInputElement | null>(null);
+const showErrorModal = ref(false);
+const errorMessage = ref('最多只能上传 3 张爱宠证明照片');
+
+function mapSexToGender(sex?: Sex): 'male' | 'female' | 'secret' {
+  if (sex === Sex.男) return 'male';
+  if (sex === Sex.女) return 'female';
+  return 'secret';
+}
+
+function mapGenderToSex(gender: string): Sex {
+  if (gender === 'male') return Sex.男;
+  if (gender === 'female') return Sex.女;
+  return Sex.保密;
+}
+
+async function loadCurrentUser() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data: CurrentUserInfo = res.data;
+      userName.value = data.userName || '';
+      formData.value.age = data.userAge ?? 0;
+      formData.value.email = data.email || '';
+      formData.value.gender = mapSexToGender(data.sex);
+      formData.value.location = data.location || '';
+      formData.value.petProofIntro = data.proofText || '';
+       avatarUrl.value = data.avatarUrl || '';
+      proofPhotos.value = data.proofPhoto || [];
+    }
+  } catch (error) {
+    console.error('获取当前用户信息失败', error);
+  }
+}
 
 function handleModifyPassword() {
   alert('修改密码功能待实现');
 }
 
-function handleFileUpload() {
-  alert('文件上传功能待实现');
+function triggerAvatarSelect() {
+  avatarInputRef.value?.click();
 }
 
-function handleSave() {
-  showSuccessModal.value = true;
-  console.log('保存的数据：', formData.value);
+async function onAvatarSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    isLoading.value = true;
+    const res = await uploadImage(file);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      avatarUrl.value = res.data;
+    } else {
+      alert(res.message || '头像上传失败，请稍后重试');
+    }
+  } catch (error) {
+    console.error('上传头像失败', error);
+    alert('头像上传失败，请稍后重试');
+  } finally {
+    isLoading.value = false;
+    if (avatarInputRef.value) avatarInputRef.value.value = '';
+  }
+}
+
+function triggerProofSelect() {
+  proofInputRef.value?.click();
+}
+
+async function onProofSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  if (proofPhotos.value.length >= 3) {
+    showErrorModal.value = true;
+    if (proofInputRef.value) proofInputRef.value.value = '';
+    return;
+  }
+
+  try {
+    isLoading.value = true;
+    const res = await uploadImage(file);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      proofPhotos.value.push(res.data);
+    } else {
+      errorMessage.value = res.message || '爱宠证明上传失败，请稍后重试';
+      showErrorModal.value = true;
+    }
+  } catch (error) {
+    console.error('上传爱宠证明失败', error);
+    errorMessage.value = '爱宠证明上传失败，请稍后重试';
+    showErrorModal.value = true;
+  } finally {
+    isLoading.value = false;
+    if (proofInputRef.value) proofInputRef.value.value = '';
+  }
+}
+
+async function handleSave() {
+  const payload: UpdateUserRequest = {
+    userAge: formData.value.age,
+    location: formData.value.location,
+    proofText: formData.value.petProofIntro,
+    proofPhoto: proofPhotos.value,
+    sex: mapGenderToSex(formData.value.gender),
+    avatarUrl: avatarUrl.value || undefined
+  };
+
+  isLoading.value = true;
+  try {
+    const res = await updateCurrentUser(payload);
+    if (res.code === 0 || res.code === 200) {
+      showSuccessModal.value = true;
+    } else {
+      alert(res.message || '保存失败，请稍后重试');
+    }
+  } catch (error) {
+    console.error('更新用户信息失败', error);
+    alert('保存失败，请稍后重试');
+  } finally {
+    isLoading.value = false;
+  }
 }
 
 function closeSuccessModal() {
   showSuccessModal.value = false;
 }
+
+onMounted(() => {
+  loadCurrentUser();
+});
 </script>
 
 <style scoped>

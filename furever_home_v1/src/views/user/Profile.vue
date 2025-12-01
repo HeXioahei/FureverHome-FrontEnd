@@ -71,15 +71,11 @@
 
         <!-- 右侧主内容 -->
         <div class="flex-[2] min-w-[300px] p-8">
-          <!-- 个人简介 -->
-          <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">个人简介</h2>
-          <p class="text-gray-600 leading-relaxed mb-5">{{ user.bio }}</p>
-
           <!-- 爱宠证明档案 -->
           <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">爱宠证明档案</h2>
-          <h3 class="font-semibold text-gray-700 mb-2">养宠经历</h3>
-          <p class="mb-4 text-gray-600 leading-7">
-            {{ experiences.map(exp => exp.text).join(' ') }}
+      <h3 class="font-semibold text-gray-700 mb-2">爱宠证明简介</h3>
+      <p class="mb-4 text-gray-600 leading-7">
+        {{ proofIntro || experiences.map(exp => exp.text).join(' ') }}
           </p>
 
           <h3 class="font-semibold text-gray-700 mb-2">证明材料</h3>
@@ -87,10 +83,15 @@
             <div 
               v-for="proof in proofs" 
               :key="proof.id" 
-              class="h-30 bg-gray-200 rounded-2xl flex items-center justify-center text-gray-500 text-sm text-center p-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+              class="h-30 bg-gray-200 rounded-2xl flex items-center justify-center text-gray-500 text-sm text-center p-2.5 cursor-pointer hover:opacity-80 transition-opacity overflow-hidden"
               @click="handleProofClick(proof)"
             >
-              {{ proof.title }}
+              <template v-if="proof.fileUrl">
+                <img :src="proof.fileUrl" alt="爱宠证明" class="w-full h-full object-cover" />
+              </template>
+              <template v-else>
+                {{ proof.title }}
+              </template>
             </div>
           </div>
 
@@ -669,26 +670,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import SuccessModal from '../../components/common/SuccessModal.vue';
 import ErrorModal from '../../components/common/ErrorModal.vue';
+import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
 
 const router = useRouter();
 const route = useRoute();
 
-// 获取当前登录用户ID（这里应该从登录状态获取，暂时使用固定值）
-const currentUserId = ref(1);
+// 获取当前登录用户ID
+const currentUserId = ref<number | null>(null);
 
 // 获取查看的用户ID（从路由参数获取，如果没有参数则认为是查看自己的主页）
 const viewedUserId = computed(() => {
   const userId = route.params.userId;
-  return userId ? Number(userId) : currentUserId.value;
+  return userId ? Number(userId) : (currentUserId.value ?? 0);
 });
 
 // 判断是否是查看自己的主页
 const isOwnProfile = computed(() => {
-  return viewedUserId.value === currentUserId.value;
+  return currentUserId.value !== null && viewedUserId.value === currentUserId.value;
 });
 
 interface Stat { key: string; label: string; value: number; }
@@ -700,9 +702,9 @@ interface Post { id: number; title: string; date: string; summary: string; statu
 interface Badge { id: number; name: string; }
 
 const user = ref({
-  name: '李同学',
+  name: '用户',
   title: '爱心铲屎官',
-  bio: '大家好！我是一名大学生，也是一名热爱动物的志愿者。我致力于校园流浪动物的救助与临时寄养，希望成为这些小生命寻找温暖的家。有3年养宠经验，有护宠证书，有爱心有耐心。',
+  bio: '大家好！我是一名大学生，也是一名热爱动物的志愿者。我致力于校园流浪动物的救助与临时寄养，希望成为这些小生命寻找温暖的家。',
   stats: [
     { key: 'helpTimes', label: '帮助次数', value: 96 },
     { key: 'rescues', label: '救助宠物', value: 5 }
@@ -716,12 +718,11 @@ interface BaseInfo {
 }
 
 const baseInfo = ref<BaseInfo[]>([
-  // { label: '用户名', value: '李同学' },
-  { label: '年龄', value: '22' },
-  { label: '性别', value: '女' },
-  { label: '所在地', value: '大学城校区' },
-  { label: '邮箱', value: 'li@example.com' },
-  { label: '注册时间', value: '2023年3月' }
+  { label: '年龄', value: '-' },
+  { label: '性别', value: '-' },
+  { label: '所在地', value: '-' },
+  { label: '邮箱', value: '-' },
+  { label: '注册时间', value: '-' }
 ]);
 
 const badges = ref<Badge[]>([
@@ -740,6 +741,8 @@ const proofs = ref<Proof[]>([
   { id: 2, title: '宠物饲养保证书', status: 'approved' },
   { id: 3, title: '动物救助服务证书', status: 'approved' }
 ]);
+
+const proofIntro = ref<string>('');
 
 // 生成50条评价数据
 const generateEvaluations = (): Evaluation[] => {
@@ -886,6 +889,57 @@ const generateAllPosts = (): Post[] => {
 
 const allPosts = ref<Post[]>(generateAllPosts());
 
+function applyCurrentUser(data: CurrentUserInfo) {
+  if (data.userId) {
+    currentUserId.value = data.userId;
+  }
+  if (data.userName) {
+    user.value.name = data.userName;
+  }
+  baseInfo.value = [
+    { label: '年龄', value: data.userAge != null ? String(data.userAge) : '-' },
+    { label: '性别', value: data.sex || '-' },
+    { label: '所在地', value: data.location || '-' },
+    { label: '邮箱', value: data.email || '-' },
+    { label: '注册时间', value: data.createTime || '-' }
+  ];
+
+  proofIntro.value = data.proofText || proofIntro.value;
+
+  if (data.proofPhoto && data.proofPhoto.length) {
+    proofs.value = data.proofPhoto.map((url, index) => ({
+      id: index + 1,
+      title: `爱宠证明 ${index + 1}`,
+      status: 'approved',
+      fileUrl: url
+    }));
+  }
+}
+
+function loadUserFromCache() {
+  try {
+    const cached = localStorage.getItem('currentUser');
+    if (cached) {
+      const me = JSON.parse(cached) as CurrentUserInfo;
+      applyCurrentUser(me);
+    }
+  } catch (e) {
+    console.error('解析缓存用户信息失败', e);
+  }
+}
+
+async function loadUserFromApi() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      applyCurrentUser(res.data);
+      localStorage.setItem('currentUser', JSON.stringify(res.data));
+    }
+  } catch (e) {
+    console.error('获取当前用户信息失败(Profile)', e);
+  }
+}
+
 // 模态框状态
 const showReviewModal = ref(false);
 const showAllReviewsModal = ref(false);
@@ -1020,6 +1074,11 @@ function getUserIdByName(name: string): number {
   };
   return nameToIdMap[name] || 1;
 }
+
+onMounted(() => {
+  loadUserFromCache();
+  loadUserFromApi();
+});
 </script>
 
 <style scoped>
