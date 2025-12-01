@@ -314,11 +314,27 @@ textarea { min-height: 250px; resize: vertical; line-height: 1.6; }
 .remove-btn:hover { background: rgba(0,0,0,0.9); }
 .form-actions { display: flex; justify-content: center; gap: 20px; margin-top: 40px; }
 .btn { padding: 14px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; border: none; min-width: 140px; }
-.btn-primary { background: var(--primary-color); color: white; box-shadow: 0 4px 8px rgba(255, 140, 0, 0.2); }
-.btn-primary:hover:not(:disabled) { background: #E67A2A; transform: translateY(-3px); box-shadow: 0 8px 16px rgba(255, 140, 0, 0.5); }
+.btn-primary {
+  background: #ff8c00;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(255, 140, 0, 0.4);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #e67800;
+  transform: translateY(-2px);
+}
 .btn-primary:disabled { background: #FFDAC5; color: #999; cursor: not-allowed; box-shadow: none; transform: none; opacity: 1; }
-.btn-secondary { background: #f0f0f0; color: var(--text-main); border: 1px solid var(--border-color); }
-.btn-secondary:hover { background: #e0e0e0; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+.btn-secondary {
+  background: white;
+  color: #444;
+  border: 2px solid #ddd;
+  font-weight: 600;
+}
+.btn-secondary:hover {
+  background: #f5f5f5;
+}
 .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 3000; display: flex; align-items: center; justify-content: center; }
 .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 500px; padding: 40px; box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3); text-align: center; }
 .modal-icon { font-size: 70px; margin-bottom: 25px; }

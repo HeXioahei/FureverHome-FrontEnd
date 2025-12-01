@@ -1,6 +1,6 @@
 <template>
   <RouterLink
-    :to="{ name: 'PostDetail', params: { id: post.id } }"
+    :to="{ name: 'PostDetail', params: { postId: post.id } }"
     class="post-card group"
   >
     <div class="post-header">

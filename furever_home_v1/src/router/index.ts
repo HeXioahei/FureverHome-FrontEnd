@@ -45,9 +45,10 @@ const routes: RouteRecordRaw[] = [
     component: PostList
   },
   {
-    path: '/forum/:id',
+    path: '/forum/:postId',
     name: 'PostDetail',
-    component: PostDetail
+    component: PostDetail,
+    props:true
   },
   {
     path: '/profile',
