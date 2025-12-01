@@ -12,11 +12,16 @@ import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import NotFound from '../views/error/404.vue'
+
+// 来自 master 的后台管理部分
 import AdminLayout from '../views/admin/AdminLayout.vue'
 import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminPosts from '../views/admin/Posts.vue'
 import AdminPets from '../views/admin/Pets.vue'
 import AdminApplications from '../views/admin/Applications.vue'
+
+// 来自 cwx 的新增发布帖子页面
+import PostNew from '../views/forum/PostNew.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -55,9 +60,10 @@ const routes: RouteRecordRaw[] = [
     component: PostList
   },
   {
-    path: '/forum/:id',
+    path: '/forum/:postId',
     name: 'PostDetail',
-    component: PostDetail
+    component: PostDetail,
+    props: true
   },
   {
     path: '/profile',
@@ -84,6 +90,8 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: Register
   },
+
+  // 后台管理
   {
     path: '/admin',
     component: AdminLayout,
@@ -110,6 +118,14 @@ const routes: RouteRecordRaw[] = [
       }
     ]
   },
+
+  // 新增：发布帖子
+  {
+    path: '/post/new',
+    name: 'PostNew',
+    component: PostNew
+  },
+
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
