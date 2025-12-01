@@ -1,230 +1,99 @@
+<!--test-->
 <template>
-  <div class="font-display bg-background-light dark:bg-background-dark text-stone-900 dark:text-stone-200">
-    <div class="relative flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6">
-      <main
-        class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
-      >
-        <div class="flex flex-col items-center gap-2 text-center mb-8">
-          <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
-            欢迎使用 FUREVER<br />HOME!
-          </h1>
-        </div>
-
-        <div class="w-full space-y-5">
-          <!-- 账号/邮箱输入行 -->
-          <div
-            class="flex w-full items-center justify-between border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT"
-          >
-            <input
-              v-model="account"
-              type="text"
-              autocomplete="username"
-              class="flex-1 bg-transparent outline-none text-sm text-stone-900 dark:text-white placeholder:text-stone-400"
-              placeholder="请输入您的账号或邮箱"
-            />
-            <button
-              type="button"
-              class="ml-3 text-sm font-bold text-primary hover:text-primary-hover"
-              @click="focusAccount"
-            >
-              更改
-            </button>
-          </div>
-
-          <!-- 密码输入 -->
-          <div class="relative flex w-full">
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              v-model="password"
-              class="form-input flex w-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT text-stone-900 dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-all text-sm pr-10"
-              placeholder="请输入您的密码"
-            />
-            <button
-              type="button"
-              class="absolute right-0 top-0 h-full px-3 text-stone-400 hover:text-stone-500 dark:hover:text-stone-200 flex items-center justify-center"
-              @click="togglePassword"
-            >
-              <span class="material-symbols-outlined text-[20px]">
-                {{ showPassword ? 'visibility_off' : 'visibility' }}
-              </span>
-            </button>
-          </div>
-
-          <!-- 忘记密码 -->
-          <div class="flex justify-end pt-0">
-            <a href="javascript:void(0)" class="text-sm font-bold text-primary hover:text-primary-hover">
-              忘记密码?
-            </a>
-          </div>
-
-          <!-- 登录按钮 -->
-          <button
-            class="flex h-12 w-full items-center justify-center rounded-DEFAULT px-6 text-base font-bold text-white shadow-sm transition-all mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
-            :style="{
-              backgroundColor: loading ? '#e67e00' : '#FF8C00'
-            }"
-            :disabled="loading"
-            @click="handleLogin"
-          >
-            {{ loading ? '登录中...' : '登录' }}
-          </button>
-
-          <!-- 底部注册链接 -->
-          <div class="text-center text-sm text-stone-500 dark:text-stone-400 mt-6">
-            还没有账户?
-            <a class="font-bold text-primary hover:text-primary-hover ml-1" href="javascript:void(0)" @click="goRegister">
-              立即注册
-            </a>
-          </div>
-        </div>
-
-        <!-- 协议文案 -->
-        <div class="mt-8 text-center">
-          <p class="text-xs text-stone-400 dark:text-stone-500 transform scale-90">
-            继续即表示您同意我们的
-            <a class="underline hover:text-stone-600 dark:hover:text-stone-300" href="javascript:void(0)">《用户协议》</a>
-            和
-            <a class="underline hover:text-stone-600 dark:hover:text-stone-300" href="javascript:void(0)">《隐私政策》</a>
-          </p>
-        </div>
-      </main>
-
-      <!-- 登录成功弹窗 -->
-      <div
-        v-if="showSuccess"
-        class="fixed inset-0 bg-black/40 z-[3000] flex items-center justify-center p-4 sm:p-6"
-      >
-        <main
-          class="relative z-10 flex w-full max-w-[420px] flex-col items-center justify-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-16 text-center"
+  <div
+    class="relative flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6 font-display bg-background-light dark:bg-background-dark text-stone-900 dark:text-stone-200"
+  >
+    <main
+      class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
+    >
+      <!-- 标题 -->
+      <div class="flex flex-col items-center gap-2 text-center mb-8">
+        <h1
+          class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight"
         >
-          <div class="w-24 h-24 bg-[#DCFCE7] dark:bg-green-900/30 rounded-full flex items-center justify-center mb-8">
-            <svg
-              class="w-12 h-12 text-[#16A34A]"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-          </div>
-
-          <div class="space-y-3">
-            <h1 class="text-3xl font-extrabold text-stone-900 dark:text-white tracking-tight">
-              登录成功！
-            </h1>
-            <p class="text-stone-500 dark:text-stone-400 text-sm leading-relaxed">
-              欢迎回来，<span class="font-bold text-primary">{{ successUserName }}</span>！<br />
-              正在为您跳转至主页...
-            </p>
-          </div>
-        </main>
+          欢迎使用 FUREVER<br />HOME!
+        </h1>
       </div>
 
-      <!-- 错误提示 -->
-      <div
-        v-if="errorMessage"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-500 text-white text-sm px-4 py-2 rounded-full shadow-lg z-[3100]"
-      >
-        {{ errorMessage }}
+      <div class="w-full space-y-5">
+        <!-- 显示邮箱区域 -->
+        <div
+          class="flex w-full items-center justify-between border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded"
+        >
+          <span class="text-stone-900 dark:text-white text-sm font-medium">{{ email }}</span>
+          <button
+            class="text-sm font-bold text-primary hover:text-primary-hover"
+            @click="goChangeEmail"
+          >
+            更改
+          </button>
+        </div>
+
+        <!-- 登录方式按钮 -->
+        <div class="space-y-3 pt-2">
+          <!-- 邮箱验证码登录：橙底白字 -->
+          <button
+  class="flex h-12 w-full items-center justify-center rounded text-white font-bold text-base shadow-sm transition-all hover:bg-primary-hover"
+  style="background-color: #FB923C !important;"
+  @click="goEmailLogin"
+>
+  邮箱验证码登录
+</button>
+
+
+<!-- 密码登录：白底黑字 + 橙色边框 -->
+  <button
+    class="flex h-12 w-full items-center justify-center rounded border border-primary text-stone-900 font-bold text-base shadow-sm transition-all hover:bg-primary/10"
+    style="border-color: #FB923C !important;"
+    @click="goPasswordLogin"
+  >
+    密码登录
+  </button>
+
+        </div>
+
+        <!-- 注册入口 -->
+        <div class="text-center text-sm mt-6">
+          还没有账户?
+          <button
+  class="font-bold ml-1"
+  style="color: #FB923C !important;"
+  @click="goRegister"
+>
+  立即注册
+</button>
+        </div>
       </div>
-    </div>
+
+      <!-- 协议 -->
+      <div class="mt-8 text-center">
+        <p class="text-xs text-stone-400 dark:text-stone-500 transform scale-90">
+          继续即表示您同意我们的
+          <a class="underline hover:text-stone-600 dark:hover:text-stone-300" href="#"
+            >《用户协议》</a
+          >
+          和
+          <a class="underline hover:text-stone-600 dark:hover:text-stone-300" href="#"
+            >《隐私政策》</a
+          >
+        </p>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { userLogin } from '../../api/authApi';
-import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
+import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
-const route = useRoute();
-const router = useRouter();
+const router = useRouter()
+const userStore = useUserStore()
+const email = userStore.email || 'user@example.com'
 
-// 账号（可以是用户名或邮箱），尝试从 query 中预填
-const account = ref<string>((route.query.email as string) || '');
-const password = ref('');
-const showPassword = ref(false);
-const loading = ref(false);
-const errorMessage = ref('');
-
-const showSuccess = ref(false);
-const successUserName = ref('');
-
-function togglePassword() {
-  showPassword.value = !showPassword.value;
-}
-
-function focusAccount() {
-  // 纯前端：更改按钮仅做 UX 辅助，这里不需要额外交互逻辑
-}
-
-function goRegister() {
-  router.push({ name: 'Register' });
-}
-
-async function handleLogin() {
-  if (!account.value || !password.value) {
-    errorMessage.value = '请输入账号和密码';
-    return;
-  }
-
-  loading.value = true;
-  errorMessage.value = '';
-
-  try {
-    const res = await userLogin({
-      account: account.value,
-      password: password.value
-    });
-
-    if ((res.code === 0 || res.code === 200) && res.data && res.data.isLogin && res.data.tokenValue) {
-      // 使用 Sa-Token 返回的 tokenValue 作为前台 token
-      localStorage.setItem('token', res.data.tokenValue);
-      // 记录 Sa-Token 的 header 名称，便于后续接口带上正确的头（如 satoken）
-      if (res.data.tokenName && res.data.tokenValue) {
-        localStorage.setItem('saTokenName', res.data.tokenName);
-        localStorage.setItem('saTokenValue', res.data.tokenValue);
-      }
-
-      // 立刻获取我的个人信息并缓存，供导航栏和个人主页使用
-      try {
-        const meRes = await getCurrentUser();
-        if ((meRes.code === 0 || meRes.code === 200) && meRes.data) {
-          const me: CurrentUserInfo = meRes.data;
-          localStorage.setItem('currentUser', JSON.stringify(me));
-          if (me.userName) {
-            localStorage.setItem('userName', me.userName);
-          }
-          if (me.avatarUrl) {
-            localStorage.setItem('avatarUrl', me.avatarUrl);
-          }
-          successUserName.value = me.userName || account.value;
-          // 通知全局（如导航栏）当前用户信息已更新
-          window.dispatchEvent(new CustomEvent('current-user-updated'));
-        } else {
-          successUserName.value = account.value;
-        }
-      } catch (e) {
-        console.error('登录后获取当前用户信息失败', e);
-        successUserName.value = account.value;
-      }
-
-      showSuccess.value = true;
-
-      setTimeout(() => {
-        router.push({ name: 'Home' });
-      }, 2000);
-    } else {
-      errorMessage.value = res.message || '登录失败，请检查账号或密码';
-    }
-  } catch (error: any) {
-    errorMessage.value = error?.message || '登录失败，请稍后重试';
-  } finally {
-    loading.value = false;
-  }
-}
+const goEmailLogin = () => router.push('/login/email')
+const goPasswordLogin = () => router.push('/login/password')
+const goRegister = () => router.push('/register')
+const goChangeEmail = () => router.push('/login')
 </script>
 
 <style scoped>

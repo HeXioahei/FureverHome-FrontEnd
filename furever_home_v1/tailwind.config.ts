@@ -7,16 +7,17 @@ export default {
   ],
   theme: {
     extend: {
-      colors: { 
-        primary: '#FB923C', 
-        'background-light': '#F8FAFC', 
-        'background-dark': '#18181B' 
+      colors: {
+        primary: '#FB923C',
+        'background-light': '#F8FAFC',
+        'background-dark': '#18181B',
+        'primary-hover': '#F97316'
       },
-      fontFamily: { 
-        display: ["'Noto Sans SC'", 'sans-serif'] 
+      fontFamily: {
+        display: ["'Noto Sans SC'", 'sans-serif']
       },
-      borderRadius: { 
-        DEFAULT: '0.5rem' 
+      borderRadius: {
+        DEFAULT: '0.5rem'
       }
     },
   },
