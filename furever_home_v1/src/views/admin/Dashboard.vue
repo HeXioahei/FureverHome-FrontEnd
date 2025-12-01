@@ -83,6 +83,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { fetchDashboardStatistics, type DashboardStatisticsDTO } from '../../api/adminDashboardApi';
 
 const router = useRouter();
 
@@ -96,16 +97,34 @@ interface Stats {
 }
 
 const stats = ref<Stats>({
-  totalPosts: 1892,
-  totalLongTermPets: 348,
-  totalShortTermPets: 156,
-  pendingPosts: 5,
-  pendingPets: 12,
-  pendingApplications: 8
+  totalPosts: 0,
+  totalLongTermPets: 0,
+  totalShortTermPets: 0,
+  pendingPosts: 0,
+  pendingPets: 0,
+  pendingApplications: 0
 });
 
-onMounted(() => {
-  // TODO: 从API获取统计数据
+onMounted(async () => {
+  try {
+    const res = await fetchDashboardStatistics();
+    if (res && typeof res.code === 'number' && res.code === 0 && res.data) {
+      const data: DashboardStatisticsDTO = res.data;
+      stats.value = {
+        totalPosts: data.totalPostCount ?? 0,
+        totalLongTermPets: data.longTermPetCount ?? 0,
+        totalShortTermPets: data.shortTermPetCount ?? 0,
+        pendingPosts: data.pendingPostCount ?? 0,
+        pendingPets: data.pendingPetCount ?? 0,
+        pendingApplications: data.pendingAdoptCount ?? 0
+      };
+    } else {
+      // 可以根据需要在此处做错误提示
+      console.warn('获取首页统计数据失败', res);
+    }
+  } catch (error) {
+    console.error('获取首页统计数据异常', error);
+  }
 });
 </script>
 

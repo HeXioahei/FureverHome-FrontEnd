@@ -248,13 +248,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PostDetailModal from '../../components/admin/PostDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import {
+  fetchPublishedAdminPosts,
+  type AdminPostSummaryDTO
+} from '../../api/adminPostApi';
 
 interface Post {
   id: number;
@@ -284,18 +288,11 @@ const generatePendingPosts = (): Post[] => {
   }));
 };
 
-const generatePublishedPosts = (): Post[] => {
-  return Array.from({ length: 68 }, (_, i) => ({
-    id: 1001 + i,
-    title: `城市救助记录 ${1001 + i}`,
-    excerpt: '志愿者分享了一次温暖的救助经历，介绍了宠物的康复计划与社区支持。',
-    author: ['张三', '李四', '王五', '赵六', '孙七'][i % 5],
-    time: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`
-  }));
-};
-
 const pendingPosts = ref<Post[]>(generatePendingPosts());
-const publishedPosts = ref<Post[]>(generatePublishedPosts());
+
+// 已发布帖子数据来自后端
+const publishedPosts = ref<Post[]>([]);
+const publishedTotal = ref(0);
 
 const filteredPendingPosts = computed(() => {
   if (!pendingSearch.value) return pendingPosts.value;
@@ -311,14 +308,15 @@ const filteredPublishedPosts = computed(() => {
   if (!publishedSearch.value) return publishedPosts.value;
   const search = publishedSearch.value.toLowerCase();
   return publishedPosts.value.filter(
-    post => post.title.toLowerCase().includes(search) ||
-            post.author.toLowerCase().includes(search) ||
-            post.excerpt.toLowerCase().includes(search)
+    post =>
+      post.title.toLowerCase().includes(search) ||
+      post.author.toLowerCase().includes(search) ||
+      post.excerpt.toLowerCase().includes(search)
   );
 });
 
 const totalPendingPages = computed(() => Math.ceil(filteredPendingPosts.value.length / PAGE_SIZE));
-const totalPublishedPages = computed(() => Math.ceil(filteredPublishedPosts.value.length / PAGE_SIZE));
+const totalPublishedPages = computed(() => Math.ceil(publishedTotal.value / PAGE_SIZE));
 
 const paginatedPendingPosts = computed(() => {
   const start = (currentPendingPage.value - 1) * PAGE_SIZE;
@@ -326,11 +324,37 @@ const paginatedPendingPosts = computed(() => {
   return filteredPendingPosts.value.slice(start, end);
 });
 
-const paginatedPublishedPosts = computed(() => {
-  const start = (currentPublishedPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredPublishedPosts.value.slice(start, end);
-});
+// 已发布列表由后端分页，这里不再做二次分页，仅应用搜索过滤
+const paginatedPublishedPosts = computed(() => filteredPublishedPosts.value);
+
+// 将后端 AdminPostSummaryDTO 映射到前端展示用 Post
+function mapAdminPostToPost(item: AdminPostSummaryDTO): Post {
+  return {
+    id: item.postId ?? 0,
+    title: item.title ?? '',
+    excerpt: item.excerpt ?? '',
+    author: item.authorName ?? '未知作者',
+    time: item.createTime ? String(item.createTime) : ''
+  };
+}
+
+async function loadPublishedPosts() {
+  try {
+    const res = await fetchPublishedAdminPosts({
+      page: currentPublishedPage.value,
+      pageSize: PAGE_SIZE
+    });
+    if (res.code === 0 && res.data) {
+      const records = res.data.records ?? [];
+      publishedPosts.value = records.map(mapAdminPostToPost);
+      publishedTotal.value = res.data.total ?? records.length;
+    } else {
+      console.warn('获取已发布帖子列表失败', res);
+    }
+  } catch (error) {
+    console.error('获取已发布帖子列表异常', error);
+  }
+}
 
 // 弹窗状态
 const showPostDetailModal = ref(false);
@@ -418,6 +442,23 @@ function onDeleteConfirm() {
 onMounted(() => {
   if (route.query.tab) {
     activeTab.value = route.query.tab as string;
+  }
+
+  if (activeTab.value === 'published') {
+    loadPublishedPosts();
+  }
+});
+
+watch(currentPublishedPage, () => {
+  if (activeTab.value === 'published') {
+    loadPublishedPosts();
+  }
+});
+
+watch(activeTab, (value) => {
+  if (value === 'published') {
+    currentPublishedPage.value = 1;
+    loadPublishedPosts();
   }
 });
 </script>

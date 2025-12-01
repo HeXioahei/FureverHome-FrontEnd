@@ -3,7 +3,7 @@
  */
 import httpClient, { type ApiResponse } from './request'
 
-// 用户基本信息接口
+// 旧的用户基本信息接口（按原有页面使用）
 export interface UserInfo {
   id: number
   name: string
@@ -20,6 +20,47 @@ export interface UserInfo {
     helpTimes: number
     rescues: number
   }
+}
+
+// 新接口：当前登录用户信息（/user/me）
+export enum Sex {
+  保密 = '保密',
+  女 = '女',
+  男 = '男'
+}
+
+export enum Status {
+  正常 = '正常',
+  禁用 = '禁用'
+}
+
+export interface CurrentUserInfo {
+  avatarUrl?: string
+  createTime?: string
+  creditScore?: number
+  creditScoreCount?: number
+  email?: string
+  lastLoginAt?: string
+  location?: string
+  proofPhoto?: string[]
+  proofText?: string
+  sex?: Sex
+  status?: Status
+  updatedAt?: string
+  userAge?: number
+  userId?: number
+  userName?: string
+  [property: string]: any
+}
+
+export interface UpdateUserRequest {
+  avatarUrl?: string
+  location?: string
+  proofPhoto?: string[]
+  proofText?: string
+  sex?: Sex
+  userAge?: number
+  [property: string]: any
 }
 
 // 用户统计数据接口
@@ -130,6 +171,22 @@ export function getUserProofs(userId: number): Promise<ApiResponse<Proof[]>> {
  */
 export function getUserCreditScore(userId: number): Promise<ApiResponse<CreditScore>> {
   return httpClient.get<CreditScore>(`/users/${userId}/credit-score`)
+}
+
+/**
+ * 获取当前登录用户信息 /user/me
+ */
+export function getCurrentUser(): Promise<ApiResponse<CurrentUserInfo>> {
+  return httpClient.get<CurrentUserInfo>('/user/me')
+}
+
+/**
+ * 更新当前登录用户信息 /user/me
+ */
+export function updateCurrentUser(
+  data: UpdateUserRequest
+): Promise<ApiResponse<any>> {
+  return httpClient.put<any>('/user/me', data)
 }
 
 /**
