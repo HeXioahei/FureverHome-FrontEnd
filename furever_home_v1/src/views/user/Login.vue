@@ -105,11 +105,11 @@
 
           <div class="space-y-3">
             <h1 class="text-3xl font-extrabold text-stone-900 dark:text-white tracking-tight">
-              登录成功！
+              {{ isAdminLogin ? '管理员登录成功！' : '登录成功！' }}
             </h1>
             <p class="text-stone-500 dark:text-stone-400 text-sm leading-relaxed">
               欢迎回来，<span class="font-bold text-primary">{{ successUserName }}</span>！<br />
-              正在为您跳转至主页...
+              正在为您跳转至{{ isAdminLogin ? '后台首页' : '主页' }}...
             </p>
           </div>
         </main>
@@ -144,6 +144,7 @@ const errorMessage = ref('');
 
 const showSuccess = ref(false);
 const successUserName = ref('');
+const isAdminLogin = ref(false); // 是否为管理员登录成功
 
 function togglePassword() {
   showPassword.value = !showPassword.value;
@@ -163,47 +164,123 @@ async function handleLogin() {
   errorMessage.value = '';
 
   try {
-    const res = await userLogin({
+    const res: any = await userLogin({
       account: account.value,
       password: password.value
     });
 
-    if ((res.code === 0 || res.code === 200) && res.data && res.data.isLogin && res.data.tokenValue) {
-      // 使用 Sa-Token 返回的 tokenValue 作为前台 token
-      localStorage.setItem('token', res.data.tokenValue);
-      // 记录 Sa-Token 的 header 名称，便于后续接口带上正确的头（如 satoken）
-      if (res.data.tokenName && res.data.tokenValue) {
-        localStorage.setItem('saTokenName', res.data.tokenName);
-        localStorage.setItem('saTokenValue', res.data.tokenValue);
+    // 兼容两种返回结构：
+    // 1）data 直接是 token 信息（老结构）
+    // 2）data 里包含 tokenInfo（当前后台返回）
+    const data = res.data || {};
+    const tokenInfo = data.tokenInfo || data;
+
+    const tokenValue: string | undefined = tokenInfo.tokenValue;
+    const tokenName: string | undefined = tokenInfo.tokenName;
+    const isLogin: boolean = tokenInfo.isLogin ?? true;
+
+    if ((res.code === 0 || res.code === 200) && tokenValue && isLogin) {
+      // 使用返回的 tokenValue 作为前台 token
+      localStorage.setItem('token', tokenValue);
+      // 记录 tokenName（如 Authorization 或 satoken），便于后续接口带上正确的头
+      if (tokenName && tokenValue) {
+        localStorage.setItem('saTokenName', tokenName);
+        localStorage.setItem('saTokenValue', tokenValue);
       }
 
-      // 立刻获取我的个人信息并缓存，供导航栏和个人主页使用
-      try {
-        const meRes = await getCurrentUser();
-        if ((meRes.code === 0 || meRes.code === 200) && meRes.data) {
-          const me: CurrentUserInfo = meRes.data;
-          localStorage.setItem('currentUser', JSON.stringify(me));
-          if (me.userName) {
-            localStorage.setItem('userName', me.userName);
+      // 解析角色，决定跳转前台还是后台
+      // roles 可能在 res.data.roles 或 res.data.tokenInfo.roles 或 res.data 的顶层
+      let targetRouteName: string = 'Home'; // 默认前台首页
+      
+      // 尝试从多个位置获取 roles
+      const rawRoles: any = data.roles || tokenInfo.roles || (res as any).roles;
+      let roles: string[] = [];
+
+      // 解析角色数组
+      if (Array.isArray(rawRoles)) {
+        roles = rawRoles.map(r => String(r).toUpperCase().trim());
+      } else if (typeof rawRoles === 'string') {
+        // 如果是逗号分隔的字符串，拆分成数组
+        roles = rawRoles.split(',').map(r => r.toUpperCase().trim()).filter(r => r);
+      } else if (rawRoles !== null && rawRoles !== undefined) {
+        // 如果是对象或其他类型，尝试转换为字符串再处理
+        const roleStr = String(rawRoles).toUpperCase().trim();
+        if (roleStr) {
+          roles = [roleStr];
+        }
+      }
+
+      if (roles.length > 0) {
+        // 记录角色到本地，方便其他地方使用
+        localStorage.setItem('roles', JSON.stringify(roles));
+      }
+
+      // 兼容 ROLE_ADMIN / ROLE_USER / ADMIN / admin / "ADMIN" / ["ADMIN"] 等各种形式
+      // 检查是否包含 ADMIN（不区分大小写，支持多种格式）
+      const hasAdminRole = roles.some(r => {
+        const roleStr = String(r).toUpperCase().trim();
+        // 匹配: ADMIN, ROLE_ADMIN, ADMIN_ROLE, 或包含 ADMIN 的任何字符串
+        return roleStr === 'ADMIN' || 
+               roleStr.includes('ADMIN') || 
+               roleStr === 'ROLE_ADMIN' ||
+               roleStr.startsWith('ADMIN');
+      });
+      
+      const hasUserRole = roles.some(r => {
+        const roleStr = String(r).toUpperCase().trim();
+        return roleStr === 'USER' || 
+               roleStr.includes('USER') || 
+               roleStr === 'ROLE_USER' ||
+               roleStr.startsWith('USER');
+      });
+
+      isAdminLogin.value = hasAdminRole;
+
+      if (hasAdminRole) {
+        // 管理员：直接进入后台首页，不再调用"获取我的个人信息"接口
+        targetRouteName = 'AdminDashboard';
+        successUserName.value = account.value;
+      } else {
+        if (hasUserRole) {
+          targetRouteName = 'Home';
+        }
+
+        // 前台用户：立刻获取我的个人信息并缓存，供导航栏和个人主页使用
+        try {
+          const meRes = await getCurrentUser();
+          if ((meRes.code === 0 || meRes.code === 200) && meRes.data) {
+            const me: CurrentUserInfo = meRes.data;
+            localStorage.setItem('currentUser', JSON.stringify(me));
+            if (me.userName) {
+              localStorage.setItem('userName', me.userName);
+            }
+            if (me.avatarUrl) {
+              localStorage.setItem('avatarUrl', me.avatarUrl);
+            }
+            successUserName.value = me.userName || account.value;
+            // 通知全局（如导航栏）当前用户信息已更新
+            window.dispatchEvent(new CustomEvent('current-user-updated'));
+          } else {
+            successUserName.value = account.value;
           }
-          if (me.avatarUrl) {
-            localStorage.setItem('avatarUrl', me.avatarUrl);
-          }
-          successUserName.value = me.userName || account.value;
-          // 通知全局（如导航栏）当前用户信息已更新
-          window.dispatchEvent(new CustomEvent('current-user-updated'));
-        } else {
+        } catch (e) {
+          console.error('登录后获取当前用户信息失败', e);
           successUserName.value = account.value;
         }
-      } catch (e) {
-        console.error('登录后获取当前用户信息失败', e);
-        successUserName.value = account.value;
       }
 
       showSuccess.value = true;
 
-      setTimeout(() => {
-        router.push({ name: 'Home' });
+      // 2 秒后自动跳转；如果 router.push 失败，使用 window.location 兜底
+      window.setTimeout(async () => {
+        try {
+          await router.push({ name: targetRouteName });
+        } catch (e) {
+          console.error('路由跳转失败，使用浏览器跳转兜底', e);
+          const fallbackPath =
+            targetRouteName === 'AdminDashboard' ? '/admin' : '/home';
+          window.location.href = fallbackPath;
+        }
       }, 2000);
     } else {
       errorMessage.value = res.message || '登录失败，请检查账号或密码';

@@ -17,7 +17,6 @@ import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminPosts from '../views/admin/Posts.vue'
 import AdminPets from '../views/admin/Pets.vue'
 import AdminApplications from '../views/admin/Applications.vue'
-import AdminLogin from '../views/admin/AdminLogin.vue'
 
 // 来自 cwx 的新增发布帖子页面
 import PostNew from '../views/forum/PostNew.vue'
@@ -102,9 +101,10 @@ const routes: RouteRecordRaw[] = [
     component: Register
   },
   {
+    // 管理后台登录：重用前台的密码登录页，保持登录页统一
     path: '/admin/login',
     name: 'AdminLogin',
-    component: AdminLogin
+    redirect: { name: 'LoginPassword', query: { from: 'admin' } }
   },
   {
     path: '/admin',

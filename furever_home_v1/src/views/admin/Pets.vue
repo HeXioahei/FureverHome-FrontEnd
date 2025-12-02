@@ -136,7 +136,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            显示 {{ pendingPets.length ? (currentPendingPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPendingPage * PAGE_SIZE, pendingPets.length) }} 条，共 {{ pendingPets.length }} 条
+            显示 {{ pendingTotal ? (currentPendingPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPendingPage * PAGE_SIZE, pendingTotal) }} 条，共 {{ pendingTotal }} 条
           </p>
           <div class="flex gap-2">
             <button
@@ -232,7 +232,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            显示 {{ shortTermPets.length ? (currentShortTermPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentShortTermPage * PAGE_SIZE, shortTermPets.length) }} 条，共 {{ shortTermPets.length }} 条
+            显示 {{ shortTermTotal ? (currentShortTermPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentShortTermPage * PAGE_SIZE, shortTermTotal) }} 条，共 {{ shortTermTotal }} 条
           </p>
           <div class="flex gap-2">
             <button
@@ -328,7 +328,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            显示 {{ longTermPets.length ? (currentLongTermPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentLongTermPage * PAGE_SIZE, longTermPets.length) }} 条，共 {{ longTermPets.length }} 条
+            显示 {{ longTermTotal ? (currentLongTermPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentLongTermPage * PAGE_SIZE, longTermTotal) }} 条，共 {{ longTermTotal }} 条
           </p>
           <div class="flex gap-2">
             <button
@@ -406,13 +406,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PetDetailModal from '../../components/admin/PetDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import {
+  getPendingShortAnimals,
+  getShortAnimals,
+  getLongAnimals,
+  getAnimalDetail,
+  approveAnimal,
+  rejectAnimal,
+  deleteAnimal as deleteAnimalApi,
+  getDashboardStatistics,
+  type AdminAnimalSummaryDto,
+  type AdminAnimalDetailDto
+} from '../../api/adminApi';
 
 interface Pet {
   id: number;
@@ -436,74 +448,26 @@ const currentPendingPage = ref(1);
 const currentShortTermPage = ref(1);
 const currentLongTermPage = ref(1);
 
+// 统计数据来自后端
 const stats = ref({
-  shortTerm: 48,
-  longTerm: 32,
-  pending: 9
+  shortTerm: 0,
+  longTerm: 0,
+  pending: 0
 });
 
-const namePool = ['小橘', '团团', '贝贝', '星星', '雪糕', '可可', '奶茶', '闪电', '木木', '花花'];
-const categoryPool = ['猫  英短', '狗  拉布拉多', '猫  布偶', '狗  柯基', '猫  暹罗', '狗  萨摩耶'];
-const publisherPool = ['何管理员', '周志愿者', '吴站长', '郑审核员', '冯老师'];
+// 宠物数据来自后端
+const pendingPets = ref<Pet[]>([]);
+const pendingTotal = ref(0);
+const shortTermPets = ref<Pet[]>([]);
+const shortTermTotal = ref(0);
+const longTermPets = ref<Pet[]>([]);
+const longTermTotal = ref(0);
 
-const generatePendingPets = (): Pet[] => {
-  return Array.from({ length: 18 }, (_, i) => {
-    const name = namePool[(i + 4) % namePool.length] || '未知';
-    const category = categoryPool[(i + 5) % categoryPool.length] || '未知';
-    const publisher = publisherPool[i % publisherPool.length] || '未知';
-    return {
-      id: 5201 + i,
-      name,
-      category,
-      publisher,
-      publishedAt: `2023-07-${(i % 20) + 1} ${9 + (i % 8)}:${(i * 5) % 60}`,
-      adopterName: publisher,
-      adopterAvatar: publisher.charAt(0),
-      petType: (i % 2 === 0 ? 'shortTerm' : 'longTerm') as 'shortTerm' | 'longTerm'
-    };
-  });
-};
+const loadingPending = ref(false);
+const loadingShortTerm = ref(false);
+const loadingLongTerm = ref(false);
 
-const generateShortTermPets = (): Pet[] => {
-  return Array.from({ length: 48 }, (_, i) => {
-    const name = namePool[i % namePool.length] || '未知';
-    const category = categoryPool[i % categoryPool.length] || '未知';
-    const publisher = publisherPool[i % publisherPool.length] || '未知';
-    return {
-      id: 5001 + i,
-      name,
-      category,
-      publisher,
-      publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`,
-      adopterName: publisher,
-      adopterAvatar: publisher.charAt(0),
-      petType: 'shortTerm' as 'shortTerm' | 'longTerm'
-    };
-  });
-};
-
-const generateLongTermPets = (): Pet[] => {
-  return Array.from({ length: 32 }, (_, i) => {
-    const name = namePool[i % namePool.length] || '未知';
-    const category = categoryPool[i % categoryPool.length] || '未知';
-    const publisher = publisherPool[i % publisherPool.length] || '未知';
-    return {
-      id: 3001 + i,
-      name,
-      category,
-      publisher,
-      publishedAt: `2023-0${(i % 6) + 1}-${(i % 28) + 1} ${8 + (i % 10)}:${(i * 7) % 60}`,
-      adopterName: publisher,
-      adopterAvatar: publisher.charAt(0),
-      petType: 'longTerm' as 'shortTerm' | 'longTerm'
-    };
-  });
-};
-
-const pendingPets = ref<Pet[]>(generatePendingPets());
-const shortTermPets = ref<Pet[]>(generateShortTermPets());
-const longTermPets = ref<Pet[]>(generateLongTermPets());
-
+// 后端分页，前端仅做搜索过滤
 const filteredPendingPets = computed(() => {
   if (!pendingSearch.value) return pendingPets.value;
   const search = pendingSearch.value.toLowerCase();
@@ -534,27 +498,114 @@ const filteredLongTermPets = computed(() => {
   );
 });
 
-const totalPendingPages = computed(() => Math.ceil(filteredPendingPets.value.length / PAGE_SIZE));
-const totalShortTermPages = computed(() => Math.ceil(filteredShortTermPets.value.length / PAGE_SIZE));
-const totalLongTermPages = computed(() => Math.ceil(filteredLongTermPets.value.length / PAGE_SIZE));
+const totalPendingPages = computed(() => Math.ceil(pendingTotal.value / PAGE_SIZE));
+const totalShortTermPages = computed(() => Math.ceil(shortTermTotal.value / PAGE_SIZE));
+const totalLongTermPages = computed(() => Math.ceil(longTermTotal.value / PAGE_SIZE));
 
-const paginatedPendingPets = computed(() => {
-  const start = (currentPendingPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredPendingPets.value.slice(start, end);
-});
+const paginatedPendingPets = computed(() => filteredPendingPets.value);
+const paginatedShortTermPets = computed(() => filteredShortTermPets.value);
+const paginatedLongTermPets = computed(() => filteredLongTermPets.value);
 
-const paginatedShortTermPets = computed(() => {
-  const start = (currentShortTermPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredShortTermPets.value.slice(start, end);
-});
+// 将后端 AdminAnimalSummaryDto 映射到前端展示用 Pet
+function mapAnimalToPet(item: AdminAnimalSummaryDto, petType: 'shortTerm' | 'longTerm'): Pet {
+  const createdAt = item.createdAt
+    ? typeof item.createdAt === 'string'
+      ? new Date(item.createdAt).toLocaleString('zh-CN')
+      : new Date(item.createdAt).toLocaleString('zh-CN')
+    : '';
+  return {
+    id: item.animalId ?? 0,
+    name: item.animalName ?? '',
+    category: `${item.species ?? ''}  ${item.breed ?? ''}`.trim(),
+    publisher: item.ownerName ?? '未知发布者',
+    publishedAt: createdAt,
+    adopterName: item.ownerName,
+    adopterAvatar: item.ownerName?.charAt(0) || '未',
+    petType
+  };
+}
 
-const paginatedLongTermPets = computed(() => {
-  const start = (currentLongTermPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredLongTermPets.value.slice(start, end);
-});
+// 加载统计数据
+async function loadStats() {
+  try {
+    const res = await getDashboardStatistics();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      stats.value = {
+        shortTerm: res.data.shortTermPetCount ?? 0,
+        longTerm: res.data.longTermPetCount ?? 0,
+        pending: res.data.pendingPetCount ?? 0
+      };
+    }
+  } catch (error) {
+    console.error('获取统计数据异常', error);
+  }
+}
+
+// 加载待审核宠物列表
+// 注意：后端只有 pending-short 接口，返回待审核的短期宠物列表
+async function loadPendingPets() {
+  try {
+    loadingPending.value = true;
+    const shortRes = await getPendingShortAnimals({
+      page: currentPendingPage.value,
+      pageSize: PAGE_SIZE,
+      keyword: pendingSearch.value || undefined
+    });
+    
+    const pendingList = (shortRes.code === 0 || shortRes.code === 200) && shortRes.data
+      ? (shortRes.data.list || shortRes.data.records || []).map(item => mapAnimalToPet(item, 'shortTerm'))
+      : [];
+    
+    pendingPets.value = pendingList;
+    pendingTotal.value = shortRes.data?.total ?? 0;
+  } catch (error) {
+    console.error('获取待审核宠物列表异常', error);
+  } finally {
+    loadingPending.value = false;
+  }
+}
+
+// 加载已发布短期宠物列表
+async function loadShortTermPets() {
+  try {
+    loadingShortTerm.value = true;
+    const res = await getShortAnimals({
+      page: currentShortTermPage.value,
+      pageSize: PAGE_SIZE,
+      keyword: shortTermSearch.value || undefined
+    });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      shortTermPets.value = list.map(item => mapAnimalToPet(item, 'shortTerm'));
+      shortTermTotal.value = res.data.total ?? list.length;
+    }
+  } catch (error) {
+    console.error('获取短期宠物列表异常', error);
+  } finally {
+    loadingShortTerm.value = false;
+  }
+}
+
+// 加载已发布长期宠物列表
+async function loadLongTermPets() {
+  try {
+    loadingLongTerm.value = true;
+    const res = await getLongAnimals({
+      page: currentLongTermPage.value,
+      pageSize: PAGE_SIZE,
+      keyword: longTermSearch.value || undefined
+    });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      longTermPets.value = list.map(item => mapAnimalToPet(item, 'longTerm'));
+      longTermTotal.value = res.data.total ?? list.length;
+    }
+  } catch (error) {
+    console.error('获取长期宠物列表异常', error);
+  } finally {
+    loadingLongTerm.value = false;
+  }
+}
 
 // 弹窗状态
 const showPetDetailModal = ref(false);
@@ -577,9 +628,35 @@ function handleReject(pet: Pet) {
   showConfirmModal.value = true;
 }
 
-function handleViewDetail(pet: Pet) {
-  selectedPet.value = pet;
-  showPetDetailModal.value = true;
+async function handleViewDetail(pet: Pet) {
+  try {
+    const res = await getAnimalDetail(pet.id);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data = res.data;
+      selectedPet.value = {
+        id: data.animalId ?? pet.id,
+        name: data.animalName ?? pet.name,
+        category: `${data.species ?? ''}  ${data.breed ?? ''}`.trim() || pet.category,
+        publisher: data.ownerName ?? pet.publisher,
+        publishedAt: data.createdAt
+          ? typeof data.createdAt === 'string'
+            ? new Date(data.createdAt).toLocaleString('zh-CN')
+            : new Date(data.createdAt).toLocaleString('zh-CN')
+          : pet.publishedAt,
+        adopterName: data.ownerName,
+        adopterAvatar: data.ownerName?.charAt(0) || '未',
+        petType: pet.petType
+      };
+      showPetDetailModal.value = true;
+    } else {
+      selectedPet.value = pet;
+      showPetDetailModal.value = true;
+    }
+  } catch (error) {
+    console.error('获取宠物详情异常', error);
+    selectedPet.value = pet;
+    showPetDetailModal.value = true;
+  }
 }
 
 function handleDelete(pet: Pet) {
@@ -588,34 +665,55 @@ function handleDelete(pet: Pet) {
   showConfirmModal.value = true;
 }
 
-function onConfirmModalConfirm() {
+async function onConfirmModalConfirm() {
   if (!selectedPet.value || !confirmAction.value) return;
   
   showConfirmModal.value = false;
   
-  // 执行操作
-  if (confirmAction.value === 'approve') {
-    // TODO: 调用API审核通过
-    console.log('审核通过:', selectedPet.value);
-    showApproveModal.value = true;
-  } else if (confirmAction.value === 'reject') {
-    // TODO: 调用API审核拒绝
-    console.log('审核拒绝:', selectedPet.value);
-    showRejectModal.value = true;
-  } else if (confirmAction.value === 'delete') {
-    // TODO: 调用API删除
-    // 从列表中移除
-    if (activeTab.value === 'pending') {
-      const index = pendingPets.value.findIndex(p => p.id === selectedPet.value!.id);
-      if (index > -1) pendingPets.value.splice(index, 1);
-    } else if (activeTab.value === 'shortTerm') {
-      const index = shortTermPets.value.findIndex(p => p.id === selectedPet.value!.id);
-      if (index > -1) shortTermPets.value.splice(index, 1);
-    } else {
-      const index = longTermPets.value.findIndex(p => p.id === selectedPet.value!.id);
-      if (index > -1) longTermPets.value.splice(index, 1);
+  try {
+    if (confirmAction.value === 'approve') {
+      // 审核通过
+      const res = await approveAnimal(selectedPet.value.id, { animalId: selectedPet.value.id });
+      if (res.code === 0 || res.code === 200) {
+        showApproveModal.value = true;
+        if (activeTab.value === 'pending') {
+          await loadPendingPets();
+          await loadStats();
+        }
+      } else {
+        alert(res.message || '审核通过失败');
+      }
+    } else if (confirmAction.value === 'reject') {
+      // 审核拒绝
+      const reason = prompt('请输入拒绝原因（可选）:') || '';
+      const res = await rejectAnimal(selectedPet.value.id, { animalId: selectedPet.value.id, reason });
+      if (res.code === 0 || res.code === 200) {
+        showRejectModal.value = true;
+        if (activeTab.value === 'pending') {
+          await loadPendingPets();
+          await loadStats();
+        }
+      } else {
+        alert(res.message || '审核拒绝失败');
+      }
+    } else if (confirmAction.value === 'delete') {
+      // 删除宠物
+      const res = await deleteAnimalApi(selectedPet.value.id);
+      if (res.code === 0 || res.code === 200) {
+        showDeleteSuccessModal.value = true;
+        if (activeTab.value === 'shortTerm') {
+          await loadShortTermPets();
+        } else if (activeTab.value === 'longTerm') {
+          await loadLongTermPets();
+        }
+        await loadStats();
+      } else {
+        alert(res.message || '删除失败');
+      }
     }
-    showDeleteSuccessModal.value = true;
+  } catch (error: any) {
+    console.error('操作失败', error);
+    alert(error?.message || '操作失败，请稍后重试');
   }
 }
 
@@ -646,6 +744,85 @@ onMounted(() => {
   if (route.query.tab) {
     activeTab.value = route.query.tab as string;
   }
+  
+  // 加载统计数据
+  loadStats();
+  
+  // 根据当前标签页加载数据
+  if (activeTab.value === 'pending') {
+    loadPendingPets();
+  } else if (activeTab.value === 'shortTerm') {
+    loadShortTermPets();
+  } else if (activeTab.value === 'longTerm') {
+    loadLongTermPets();
+  }
+});
+
+// 监听分页变化
+watch(currentPendingPage, () => {
+  if (activeTab.value === 'pending') {
+    loadPendingPets();
+  }
+});
+
+watch(currentShortTermPage, () => {
+  if (activeTab.value === 'shortTerm') {
+    loadShortTermPets();
+  }
+});
+
+watch(currentLongTermPage, () => {
+  if (activeTab.value === 'longTerm') {
+    loadLongTermPets();
+  }
+});
+
+// 监听标签页切换
+watch(activeTab, (value) => {
+  if (value === 'pending') {
+    currentPendingPage.value = 1;
+    loadPendingPets();
+  } else if (value === 'shortTerm') {
+    currentShortTermPage.value = 1;
+    loadShortTermPets();
+  } else if (value === 'longTerm') {
+    currentLongTermPage.value = 1;
+    loadLongTermPets();
+  }
+});
+
+// 监听搜索关键词变化（防抖）
+let pendingSearchTimer: number | undefined;
+watch(pendingSearch, () => {
+  if (pendingSearchTimer) clearTimeout(pendingSearchTimer);
+  pendingSearchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'pending') {
+      currentPendingPage.value = 1;
+      loadPendingPets();
+    }
+  }, 500);
+});
+
+let shortTermSearchTimer: number | undefined;
+watch(shortTermSearch, () => {
+  if (shortTermSearchTimer) clearTimeout(shortTermSearchTimer);
+  shortTermSearchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'shortTerm') {
+      currentShortTermPage.value = 1;
+      loadShortTermPets();
+    }
+  }, 500);
+});
+
+let longTermSearchTimer: number | undefined;
+watch(longTermSearch, () => {
+  if (longTermSearchTimer) clearTimeout(longTermSearchTimer);
+  longTermSearchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'longTerm') {
+      currentLongTermPage.value = 1;
+      loadLongTermPets();
+    }
+  }, 500);
 });
 </script>
 

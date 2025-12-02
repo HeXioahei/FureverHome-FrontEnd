@@ -4,7 +4,9 @@
  */
 
 // API基础URL - 根据实际后端地址修改
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+// 开发环境使用相对路径 /api，会经过 Vite 代理转发到后端
+// 生产环境可以通过环境变量 VITE_API_BASE_URL 设置完整后端地址
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:8080/api')
 
 // 请求配置接口
 interface RequestConfig extends RequestInit {
@@ -51,7 +53,21 @@ class HttpClient {
    * 构建完整URL
    */
   private buildURL(url: string, params?: Record<string, any>): string {
-    const fullURL = url.startsWith('http') ? url : `${this.baseURL}${url}`
+    let fullURL: string
+    if (url.startsWith('http')) {
+      // 已经是完整URL，直接使用
+      fullURL = url
+    } else if (this.baseURL) {
+      // 有 baseURL，拼接
+      // 确保 baseURL 和 url 之间没有重复的斜杠
+      const base = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL
+      const path = url.startsWith('/') ? url : `/${url}`
+      fullURL = `${base}${path}`
+    } else {
+      // baseURL 为空（后台接口），直接使用 url（url 应该以 / 开头，如 /admin/xxx）
+      // 确保 url 以 / 开头
+      fullURL = url.startsWith('/') ? url : `/${url}`
+    }
     
     if (params) {
       const searchParams = new URLSearchParams()
@@ -108,12 +124,26 @@ class HttpClient {
 
     // 添加token
     const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
-    if (bearerToken) {
-      headers['Authorization'] = `Bearer ${bearerToken}`
-    }
+    
+    // 优先使用 saTokenName/saTokenValue（如果存在），因为这是后端返回的标准格式
     if (saTokenName && saTokenValue) {
+      // 确保 tokenValue 不包含 Bearer 前缀（如果包含则去掉）
+      const cleanTokenValue = saTokenValue.startsWith('Bearer ') 
+        ? saTokenValue.substring(7) 
+        : saTokenValue
+      
       // Sa-Token 约定的 header 名称 + token 值，需要带上 Bearer 前缀
-      headers[saTokenName] = `Bearer ${saTokenValue}`
+      const tokenWithBearer = `Bearer ${cleanTokenValue}`
+      headers[saTokenName] = tokenWithBearer
+      // 同时设置 Authorization header，确保兼容性
+      headers['Authorization'] = tokenWithBearer
+    } else if (bearerToken) {
+      // 如果没有 saToken，使用 bearerToken
+      // 确保 bearerToken 不包含 Bearer 前缀（如果包含则去掉）
+      const cleanBearerToken = bearerToken.startsWith('Bearer ') 
+        ? bearerToken.substring(7) 
+        : bearerToken
+      headers['Authorization'] = `Bearer ${cleanBearerToken}`
     }
 
     // 创建AbortController用于超时控制
@@ -248,9 +278,14 @@ class HttpClient {
   }
 }
 
-// 创建默认实例
+// 创建默认实例（前台接口使用，BASE_URL = '/api'）
 const httpClient = new HttpClient(BASE_URL)
 
+// 创建后台管理专用实例（后台接口使用，BASE_URL = ''，路径直接写 /admin/xxx）
+// 后台接口路径：/admin/xxx，不需要 /api 前缀
+const ADMIN_BASE_URL = import.meta.env.VITE_ADMIN_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:8080')
+const adminHttpClient = new HttpClient(ADMIN_BASE_URL)
+
 export default httpClient
-export { HttpClient, type ApiResponse, type RequestConfig }
+export { HttpClient, adminHttpClient, type ApiResponse, type RequestConfig }
 
