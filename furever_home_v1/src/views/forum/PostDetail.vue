@@ -72,11 +72,11 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { getPostDetail, type Post } from '@/api/postapi'
+import { useRoute, useRouter } from 'vue-router'
+import { getPostDetail, type Post } from '@/api/postApi'
 import { getPostComments, submitComment as submitCommentApi, likePost as likePostApi, type Comment } from '@/api/commentapi'
 
-const props = defineProps<{ postId: string }>()
+const route = useRoute()
 const router = useRouter()
 
 const post = ref<Post | undefined>(undefined)
@@ -165,7 +165,7 @@ const goBack = () => {
 
 // 监听路由参数
 watch(
-  () => props.postId,
+  () => route.params.id,
   (newVal) => {
     if (!newVal) return
     const idNum = Number(newVal)
@@ -175,7 +175,8 @@ watch(
 )
 
 onMounted(() => {
-  if (props.postId) loadPost(Number(props.postId))
+  const postId = route.params.id
+  if (postId) loadPost(Number(postId))
 })
 </script>
 

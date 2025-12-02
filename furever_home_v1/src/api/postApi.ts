@@ -72,15 +72,23 @@ export interface MyPostListPageResult {
 export type MyPostListResponse = ApiResponse<MyPostListPageResult>
 
 /**
-}
-
-// 获取当前登录用户发布的帖子列表（我的帖子）
+ * 获取当前登录用户发布的帖子列表（我的帖子）
+ * @param params 分页参数
+ */
 export function getMyPostList(params: MyPostListParams): Promise<MyPostListResponse> {
   return httpClient.get<MyPostListPageResult>('/post/mine/list', { params })
 }
 
 /**
- * 获取用户发布的帖子列表（分页）
+ * 获取帖子列表（论坛首页）
+ * @param params 分页参数
+ */
+export function getPostList(params?: Partial<PaginationParams>): Promise<ApiResponse<Post[]>> {
+  return httpClient.get<Post[]>('/post/list', { params })
+}
+
+/**
+ * 获取用户发布的帖子列表（他人帖子）
  * @param userId 用户ID
  * @param params 分页参数
  */
@@ -89,7 +97,7 @@ export function getUserPosts(
   params: PaginationParams
 ): Promise<ApiResponse<PaginatedResponse<Post>>> {
   return httpClient.get<PaginatedResponse<Post>>(
-    `/users/${userId}/posts`,
+    `/post/user/${userId}/list`,
     { params }
   )
 }
@@ -99,7 +107,7 @@ export function getUserPosts(
  * @param postId 帖子ID
  */
 export function getPostDetail(postId: number): Promise<ApiResponse<Post>> {
-  return httpClient.get<Post>(`/posts/${postId}`)
+  return httpClient.get<Post>(`/post/${postId}`)
 }
 
 /**
@@ -127,7 +135,7 @@ export function createPost(data: {
     })
   }
   
-  return httpClient.upload<Post>('/posts', formData)
+  return httpClient.upload<Post>('/post', formData)
 }
 
 /**
@@ -139,7 +147,7 @@ export function updatePost(
   postId: number,
   data: Partial<Post>
 ): Promise<ApiResponse<Post>> {
-  return httpClient.put<Post>(`/posts/${postId}`, data)
+  return httpClient.put<Post>(`/post/${postId}`, data)
 }
 
 /**
@@ -147,7 +155,7 @@ export function updatePost(
  * @param postId 帖子ID
  */
 export function deletePost(postId: number): Promise<ApiResponse<void>> {
-  return httpClient.delete<void>(`/posts/${postId}`)
+  return httpClient.delete<void>(`/post/${postId}`)
 }
 
 /**

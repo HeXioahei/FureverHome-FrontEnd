@@ -40,6 +40,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import PostCard from '../../components/common/PostCard.vue';
+import { getPostList } from '@/api/postApi';
 
 interface Post {
   id: number;
