@@ -95,6 +95,17 @@
         </div>
       </div>
     </div>
+
+    <div v-if="showErrorModal" class="modal" @click.self="closeErrorModal">
+      <div class="modal-content">
+        <div class="modal-icon" style="color: var(--error-color);">❌</div>
+        <h2>发布失败</h2>
+        <p>{{ errorMessage }}</p>
+        <div class="modal-buttons">
+          <button class="btn btn-primary" @click="closeErrorModal">确定</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -116,6 +127,8 @@ const isDragOver = ref(false);
 
 const showSuccessModal = ref(false);
 const showCancelModal = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 const submittedPostId = ref<number | null>(null);
 
 const charCount = computed(() => postContent.value.length);
@@ -171,15 +184,20 @@ const submitPost = async () => {
     
     console.log('接口返回:', res);
     
+    // 检查响应是否成功
+    if (res.code && res.code !== 200) {
+      throw new Error(res.message || '发布失败，请稍后重试');
+    }
+    
     // 后端可能返回 postId 或 id，都尝试一下
-    submittedPostId.value = (res.data as any).postId || res.data.id || (res.data as any).id;
+    submittedPostId.value = (res.data as any)?.postId || (res.data as any)?.id || res.data?.id;
     console.log('获取到的帖子ID:', submittedPostId.value);
     showSuccessModal.value = true;
 
-  }catch(err){
-    console.error('提交接口失败，使用前端模拟ID', err);
-    submittedPostId.value = Math.floor(Math.random()*1000)+100;
-    showSuccessModal.value=true;
+  }catch(err: any){
+    console.error('提交接口失败:', err);
+    errorMessage.value = err?.message || err?.toString() || '发布失败，请检查网络连接或稍后重试';
+    showErrorModal.value = true;
   }
 };
 
@@ -191,6 +209,7 @@ const confirmSuccess = ()=>{
   else router.push({ name:'Forum' });
 };
 const confirmCancel = ()=>{ showCancelModal.value=false; router.back() };
+const closeErrorModal = ()=>{ showErrorModal.value=false; errorMessage.value=''; };
 </script>
 
 <style scoped>
