@@ -41,18 +41,6 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * 前台论坛：获取帖子列表（分页）
- * 这里先按照常见约定使用 /post/list，你后端如果是别的路径，可以再告诉我一起改。
- */
-export interface PostListRequest {
-  page?: number
-  pageSize?: number
-}
-
-export type PostListResponse = ApiResponse<Post[]>
-
-export function getPostList(params?: PostListRequest): Promise<PostListResponse> {
-  return httpClient.get<Post[]>('/post/list', { params })
 }
 
 /**

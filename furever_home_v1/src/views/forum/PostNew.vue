@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { createPost } from '@/api/postapi'; // ⚠️ 后端接口调用
+import { createPost } from '@/api/postApi'; // 后端接口调用
 
 const router = useRouter();
 
@@ -143,12 +143,11 @@ const submitPost = async () => {
   if(!isFormValid.value) return;
 
   try{
-    const formData = new FormData();
-    formData.append('title', postTitle.value);
-    formData.append('content', postContent.value);
-    uploadedFiles.value.forEach(f=>formData.append('files', f.file));
-
-    const res = await createPost(formData); // 调用接口
+    const res = await createPost({
+      title: postTitle.value,
+      content: postContent.value,
+      images: uploadedFiles.value.map(f => f.file)
+    }); // 调用接口
     submittedPostId.value = res.data.id;
     showSuccessModal.value = true;
 
