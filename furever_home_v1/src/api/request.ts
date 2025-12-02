@@ -3,8 +3,8 @@
  * 封装fetch请求，提供统一的请求接口
  */
 
-// API基础URL - 根据实际后端地址修改
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+// API基础URL - 默认走 /api，由 Vite 代理到测试环境
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 // 请求配置接口
 interface RequestConfig extends RequestInit {
