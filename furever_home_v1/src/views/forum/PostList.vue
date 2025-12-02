@@ -37,15 +37,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-// ⚠️ 新增：导入 Vue Router 的 useRouter
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import PostCard from '../../components/common/PostCard.vue';
-
-// ----------------------------------------
-// ⚠️ 新增：获取路由实例
-const router = useRouter();
-// ----------------------------------------
+import { getPostList } from '@/api/postapi'; // ⚠️ 调用后端接口
 
 interface Post {
   id: number;
@@ -60,68 +55,70 @@ interface Post {
   views: string;
 }
 
-const posts = ref<Post[]>([
-  {
-    id: 1,
-    author: '李同学',
-    avatarInitial: '李',
-    timeAgo: '3小时前',
-    title: '小橘的领养更新：越来越亲人啦！',
-    content: '小橘本来是出生一个月就被遗弃在校园里的小流浪猫，从最开始的警惕怕人到现在的主动蹭腿求摸摸。它已经成为我们宿舍楼的团宠，每天都有同学带着猫粮、猫条来看它。',
-    images: ['小橘晒太阳', '小橘玩耍', '小橘吃饭'],
-    likes: 128,
-    comments: 42,
-    views: '568',
-  },
-  {
-    id: 2,
-    author: '王医生',
-    avatarInitial: '王',
-    timeAgo: '1天前',
-    title: '秋季宠物常见疾病预防指南',
-    content: '随着天气转凉，宠物容易患上呼吸道疾病和关节问题。本文为大家提供秋季宠物护理指南，包括饮食调整、保暖措施、疫苗接种提醒等实用建议。',
-    images: ['疾病预防图', '护理指南'],
-    likes: 89,
-    comments: 23,
-    views: '432',
-  },
-  {
-    id: 3,
-    author: '张同学',
-    avatarInitial: '张',
-    timeAgo: '5天前',
-    title: '求助！我家金毛最近食欲不振，怎么办？',
-    content: '我家金毛叫Lucky，快两岁了。这几天它精神状态还行，但是对平时很喜欢的狗粮不怎么感兴趣，零食也吃得少了。有没有宠物医生或有经验的朋友能给点建议？',
-    images: ['金毛Lucky'],
-    likes: 45,
-    comments: 18,
-    views: '290',
-  },
-  {
-    id: 4,
-    author: '陈同学',
-    avatarInitial: '陈',
-    timeAgo: '1周前',
-    title: '分享自制猫零食：三文鱼冻干小教程',
-    content: '自从学会给猫咪自制零食后，再也不担心市面上的添加剂了！这次尝试了三文鱼冻干，做法超级简单，成本也比外面买的低很多。附上详细的制作步骤和注意事项。',
-    images: ['三文鱼冻干成品', '制作步骤'],
-    likes: 155,
-    comments: 67,
-    views: '889',
-  },
-]);
+const router = useRouter();
+const posts = ref<Post[]>([]);
+const defaultAvatar = 'https://i.ibb.co/34Gf4rW/avatar-default.png';
 
-// ⚠️ 修复：实现跳转逻辑
+// 加载帖子列表
+const loadPosts = async () => {
+  try {
+    const res = await getPostList();
+    posts.value = res.data.map((p: any) => ({
+      id: p.id,
+      author: p.authorName,
+      avatarInitial: p.authorAvatar ? p.authorAvatar[0] : '用',
+      timeAgo: p.timeAgo || '刚刚',
+      title: p.title,
+      content: p.content,
+      images: p.images || [],
+      likes: p.likes || 0,
+      comments: p.comments || 0,
+      views: p.views || '0'
+    }));
+  } catch (error) {
+    console.error('加载接口失败，显示示例数据', error);
+    // 示例数据
+    posts.value = [
+      {
+        id: 1,
+        author: '李同学',
+        avatarInitial: '李',
+        timeAgo: '3小时前',
+        title: '小橘的领养更新：越来越亲人啦！',
+        content: '小橘本来是出生一个月就被遗弃在校园里的小流浪猫...',
+        images: ['小橘晒太阳', '小橘玩耍', '小橘吃饭'],
+        likes: 128,
+        comments: 42,
+        views: '568'
+      },
+      {
+        id: 2,
+        author: '王医生',
+        avatarInitial: '王',
+        timeAgo: '1天前',
+        title: '秋季宠物常见疾病预防指南',
+        content: '随着天气转凉，宠物容易患上呼吸道疾病和关节问题...',
+        images: ['疾病预防图', '护理指南'],
+        likes: 89,
+        comments: 23,
+        views: '432'
+      }
+    ];
+  }
+};
+
 const goToPostCreation = () => {
-  // 使用 router.push 通过路由名称进行跳转
-  // 假设发布帖子的路由名称是 'PostNew' (请确保路由文件中存在此名称)
   router.push({ name: 'PostNew' });
   console.log('跳转到发布帖子页面...');
 };
+
+onMounted(() => {
+  loadPosts();
+});
 </script>
 
 <style scoped>
 .new-post-btn {
-    box-shadow: 0 4px 20px rgba(255, 140, 66, 0.4);
+  box-shadow: 0 4px 20px rgba(255, 140, 66, 0.4);
 }
 </style>
