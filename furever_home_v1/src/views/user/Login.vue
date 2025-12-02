@@ -233,4 +233,9 @@ async function handleLogin() {
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
+/* 强制灰色 placeholder */
+.placeholder-text {
+  color: #9CA3AF !important;
+}
 </style>

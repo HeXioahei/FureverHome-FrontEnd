@@ -19,6 +19,15 @@ import AdminPets from '../views/admin/Pets.vue'
 import AdminApplications from '../views/admin/Applications.vue'
 import AdminLogin from '../views/admin/AdminLogin.vue'
 
+// 来自 cwx 的新增发布帖子页面
+import PostNew from '../views/forum/PostNew.vue'
+
+//登录页面（邮箱，密码，注册可选择）
+import LoginEmail from '../views/user/LoginEmail.vue'
+import LoginPassword from '../views/user/LoginPassword.vue'
+import LoginSuccess from '../views/user/LoginSuccess.vue';
+
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -120,7 +129,22 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound
-  }
+  },
+  {
+  path: '/login/email',
+  name: 'LoginEmail',
+  component: LoginEmail
+},
+{
+  path: '/login/password',
+  name: 'LoginPassword',
+  component: LoginPassword
+},
+{
+    path: '/login-success',
+    name: 'LoginSuccess',
+    component: LoginSuccess
+}
 ]
 
 const router = createRouter({
