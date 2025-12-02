@@ -40,7 +40,43 @@ export interface PaginatedResponse<T> {
   totalPages: number
 }
 
+// 我的帖子列表 DTO（与后端 /post/mine/list 返回结构对齐）
+export interface MyPostItemDTO {
+  commentCount?: number
+  content?: string
+  createTime?: string
+  likeCount?: number
+  mediaUrls?: string
+  postId?: number
+  reviewStatus?: string
+  title?: string
+  userId?: number
+  viewCount?: number
+  [property: string]: any
+}
+
+export interface MyPostListParams {
+  page?: number
+  pageSize?: number
+  [property: string]: any
+}
+
+export interface MyPostListPageResult {
+  page?: number
+  pageSize?: number
+  records?: MyPostItemDTO[]
+  total?: number
+  [property: string]: any
+}
+
+export type MyPostListResponse = ApiResponse<MyPostListPageResult>
+
 /**
+}
+
+// 获取当前登录用户发布的帖子列表（我的帖子）
+export function getMyPostList(params: MyPostListParams): Promise<MyPostListResponse> {
+  return httpClient.get<MyPostListPageResult>('/post/mine/list', { params })
 }
 
 /**

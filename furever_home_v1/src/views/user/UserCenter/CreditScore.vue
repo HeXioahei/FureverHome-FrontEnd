@@ -18,7 +18,7 @@
     <h2 class="text-2xl font-bold mb-5" style="color: #111;">他人评价</h2>
     
     <!-- 评价列表 -->
-    <div class="flex flex-col gap-5">
+    <div v-if="reviews.length" class="flex flex-col gap-5">
       <div 
         v-for="review in reviews" 
         :key="review.id"
@@ -57,21 +57,28 @@
       </div>
     </div>
 
+    <div v-else class="mt-8 text-center text-sm" style="color: #9CA3AF;">
+      当前还没有收到评价
+    </div>
+
     <!-- 分页 -->
-    <div class="flex justify-center mt-10 mb-5">
+    <div class="flex justify-center mt-10 mb-5" v-if="total > pageSize">
       <div class="flex gap-2.5">
         <button 
-          v-for="page in 4" 
+          v-for="page in totalPages" 
           :key="page"
           class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-          :class="page === 1 ? 'bg-[#E67E22] text-white border-[#E67E22]' : 'text-gray-600'"
+          :class="page === currentPage ? 'bg-[#E67E22] text-white border-[#E67E22]' : 'text-gray-600'"
           style="color: #6B7280;"
+          @click="goPage(page)"
         >
           {{ page }}
         </button>
         <button 
+          v-if="currentPage < totalPages"
           class="px-5 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
+          @click="goPage(currentPage + 1)"
         >
           下一页
         </button>
@@ -81,8 +88,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { getReceivedRatings } from '@/api/ratingApi';
 
 const router = useRouter();
 
@@ -98,41 +106,54 @@ interface Review {
   avatarIcon: string;
 }
 
-const reviews = ref<Review[]>([
-  {
-    id: 1,
-    name: '张伟',
-    nameId: 2,
-    time: '2天前',
-    stars: 5,
-    content: '非常有爱心和责任心的领养人，对猫咪"米洛"照顾得无微不至，沟通顺畅，强烈推荐！',
-    avatarBg: '#F3C697',
-    avatarColor: 'white',
-    avatarIcon: 'fa-regular fa-circle'
-  },
-  {
-    id: 2,
-    name: '李静',
-    nameId: 4,
-    time: '1周前',
-    stars: 5,
-    content: '沟通很及时，对宠物的了解也很专业。只是约定时间稍微迟到了一点，但总体体验不错。',
-    avatarBg: '#E5E7EB',
-    avatarColor: '#555',
-    avatarIcon: 'fa-solid fa-location-dot'
-  },
-  {
-    id: 3,
-    name: '王强',
-    nameId: 5,
-    time: '3周前',
-    stars: 5,
-    content: '回复消息不是很及时，但能看出来是很喜欢小动物的人。希望以后多分享一些宠物的近况。',
-    avatarBg: '#F3C697',
-    avatarColor: 'white',
-    avatarIcon: 'fa-regular fa-circle'
+const reviews = ref<Review[]>([]);
+const currentPage = ref(1);
+const pageSize = 10;
+const total = ref(0);
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil((total.value || 0) / pageSize));
+});
+
+async function loadReviews(page = 1) {
+  try {
+    const res = await getReceivedRatings({ page, pageSize });
+    if (res.code === 200 && res.data) {
+      total.value = res.data.total ?? 0;
+      const records = res.data.records ?? [];
+      reviews.value = records.map((item: any, index: number) => {
+        const id = item.ratingId ?? index + 1;
+        const name = item.otherUserName || '匿名用户';
+        const nameId = item.otherUserId;
+        const time = item.createTime || '';
+        const stars = item.score ?? 0;
+        const content = item.content || '';
+        // 头像样式暂时简单处理
+        return {
+          id,
+          name,
+          nameId,
+          time,
+          stars,
+          content,
+          avatarBg: '#F3C697',
+          avatarColor: 'white',
+          avatarIcon: 'fa-regular fa-circle'
+        } as Review;
+      });
+    } else {
+      console.error('获取评价列表失败', res);
+    }
+  } catch (err) {
+    console.error('获取评价列表接口异常', err);
   }
-]);
+}
+
+function goPage(page: number) {
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
+  loadReviews(page);
+}
 
 // 根据用户名获取用户ID（这里应该从API获取，暂时使用映射）
 function getUserIdByName(name: string): number {
@@ -154,6 +175,10 @@ function getUserIdByName(name: string): number {
   };
   return nameToIdMap[name] || 1;
 }
+
+onMounted(() => {
+  loadReviews(currentPage.value);
+});
 </script>
 
 <style scoped>

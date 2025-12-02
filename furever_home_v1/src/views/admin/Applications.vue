@@ -72,7 +72,7 @@
       </div>
       <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          显示 {{ applications.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPage * PAGE_SIZE, applications.length) }} 条，共 {{ applications.length }} 条
+          显示 {{ applicationsTotal ? (currentPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPage * PAGE_SIZE, applicationsTotal) }} 条，共 {{ applicationsTotal }} 条
         </p>
         <div class="flex gap-2">
           <button
@@ -142,11 +142,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import ApplicationDetailModal from '../../components/admin/ApplicationDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import {
+  getPendingAdopts,
+  getAdoptDetail,
+  approveAdopt,
+  rejectAdopt,
+  type AdminAdoptSummaryDto,
+  type AdminAdoptDetailDto
+} from '../../api/adminApi';
 
 interface Application {
   id: number;
@@ -159,23 +167,11 @@ interface Application {
 const PAGE_SIZE = 10;
 const search = ref('');
 const currentPage = ref(1);
+const applications = ref<Application[]>([]);
+const applicationsTotal = ref(0);
+const loading = ref(false);
 
-const applicants = ['李想', '王悦', '陈晨', '赵雷', '刘雪', '孙明', '周航', '吴桐'];
-const petTargets = ['小橘', '星星', '豆豆', '雪球', '奶茶', '花花'];
-const petOwners = ['张女士', '杨先生', '何主管', '郑老师', '钱同学'];
-
-const generateApplications = (): Application[] => {
-  return Array.from({ length: 27 }, (_, i) => ({
-    id: 6001 + i,
-    applicant: applicants[i % applicants.length],
-    petName: petTargets[i % petTargets.length],
-    targetUser: petOwners[i % petOwners.length],
-    time: `2023-07-${(i % 20) + 1} ${9 + (i % 9)}:${(i * 4) % 60}`
-  }));
-};
-
-const applications = ref<Application[]>(generateApplications());
-
+// 后端分页，前端仅做搜索过滤
 const filteredApplications = computed(() => {
   if (!search.value) return applications.value;
   const searchLower = search.value.toLowerCase();
@@ -186,13 +182,48 @@ const filteredApplications = computed(() => {
   );
 });
 
-const totalPages = computed(() => Math.ceil(filteredApplications.value.length / PAGE_SIZE));
+const totalPages = computed(() => Math.ceil(applicationsTotal.value / PAGE_SIZE));
 
-const paginatedApplications = computed(() => {
-  const start = (currentPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredApplications.value.slice(start, end);
-});
+const paginatedApplications = computed(() => filteredApplications.value);
+
+// 将后端 AdminAdoptSummaryDto 映射到前端展示用 Application
+function mapAdoptToApplication(item: AdminAdoptSummaryDto): Application {
+  const createTime = item.createTime
+    ? typeof item.createTime === 'string'
+      ? new Date(item.createTime).toLocaleString('zh-CN')
+      : new Date(item.createTime).toLocaleString('zh-CN')
+    : '';
+  return {
+    id: item.adoptId ?? 0,
+    applicant: item.userName ?? '未知申请人',
+    petName: item.animalName ?? '未知宠物',
+    targetUser: item.animalName ?? '未知', // 这里可能需要根据实际业务调整
+    time: createTime
+  };
+}
+
+// 加载待审核领养申请列表
+async function loadApplications() {
+  try {
+    loading.value = true;
+    const res = await getPendingAdopts({
+      page: currentPage.value,
+      pageSize: PAGE_SIZE,
+      keyword: search.value || undefined
+    });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      applications.value = list.map(mapAdoptToApplication);
+      applicationsTotal.value = res.data.total ?? list.length;
+    } else {
+      console.warn('获取待审核领养申请列表失败', res);
+    }
+  } catch (error) {
+    console.error('获取待审核领养申请列表异常', error);
+  } finally {
+    loading.value = false;
+  }
+}
 
 // 弹窗状态
 const showApplicationDetailModal = ref(false);
@@ -214,31 +245,65 @@ function handleReject(app: Application) {
   showConfirmModal.value = true;
 }
 
-function handleViewDetail(app: Application) {
-  selectedApplication.value = app;
-  showApplicationDetailModal.value = true;
+async function handleViewDetail(app: Application) {
+  try {
+    const res = await getAdoptDetail(app.id);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data = res.data;
+      selectedApplication.value = {
+        id: data.adoptId ?? app.id,
+        applicant: data.userName ?? app.applicant,
+        petName: data.animalName ?? app.petName,
+        targetUser: data.animalName ?? app.targetUser,
+        time: data.createTime
+          ? typeof data.createTime === 'string'
+            ? new Date(data.createTime).toLocaleString('zh-CN')
+            : new Date(data.createTime).toLocaleString('zh-CN')
+          : app.time
+      };
+      showApplicationDetailModal.value = true;
+    } else {
+      selectedApplication.value = app;
+      showApplicationDetailModal.value = true;
+    }
+  } catch (error) {
+    console.error('获取领养申请详情异常', error);
+    selectedApplication.value = app;
+    showApplicationDetailModal.value = true;
+  }
 }
 
-function onConfirmModalConfirm() {
+async function onConfirmModalConfirm() {
   if (!selectedApplication.value || !confirmAction.value) return;
   
   showConfirmModal.value = false;
   
-  // 执行操作
-  if (confirmAction.value === 'approve') {
-    // TODO: 调用API审核通过
-    console.log('审核通过:', selectedApplication.value);
-    // 从列表中移除
-    const index = applications.value.findIndex(a => a.id === selectedApplication.value!.id);
-    if (index > -1) applications.value.splice(index, 1);
-    showApproveModal.value = true;
-  } else if (confirmAction.value === 'reject') {
-    // TODO: 调用API审核拒绝
-    console.log('审核拒绝:', selectedApplication.value);
-    // 从列表中移除
-    const index = applications.value.findIndex(a => a.id === selectedApplication.value!.id);
-    if (index > -1) applications.value.splice(index, 1);
-    showRejectModal.value = true;
+  try {
+    if (confirmAction.value === 'approve') {
+      // 审核通过
+      const res = await approveAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id });
+      if (res.code === 0 || res.code === 200) {
+        showApproveModal.value = true;
+        // 重新加载列表
+        await loadApplications();
+      } else {
+        alert(res.message || '审核通过失败');
+      }
+    } else if (confirmAction.value === 'reject') {
+      // 审核拒绝
+      const reason = prompt('请输入拒绝原因（可选）:') || '';
+      const res = await rejectAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id, reason });
+      if (res.code === 0 || res.code === 200) {
+        showRejectModal.value = true;
+        // 重新加载列表
+        await loadApplications();
+      } else {
+        alert(res.message || '审核拒绝失败');
+      }
+    }
+  } catch (error: any) {
+    console.error('操作失败', error);
+    alert(error?.message || '操作失败，请稍后重试');
   }
 }
 
@@ -258,6 +323,25 @@ function onRejectConfirm() {
   selectedApplication.value = null;
   confirmAction.value = null;
 }
+
+onMounted(() => {
+  loadApplications();
+});
+
+// 监听分页变化
+watch(currentPage, () => {
+  loadApplications();
+});
+
+// 监听搜索关键词变化（防抖）
+let searchTimer: number | undefined;
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(() => {
+    currentPage.value = 1;
+    loadApplications();
+  }, 500);
+});
 </script>
 
 <style scoped>

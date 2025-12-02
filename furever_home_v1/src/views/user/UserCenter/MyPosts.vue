@@ -2,7 +2,7 @@
   <div>
     <h2 class="text-2xl font-bold mb-5" style="color: #111;">我发布的帖子</h2>
 
-    <div class="flex flex-col gap-5">
+    <div v-if="posts.length" class="flex flex-col gap-5">
       <div 
         v-for="post in posts" 
         :key="post.id" 
@@ -69,13 +69,17 @@
       </div>
     </div>
 
+    <div v-else class="mt-8 text-center text-sm" style="color: #9CA3AF;">
+      当前还没有发布帖子
+    </div>
+
     <!-- 分页 -->
-    <div class="flex justify-center mt-10 mb-5">
+    <div class="flex justify-center mt-10 mb-5" v-if="total > pageSize">
       <div class="flex gap-2.5">
         <button 
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
-          @click="currentPage > 1 && currentPage--"
+          @click="goPrev"
         >
           <i class="fa-solid fa-chevron-left"></i>
         </button>
@@ -85,14 +89,14 @@
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
-          @click="currentPage = page"
+          @click="goPage(page)"
         >
           {{ page }}
         </button>
         <button 
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
-          @click="currentPage < totalPages && currentPage++"
+          @click="goNext"
         >
           <i class="fa-solid fa-chevron-right"></i>
         </button>
@@ -119,10 +123,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
+import { getMyPostList } from '@/api/postApi';
 
 const router = useRouter();
 
@@ -139,42 +144,12 @@ interface Post {
 
 const userName = ref('李同学');
 
-const posts = ref<Post[]>([
-  {
-    id: 1,
-    title: '小橘的领养更新：越来越亲人啦！',
-    content: '小橘本来是出生一个月就被遗弃在校园里的小流浪猫，从最开始的警惕怕人到现在的书东蹭腿求摸摸。它已经成为了我们宿舍楼的团宠，每天都有同学带着猫粮、猫条来看它。',
-    time: '3小时前',
-    images: ['小橘晒太阳', '小橘玩耍', '小橘吃饭'],
-    likes: 128,
-    comments: 42,
-    views: 568
-  },
-  {
-    id: 2,
-    title: '温柔的老年猫需要一个安静的养老之所',
-    content: '这只温柔的10岁猫咪正在寻找一个平静的家庭度过她的黄金岁月。她会使用猫砂盆，喜欢在阳光下打盹，非常容易照顾。',
-    time: '昨天',
-    images: ['猫咪睡觉', '猫咪晒太阳', '猫咪吃罐头'],
-    likes: 180,
-    comments: 8,
-    views: 890
-  },
-  {
-    id: 3,
-    title: '精力充沛的金毛寻回犬寻找活跃的家庭！',
-    content: '认识一下巴迪，一只2岁的金毛寻回犬，有无限的精力和爱心。他喜欢玩接球和长途散步。非常适合活跃的家庭。',
-    time: '2天前',
-    images: ['巴迪奔跑', '巴迪接球', '巴迪和人互动'],
-    likes: 450,
-    comments: 32,
-    views: 2100
-  }
-]);
+const posts = ref<Post[]>([]);
 
 const currentPage = ref(1);
 const pageSize = 10;
-const totalPages = computed(() => Math.ceil(posts.value.length / pageSize));
+const total = ref(0);
+const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pageSize)));
 
 const showDeleteConfirmModal = ref(false);
 const showDeleteSuccessModal = ref(false);
@@ -207,6 +182,71 @@ function closeDeleteConfirm() {
 function closeDeleteSuccess() {
   showDeleteSuccessModal.value = false;
 }
+
+async function loadPosts(page = 1) {
+  try {
+    const res = await getMyPostList({ page, pageSize });
+    if (res.code === 200 && res.data) {
+      total.value = res.data.total ?? 0;
+      const records = res.data.records ?? [];
+      posts.value = records.map((item: any, index: number) => {
+        const id = item.postId ?? item.id ?? index + 1;
+        const title = item.title || '';
+        const content = item.content || '';
+        const time = item.createTime || '';
+        let images: string[] = [];
+        if (typeof item.mediaUrls === 'string' && item.mediaUrls) {
+          try {
+            const parsed = JSON.parse(item.mediaUrls);
+            if (Array.isArray(parsed)) {
+              images = parsed;
+            } else {
+              images = [item.mediaUrls];
+            }
+          } catch {
+            images = [item.mediaUrls];
+          }
+        }
+        return {
+          id,
+          title,
+          content,
+          time,
+          images,
+          likes: item.likeCount ?? 0,
+          comments: item.commentCount ?? 0,
+          views: item.viewCount ?? 0,
+        } as Post;
+      });
+    } else {
+      console.error('获取我的帖子列表失败', res);
+    }
+  } catch (err) {
+    console.error('获取我的帖子列表接口异常', err);
+  }
+}
+
+function goPage(page: number) {
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
+  loadPosts(page);
+}
+
+function goPrev() {
+  if (currentPage.value > 1) {
+    goPage(currentPage.value - 1);
+  }
+}
+
+function goNext() {
+  if (currentPage.value < totalPages.value) {
+    goPage(currentPage.value + 1);
+  }
+}
+
+onMounted(() => {
+  loadPosts(currentPage.value);
+});
 </script>
 
 <style scoped>
