@@ -3,7 +3,7 @@
  */
 import httpClient, { type ApiResponse } from './request'
 
-// 帖子接口
+// 帖子接口（用于论坛列表与详情）
 export interface Post {
   id: number
   title: string
@@ -41,12 +41,6 @@ export interface PaginatedResponse<T> {
 }
 
 /**
- * 获取帖子列表（用于论坛首页）
- */
-export function getPostList(params?: Partial<PaginationParams>): Promise<ApiResponse<Post[]>> {
-  return httpClient.get<Post[]>('/posts', {
-    params
-  })
 }
 
 /**
