@@ -22,15 +22,21 @@ import AdminLogin from '../views/admin/AdminLogin.vue'
 // 来自 cwx 的新增发布帖子页面
 import PostNew from '../views/forum/PostNew.vue'
 
-//登录页面（邮箱，密码，注册可选择）
+// 登录流程相关页面
+import LoginEntry from '../views/user/LoginEntry.vue'
 import LoginEmail from '../views/user/LoginEmail.vue'
-import LoginPassword from '../views/user/LoginPassword.vue'
 import LoginSuccess from '../views/user/LoginSuccess.vue';
 
 
 const routes: RouteRecordRaw[] = [
   {
+    // 入口路径：重定向到登录页
     path: '/',
+    redirect: '/login'
+  },
+  {
+    // 平台首页
+    path: '/home',
     name: 'Home',
     component: Home
   },
@@ -85,9 +91,10 @@ const routes: RouteRecordRaw[] = [
     component: UserCenter
   },
   {
+    // 登录首屏：选择邮箱验证码 / 密码登录 / 注册
     path: '/login',
     name: 'Login',
-    component: Login
+    component: LoginEntry
   },
   {
     path: '/register',
@@ -131,20 +138,22 @@ const routes: RouteRecordRaw[] = [
     component: NotFound
   },
   {
-  path: '/login/email',
-  name: 'LoginEmail',
-  component: LoginEmail
-},
-{
-  path: '/login/password',
-  name: 'LoginPassword',
-  component: LoginPassword
-},
-{
+    // 输入验证码页面
+    path: '/login/email',
+    name: 'LoginEmail',
+    component: LoginEmail
+  },
+  {
+    // 密码登录页面（复用原来的 Login.vue，已接好登录接口）
+    path: '/login/password',
+    name: 'LoginPassword',
+    component: Login
+  },
+  {
     path: '/login-success',
     name: 'LoginSuccess',
     component: LoginSuccess
-}
+  }
 ]
 
 const router = createRouter({

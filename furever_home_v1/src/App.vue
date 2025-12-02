@@ -9,7 +9,11 @@ const route = useRoute();
 const isAdminPage = computed(() => route.path.startsWith('/admin'));
 
 // 登录/注册等认证页面不展示顶部导航栏
-const isAuthPage = computed(() => ['Login', 'Register'].includes(route.name as string));
+const isAuthPage = computed(() => {
+  // 所有 /login 开头的路由 + 注册页，都视为认证页面
+  if (route.path.startsWith('/login')) return true;
+  return ['Register'].includes(route.name as string);
+});
 </script>
 
 <template>
