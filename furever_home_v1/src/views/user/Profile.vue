@@ -12,11 +12,17 @@
           <!-- 用户头像和信息 -->
           <div class="flex items-center mb-5">
             <div 
-              class="w-20 h-20 rounded-full mr-5 flex items-center justify-center font-bold text-gray-600 text-2xl cursor-pointer transition-transform hover:scale-105" 
+              class="w-20 h-20 rounded-full mr-5 flex items-center justify-center font-bold text-gray-600 text-2xl cursor-pointer transition-transform hover:scale-105 overflow-hidden" 
               style="background-color: #FFD700;"
               @click="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
             >
-              {{ user.name.charAt(0) }}
+              <img
+                v-if="user.avatarUrl"
+                :src="user.avatarUrl"
+                alt="用户头像"
+                class="w-full h-full object-cover"
+              />
+              <span v-else>{{ user.name.charAt(0) }}</span>
             </div>
             <div>
               <h1 
@@ -703,6 +709,7 @@ interface Badge { id: number; name: string; }
 
 const user = ref({
   name: '用户',
+  avatarUrl: '',
   title: '爱心铲屎官',
   bio: '大家好！我是一名大学生，也是一名热爱动物的志愿者。我致力于校园流浪动物的救助与临时寄养，希望成为这些小生命寻找温暖的家。',
   stats: [
@@ -896,6 +903,7 @@ function applyCurrentUser(data: CurrentUserInfo) {
   if (data.userName) {
     user.value.name = data.userName;
   }
+  user.value.avatarUrl = data.avatarUrl || '';
   baseInfo.value = [
     { label: '年龄', value: data.userAge != null ? String(data.userAge) : '-' },
     { label: '性别', value: data.sex || '-' },

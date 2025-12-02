@@ -12,21 +12,12 @@ import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
 import NotFound from '../views/error/404.vue'
-
-// 来自 master 的后台管理部分
 import AdminLayout from '../views/admin/AdminLayout.vue'
 import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminPosts from '../views/admin/Posts.vue'
 import AdminPets from '../views/admin/Pets.vue'
 import AdminApplications from '../views/admin/Applications.vue'
 import AdminLogin from '../views/admin/AdminLogin.vue'
-
-// 来自 cwx 的新增发布帖子页面
-import PostNew from '../views/forum/PostNew.vue'
-
-//登录页面（邮箱，密码，注册可选择）
-import LoginEmail from '../views/user/LoginEmail.vue'
-import LoginPassword from '../views/user/LoginPassword.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -65,10 +56,9 @@ const routes: RouteRecordRaw[] = [
     component: PostList
   },
   {
-    path: '/forum/:postId',
+    path: '/forum/:id',
     name: 'PostDetail',
-    component: PostDetail,
-    props: true
+    component: PostDetail
   },
   {
     path: '/profile',
@@ -95,8 +85,6 @@ const routes: RouteRecordRaw[] = [
     name: 'Register',
     component: Register
   },
-
-  // 后台管理
   {
     path: '/admin/login',
     name: 'AdminLogin',
@@ -128,29 +116,11 @@ const routes: RouteRecordRaw[] = [
       }
     ]
   },
-
-  // 新增：发布帖子
-  {
-    path: '/post/new',
-    name: 'PostNew',
-    component: PostNew
-  },
-
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound
-  },
-  {
-  path: '/login/email',
-  name: 'LoginEmail',
-  component: LoginEmail
-},
-{
-  path: '/login/password',
-  name: 'LoginPassword',
-  component: LoginPassword
-}
+  }
 ]
 
 const router = createRouter({

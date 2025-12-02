@@ -16,8 +16,10 @@ export default defineConfig({
     proxy: {
       // 代理前端的 /api 到后端测试环境，避免开发时的 CORS 问题
       '/api': {
+        // natapp 提供的外网地址实际是 HTTPS，必须使用 https 协议，否则会出现 Parse Error
         target: 'http://p92df5b2.natappfree.cc',
-        changeOrigin: true
+        changeOrigin: true,
+        secure: false
       }
     }
   }

@@ -5,8 +5,14 @@
       <!-- 左侧侧边栏 -->
       <aside class="w-[260px] bg-white rounded-xl p-8 shadow-sm h-fit flex flex-col gap-8">
         <div class="flex items-center gap-4 pb-2.5">
-          <div class="w-12 h-12 rounded-full flex items-center justify-center text-white" style="background-color: #F3C697;">
-            <i class="fa-regular fa-circle text-2xl"></i>
+          <div class="w-12 h-12 rounded-full flex items-center justify-center text-white overflow-hidden" style="background-color: #F3C697;">
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt="用户头像"
+              class="w-full h-full object-cover"
+            />
+            <i v-else class="fa-regular fa-circle text-2xl"></i>
           </div>
           <div>
             <h3 class="text-base font-bold" style="color: #333333;">{{ userName }}</h3>
@@ -55,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ConfirmModal from '../../components/common/ConfirmModal.vue';
 import MyHome from './UserCenter/MyHome.vue';
@@ -65,11 +71,13 @@ import MyPosts from './UserCenter/MyPosts.vue';
 import MyApplications from './UserCenter/MyApplications.vue';
 import BasicInfo from './UserCenter/BasicInfo.vue';
 import CreditScore from './UserCenter/CreditScore.vue';
+import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
 
 const route = useRoute();
 const router = useRouter();
 
-const userName = ref('李同学');
+const userName = ref('用户');
+const avatarUrl = ref<string | null>(null);
 
 interface MenuItem {
   key: string;
@@ -99,6 +107,44 @@ const currentComponent = computed(() => {
 
 const showLogoutConfirmModal = ref(false);
 
+function loadFromCache() {
+  try {
+    const cached = localStorage.getItem('currentUser');
+    if (cached) {
+      const data = JSON.parse(cached) as CurrentUserInfo;
+      userName.value = data.userName || userName.value;
+      avatarUrl.value = data.avatarUrl || avatarUrl.value;
+    } else {
+      const cachedName = localStorage.getItem('userName');
+      const cachedAvatar = localStorage.getItem('avatarUrl');
+      if (cachedName) userName.value = cachedName;
+      if (cachedAvatar) avatarUrl.value = cachedAvatar;
+    }
+  } catch (error) {
+    console.error('解析本地缓存用户信息失败(UserCenter)', error);
+  }
+}
+
+async function loadUserFromApi() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data = res.data;
+      userName.value = data.userName || userName.value;
+      avatarUrl.value = data.avatarUrl || avatarUrl.value;
+      localStorage.setItem('currentUser', JSON.stringify(data));
+      if (data.userName) localStorage.setItem('userName', data.userName);
+      if (data.avatarUrl) localStorage.setItem('avatarUrl', data.avatarUrl);
+    }
+  } catch (error) {
+    console.error('获取当前用户信息失败(UserCenter)', error);
+  }
+}
+
+function handleUserUpdated() {
+  loadFromCache();
+}
+
 function handleMenuClick(item: MenuItem) {
   if (item.isLogout) {
     showLogoutConfirmModal.value = true;
@@ -123,6 +169,16 @@ watch(() => route.query.menu, (newMenu) => {
     activeMenu.value = newMenu as string;
   }
 }, { immediate: true });
+
+onMounted(() => {
+  loadFromCache();
+  loadUserFromApi();
+  window.addEventListener('current-user-updated', handleUserUpdated);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('current-user-updated', handleUserUpdated);
+});
 </script>
 
 <style scoped>

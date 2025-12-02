@@ -12,4 +12,5 @@ export * from './adminPostApi'
 export * from './adminAuthApi'
 export * from './authApi'
 export * from './storageApi'
+export * from './myCenterApi'
 
