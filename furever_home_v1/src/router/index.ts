@@ -27,6 +27,8 @@ import PostNew from '../views/forum/PostNew.vue'
 //登录页面（邮箱，密码，注册可选择）
 import LoginEmail from '../views/user/LoginEmail.vue'
 import LoginPassword from '../views/user/LoginPassword.vue'
+import LoginSuccess from '../views/user/LoginSuccess.vue';
+
 
 const routes: RouteRecordRaw[] = [
   {
@@ -150,6 +152,11 @@ const routes: RouteRecordRaw[] = [
   path: '/login/password',
   name: 'LoginPassword',
   component: LoginPassword
+},
+{
+    path: '/login-success',
+    name: 'LoginSuccess',
+    component: LoginSuccess
 }
 ]
 
