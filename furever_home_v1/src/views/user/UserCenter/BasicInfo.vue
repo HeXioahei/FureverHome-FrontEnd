@@ -276,7 +276,7 @@ async function loadCurrentUser() {
       formData.value.gender = mapSexToGender(data.sex);
       formData.value.location = data.location || '';
       formData.value.petProofIntro = data.proofText || '';
-       avatarUrl.value = data.avatarUrl || '';
+      avatarUrl.value = data.avatarUrl || '';
       proofPhotos.value = data.proofPhoto || [];
     }
   } catch (error) {

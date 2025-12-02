@@ -11,6 +11,9 @@ import Profile from '../views/user/Profile.vue'
 import UserCenter from '../views/user/UserCenter.vue'
 import Login from '../views/user/Login.vue'
 import Register from '../views/user/Register.vue'
+import ResetPasswordRequest from '../views/user/ResetPasswordRequest.vue'
+import ResetPasswordNew from '../views/user/ResetPasswordNew.vue'
+import ResetPasswordSuccess from '../views/user/ResetPasswordSuccess.vue'
 import NotFound from '../views/error/404.vue'
 import AdminLayout from '../views/admin/AdminLayout.vue'
 import AdminDashboard from '../views/admin/Dashboard.vue'
@@ -148,6 +151,21 @@ const routes: RouteRecordRaw[] = [
     path: '/login/password',
     name: 'LoginPassword',
     component: Login
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPasswordRequest',
+    component: ResetPasswordRequest
+  },
+  {
+    path: '/reset-password/new',
+    name: 'ResetPasswordNew',
+    component: ResetPasswordNew
+  },
+  {
+    path: '/reset-password/success',
+    name: 'ResetPasswordSuccess',
+    component: ResetPasswordSuccess
   },
   {
     path: '/login-success',

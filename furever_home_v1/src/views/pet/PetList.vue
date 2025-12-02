@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ImageViewer from '../../components/common/ImageViewer.vue'
+import { getAnimalList } from '@/api/animalApi'
+import RegionCascader from '../../components/common/RegionCascader.vue'
 
 interface Pet {
   id: number
@@ -20,96 +22,13 @@ interface Pet {
 
 const router = useRouter()
 
-// Mock数据
-const pets: Pet[] = [
-  {
-    id: 1,
-    name: '小橘',
-    photo_url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=300',
-    fosterer: '李同学',
-    location: '广东省',
-    species: '猫',
-    age: 12,
-    gender: '公',
-    adoption_status: '短期领养',
-    breed: '中华田园猫',
-    health_status: '已绝育',
-    days_adopted: 15
-  },
-  {
-    id: 2,
-    name: '煤球',
-    photo_url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=300',
-    fosterer: '王同学',
-    location: '北京市',
-    species: '狗',
-    age: 6,
-    gender: '母',
-    adoption_status: '长期领养',
-    breed: '黑色中型犬',
-    health_status: '未绝育',
-    days_adopted: 6
-  },
-  {
-    id: 3,
-    name: '雪球',
-    photo_url: 'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=300',
-    fosterer: '赵同学',
-    location: '上海市',
-    species: '猫',
-    age: 36,
-    gender: '母',
-    adoption_status: '长期领养',
-    breed: '长毛白猫',
-    health_status: '已绝育',
-    days_adopted: 3
-  },
-  {
-    id: 4,
-    name: '小黑',
-    photo_url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300',
-    fosterer: '李同学',
-    location: '四川省',
-    species: '狗',
-    age: 8,
-    gender: '公',
-    adoption_status: '短期领养',
-    breed: '黑色小型犬',
-    health_status: '未绝育',
-    days_adopted: 8
-  },
-  {
-    id: 5,
-    name: '灰灰',
-    photo_url: 'https://images.unsplash.com/photo-1573865526739-10c1dd7e1e0e?w=300',
-    fosterer: '刘同学',
-    location: '浙江省',
-    species: '猫',
-    age: 5,
-    gender: '母',
-    adoption_status: '短期领养',
-    breed: '蓝猫',
-    health_status: '已绝育',
-    days_adopted: 5
-  },
-  {
-    id: 6,
-    name: '小金',
-    photo_url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=300',
-    fosterer: '陈同学',
-    location: '江苏省',
-    species: '狗',
-    age: 3,
-    gender: '公',
-    adoption_status: '长期领养',
-    breed: '金毛寻回犬',
-    health_status: '未绝育',
-    days_adopted: 26
-  }
-]
+const pets = ref<Pet[]>([])
+
+const total = ref(0)
 
 // 筛选条件
 const provinceFilter = ref('')
+const cityFilter = ref('')
 const speciesFilter = ref('')
 const genderFilter = ref('')
 const ageFilter = ref('')
@@ -120,8 +39,9 @@ const currentPage = ref(1)
 const pageSize = 6
 
 const filteredPets = computed(() => {
-  return pets.filter((pet) => {
-    if (provinceFilter.value && pet.location !== provinceFilter.value) return false
+  return pets.value.filter((pet) => {
+    if (provinceFilter.value && !pet.location.includes(provinceFilter.value)) return false
+    if (cityFilter.value && !pet.location.includes(cityFilter.value)) return false
     if (speciesFilter.value && pet.species !== speciesFilter.value) return false
     if (genderFilter.value && pet.gender !== genderFilter.value) return false
     if (adoptionStatusFilter.value && pet.adoption_status !== adoptionStatusFilter.value) return false
@@ -138,20 +58,54 @@ const filteredPets = computed(() => {
     
     return true
   })
+
+watch(
+  () => provinceFilter.value,
+  () => {
+    cityFilter.value = ''
+  }
+)
 })
 
-const totalPages = computed(() => Math.ceil(filteredPets.value.length / pageSize))
+const totalPages = computed(() => Math.max(1, Math.ceil((total.value || filteredPets.value.length) / pageSize)))
 
 const paginatedPets = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  const end = start + pageSize
-  return filteredPets.value.slice(start, end)
+  return filteredPets.value
 })
+
+const loadPets = async () => {
+  try {
+    const res = await getAnimalList({ page: currentPage.value, pageSize })
+    if (res.code === 200 && res.data) {
+      total.value = res.data.total ?? 0
+      const records = res.data.records ?? []
+      pets.value = records.map((item: any) => ({
+        id: item.animalId,
+        name: item.animalName,
+        photo_url: Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : '',
+        fosterer: '',
+        location: item.location || '',
+        species: item.species || '',
+        age: item.animalAge ?? 0,
+        gender: item.gender || '',
+        adoption_status: item.adoptionStatus || '',
+        breed: item.breed || '',
+        health_status: item.healthStatus || '',
+        days_adopted: 0,
+      }))
+    } else {
+      console.error('获取动物列表失败', res)
+    }
+  } catch (err) {
+    console.error('获取动物列表接口异常', err)
+  }
+}
 
 const goToPage = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    loadPets()
   }
 }
 
@@ -180,6 +134,10 @@ const openImageViewer = (imageUrl: string, event?: Event) => {
 const closeImageViewer = () => {
   showImageViewer.value = false
 }
+
+onMounted(() => {
+  loadPets()
+})
 </script>
 
 <template>
@@ -199,22 +157,12 @@ const closeImageViewer = () => {
         <div class="flex flex-wrap items-center gap-3">
           <span class="text-sm text-[#666] whitespace-nowrap">筛选条件：</span>
 
-          <!-- 地区 -->
+          <!-- 地区：级联选择（省 + 市） -->
           <span class="text-sm text-[#666] whitespace-nowrap">地区</span>
-          <select
-            v-model="provinceFilter"
-            class="px-3 py-1.5 border border-[#ddd] rounded-full text-sm bg-white cursor-pointer transition-colors hover:border-[#FF8C42] focus:outline-none focus:border-[#FF8C42]"
-          >
-            <option value="">请选择</option>
-            <option>北京市</option>
-            <option>上海市</option>
-            <option>广东省</option>
-            <option>江苏省</option>
-            <option>浙江省</option>
-            <option>四川省</option>
-            <option>湖北省</option>
-            <option>山东省</option>
-          </select>
+          <RegionCascader
+            v-model:province="provinceFilter"
+            v-model:city="cityFilter"
+          />
 
           <!-- 种类 -->
           <span class="text-sm text-[#666] whitespace-nowrap">种类</span>

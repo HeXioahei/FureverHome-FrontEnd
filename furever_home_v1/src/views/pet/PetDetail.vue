@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ImageViewer from '../../components/common/ImageViewer.vue'
+import { getAnimalDetail } from '@/api/animalApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,40 +33,7 @@ interface PetDetail {
   publisher: Publisher
 }
 
-// TODO: 这里先用本地 mock 数据，后续可以替换为后端接口返回
-const mockDetails: PetDetail[] = [
-  {
-    id: 1,
-    animal_name: '小橘',
-    photo_urls: [
-      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400',
-      'https://images.unsplash.com/photo-1495360010541-f48722b34f7d?w=400',
-      'https://images.unsplash.com/photo-1573865526739-10c1dd7e1e0e?w=400',
-      'https://images.unsplash.com/photo-1519052537078-e6302a4968d4?w=400'
-    ],
-    species: '猫',
-    breed: '中华田园猫',
-    gender: '公',
-    animal_age: 12,
-    health_status: '已免疫、已驱虫，无重大疾病史',
-    is_sterilized: '已绝育',
-    animal_location: 'xx省xx市',
-    adoption_status: '短期领养',
-    short_description: '性格活泼温顺的小橘。',
-    detail_info: '小橘是2022年秋天在xx大学被发现的流浪小猫，当时只有两个月大，被李同学救助并临时收养至今，已经健康成长为一只活跃可爱的猫咪。小橘性格异常温顺，喜欢与人互动，会主动蹭腿示好，特别喜欢玩逗猫棒和在线球，作息规律，已经学会使用猫砂盆，非常适合家庭培养。作为临时收养者，李同学已为小橘完成绝育、三联疫苗和体外驱虫，健康状况良好，希望能为小橘找到一个有爱心、负责任的长期家庭。',
-    publisher: {
-      user_id: '1003',
-      username: '李同学',
-      avatar_url: '',
-      credit_score: '4.9'
-    }
-  }
-]
-
-const currentPet = computed<PetDetail | undefined>(() => {
-  const found = mockDetails.find((p) => p.id === petId.value)
-  return found ?? mockDetails[0]
-})
+const currentPet = ref<PetDetail | null>(null)
 
 const mainImage = ref(0)
 const showImageViewer = ref(false)
@@ -96,6 +64,45 @@ const openImageViewer = (index: number) => {
 const closeImageViewer = () => {
   showImageViewer.value = false
 }
+
+const loadPetDetail = async () => {
+  try {
+    if (!petId.value) return
+    const res = await getAnimalDetail(petId.value)
+    if (res.code === 200 && res.data) {
+      const item: any = res.data
+      currentPet.value = {
+        id: item.animalId ?? petId.value,
+        animal_name: item.animalName || '',
+        photo_urls: Array.isArray(item.photoUrls) ? item.photoUrls : [],
+        species: item.species || '',
+        breed: item.breed || '',
+        gender: item.gender || '',
+        animal_age: item.animalAge ?? 0,
+        health_status: item.healthStatus || '',
+        is_sterilized: item.isSterilized || '',
+        animal_location: '',
+        adoption_status: item.adoptionStatus || '',
+        short_description: item.shortDescription || '',
+        detail_info: item.shortDescription || '',
+        publisher: {
+          user_id: String(item.userId ?? ''),
+          username: '',
+          avatar_url: '',
+          credit_score: ''
+        }
+      }
+    } else {
+      console.error('获取动物详情失败', res)
+    }
+  } catch (err) {
+    console.error('获取动物详情接口异常', err)
+  }
+}
+
+onMounted(() => {
+  loadPetDetail()
+})
 </script>
 
 <template>

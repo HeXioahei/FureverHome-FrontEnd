@@ -28,7 +28,7 @@
       </button>
     </div>
 
-    <div class="grid grid-cols-3 gap-6">
+    <div v-if="currentPets.length" class="grid grid-cols-3 gap-6">
       <div
         v-for="pet in currentPets"
         :key="pet.id"
@@ -93,6 +93,10 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-else class="mt-8 text-center text-sm" style="color: #9CA3AF;">
+      {{ activeTab === 'short' ? '当前没有发布的短期宠物' : '当前没有发布的长期宠物' }}
     </div>
 
     <div class="flex justify-center mt-10 mb-4">
@@ -260,10 +264,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
+import { getMyShortAnimals, getMyLongAnimals } from '@/api/animalApi';
 
 interface PetCard {
   id: number;
@@ -285,113 +290,9 @@ interface PetCard {
 
 const router = useRouter();
 
-const shortPets = ref<PetCard[]>([
-  {
-    id: 1,
-    name: '小黑',
-    meta: '狗 · 8个月 · 未绝育',
-    type: 'short',
-    days: 8,
-    cover: 'https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?auto=format&fit=crop&w=800&q=80',
-    story: '小黑是一只活泼的校园流浪狗，目前正在寻找短期寄养家庭。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '公',
-    age: '8个月',
-    species: '狗',
-    breed: '田园犬',
-    sterilized: '否',
-    location: '上海市徐汇区'
-  },
-  {
-    id: 2,
-    name: '灰灰',
-    meta: '猫 · 5个月 · 已绝育',
-    type: 'short',
-    days: 5,
-    cover: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?auto=format&fit=crop&w=800&q=80',
-    story: '灰灰性格温和，已经完成免疫和绝育，适合短期陪伴。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '母',
-    age: '5个月',
-    species: '猫',
-    breed: '银渐层',
-    sterilized: '是',
-    location: '杭州市西湖区'
-  },
-  {
-    id: 3,
-    name: '小黄',
-    meta: '狗 · 1岁 · 已绝育',
-    type: 'short',
-    days: 12,
-    cover: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=800&q=80',
-    story: '小黄已经训练良好，可以与小朋友和平相处。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '母',
-    age: '1岁',
-    species: '狗',
-    breed: '金毛',
-    sterilized: '是',
-    location: '北京市朝阳区'
-  }
-]);
+const shortPets = ref<PetCard[]>([]);
 
-const longPets = ref<PetCard[]>([
-  {
-    id: 4,
-    name: '大白',
-    meta: '萨摩耶 · 2岁 · 已绝育',
-    type: 'long',
-    days: 20,
-    cover: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=800&q=80',
-    story: '大白活泼亲人，适合长期陪伴家庭。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '公',
-    age: '2岁',
-    species: '狗',
-    breed: '萨摩耶',
-    sterilized: '是',
-    location: '南京市鼓楼区'
-  },
-  {
-    id: 5,
-    name: '咪咪',
-    meta: '狸花猫 · 1岁 · 未绝育',
-    type: 'long',
-    days: 15,
-    cover: 'https://images.unsplash.com/photo-1517685352821-92cf88aee5a5?auto=format&fit=crop&w=800&q=80',
-    story: '咪咪喜欢安静的环境，需要一个长期稳定的家。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '母',
-    age: '1岁',
-    species: '猫',
-    breed: '狸花猫',
-    sterilized: '否',
-    location: '武汉市武昌区'
-  },
-  {
-    id: 6,
-    name: '贝贝',
-    meta: '金毛 · 3岁 · 已绝育',
-    type: 'long',
-    days: 5,
-    cover: 'https://images.unsplash.com/photo-1517423440428-a5a00ad493e8?auto=format&fit=crop&w=800&q=80',
-    story: '贝贝热爱户外活动，需要充足的运动量。',
-    phone: '13812345678',
-    email: 'user@example.com',
-    gender: '公',
-    age: '3岁',
-    species: '狗',
-    breed: '金毛',
-    sterilized: '是',
-    location: '深圳市南山区'
-  }
-]);
+const longPets = ref<PetCard[]>([]);
 
 const activeTab = ref<'short' | 'long'>('short');
 const pageSize = 6;
@@ -415,6 +316,12 @@ watch(activeTab, () => {
 
 function switchTab(tab: 'short' | 'long') {
   activeTab.value = tab;
+  if (tab === 'short' && shortPets.value.length === 0) {
+    loadMyShortPets();
+  }
+  if (tab === 'long' && longPets.value.length === 0) {
+    loadMyLongPets();
+  }
 }
 
 function goPrev() {
@@ -431,6 +338,46 @@ function goPage(page: number) {
 
 function viewDetail(pet: PetCard) {
   router.push({ name: 'PetDetail', params: { id: pet.id } });
+}
+
+async function loadMyShortPets() {
+  try {
+    const res = await getMyShortAnimals({ page: currentPage.value, pageSize });
+    if (res.code === 200 && res.data) {
+      const records = res.data.records ?? [];
+      shortPets.value = records.map((item: any) => {
+        const sterilizedLabel =
+          item.isSterilized === '是' || item.isSterilized === '已绝育'
+            ? '已绝育'
+            : item.isSterilized === '否'
+              ? '未绝育'
+              : item.isSterilized || '未知';
+        const ageLabel = item.animalAge != null ? `${item.animalAge}个月` : '';
+        const species = item.species || '';
+        return {
+          id: item.animalId ?? 0,
+          name: item.animalName || '',
+          meta: `${species || '未知'} · ${ageLabel || '未知'} · ${sterilizedLabel}`,
+          type: 'short',
+          days: 0,
+          cover: Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : '',
+          story: item.shortDescription || '',
+          phone: '',
+          email: '',
+          gender: item.gender || '',
+          age: ageLabel,
+          species,
+          breed: item.breed || '',
+          sterilized: sterilizedLabel,
+          location: ''
+        } as PetCard;
+      });
+    } else {
+      console.error('获取我的短期宠物列表失败', res);
+    }
+  } catch (err) {
+    console.error('获取我的短期宠物列表接口异常', err);
+  }
 }
 
 const showEditModal = ref(false);
@@ -534,6 +481,11 @@ function confirmDelete() {
 function closeSuccessModal() {
   successModal.visible = false;
 }
+
+onMounted(() => {
+  loadMyShortPets();
+  // 长期宠物列表在用户切换到“长期宠物”标签时按需加载
+});
 
 </script>
 

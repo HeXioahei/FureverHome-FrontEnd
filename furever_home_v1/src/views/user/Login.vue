@@ -45,9 +45,13 @@
 
           <!-- 忘记密码 -->
           <div class="flex justify-end pt-0">
-            <a href="javascript:void(0)" class="text-sm font-bold text-primary hover:text-primary-hover">
+            <button
+              type="button"
+              class="text-sm font-bold text-primary hover:text-primary-hover"
+              @click="goResetPassword"
+            >
               忘记密码?
-            </a>
+            </button>
           </div>
 
           <!-- 登录按钮 -->
@@ -152,6 +156,10 @@ function togglePassword() {
 
 function goRegister() {
   router.push({ name: 'Register' });
+}
+
+function goResetPassword() {
+  router.push({ name: 'ResetPasswordRequest', query: { email: account.value } });
 }
 
 async function handleLogin() {

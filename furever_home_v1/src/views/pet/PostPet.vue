@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import SuccessModal from '../../components/common/SuccessModal.vue'
 import ErrorModal from '../../components/common/ErrorModal.vue'
 import ImageViewer from '../../components/common/ImageViewer.vue'
+import { provinceCityOptions } from '@/constants/regions'
 
 interface PetForm {
   name: string
@@ -12,6 +13,9 @@ interface PetForm {
   species: string
   breed: string
   sterilized: string
+  province: string
+  city: string
+  detailAddress: string
   location: string
   healthStatus: string
   story: string
@@ -28,6 +32,9 @@ const form = ref<PetForm>({
   species: '',
   breed: '',
   sterilized: '',
+  province: '',
+  city: '',
+  detailAddress: '',
   location: '',
   healthStatus: '',
   story: '',
@@ -35,11 +42,25 @@ const form = ref<PetForm>({
   email: ''
 })
 
+const cityOptions = computed(() => {
+  const province = provinceCityOptions.find(
+    p => p.value === form.value.province
+  )
+  return province ? province.cities : []
+})
+
 const uploadedFiles = ref<File[]>([])
 const showSuccessModal = ref(false)
 const showErrorModal = ref(false)
 const showFileLimitModal = ref(false)
 const errorMessage = ref('')
+
+watch(
+  () => form.value.province,
+  () => {
+    form.value.city = ''
+  }
+)
 
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -90,7 +111,9 @@ const validateForm = (): boolean => {
     { key: 'species', label: '动物种类' },
     { key: 'breed', label: '动物品种' },
     { key: 'sterilized', label: '是否绝育' },
-    { key: 'location', label: '目前位置' },
+    { key: 'province', label: '所在省份' },
+    { key: 'city', label: '所在城市' },
+    { key: 'detailAddress', label: '详细地址' },
     { key: 'phone', label: '联系电话' },
     { key: 'email', label: '电子邮箱' }
   ]
@@ -116,6 +139,13 @@ const submitForm = () => {
     return
   }
 
+  // 组合省市 + 详细地址为 location，方便后端按地区筛选
+  form.value.location = [
+    form.value.province,
+    form.value.city,
+    form.value.detailAddress
+  ].join('')
+
   // TODO: 这里未来接后端提交接口
   console.log('提交审核', form.value)
   console.log('上传的文件', uploadedFiles.value)
@@ -132,6 +162,9 @@ const closeSuccessModal = () => {
     species: '',
     breed: '',
     sterilized: '',
+    province: '',
+    city: '',
+    detailAddress: '',
     location: '',
     healthStatus: '',
     story: '',
@@ -251,12 +284,40 @@ const closeErrorModal = () => {
                 <label class="block mb-2 font-semibold text-[#666666] text-sm">
                   目前位置 <span class="text-[#EF4444]">*</span>
                 </label>
-                <input
-                  v-model="form.location"
-                  type="text"
-                  placeholder="例如：北京市海淀区"
-                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
-                />
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  <select
+                    v-model="form.province"
+                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                  >
+                    <option value="">请选择省份</option>
+                    <option
+                      v-for="p in provinceCityOptions"
+                      :key="p.value"
+                      :value="p.value"
+                    >
+                      {{ p.label }}
+                    </option>
+                  </select>
+                  <select
+                    v-model="form.city"
+                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                  >
+                    <option value="">请选择城市</option>
+                    <option
+                      v-for="c in cityOptions"
+                      :key="c.value"
+                      :value="c.value"
+                    >
+                      {{ c.label }}
+                    </option>
+                  </select>
+                  <input
+                    v-model="form.detailAddress"
+                    type="text"
+                    placeholder="详细地址，如街道、小区、楼栋、门牌号等"
+                    class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
           </div>
