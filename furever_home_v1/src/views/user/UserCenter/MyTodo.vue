@@ -2,7 +2,7 @@
   <div>
     <h2 class="text-2xl font-bold mb-5" style="color: #111;">我的待办</h2>
 
-    <div class="flex flex-col gap-5">
+    <div v-if="todos.length" class="flex flex-col gap-5">
       <div 
         v-for="todo in todos" 
         :key="todo.id"
@@ -67,6 +67,10 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div v-else class="mt-8 text-center text-sm" style="color: #9CA3AF;">
+      当前没有待办事项
     </div>
 
     <!-- 分页 -->
@@ -135,12 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import ApplicationDetailModal from '../../../components/common/ApplicationDetailModal.vue';
+import { getMyAdoptTodoList } from '@/api/adoptApi';
 
 const router = useRouter();
 
@@ -162,40 +167,7 @@ interface Todo {
   petName?: string;
 }
 
-const todos = ref<Todo[]>([
-  {
-    id: 1,
-    type: '领养申请',
-    typeIcon: 'fa-solid fa-heart',
-    date: '2024-01-15 14:30',
-    title: '对"巴迪"的领养申请',
-    requester: '张同学',
-    requesterId: 2,
-    reason: '我是一名大学生，有稳定的住所和充足的时间照顾宠物。之前有养过金毛犬的经验，对狗狗的护理和训练都有一定了解。希望能给巴迪一个温暖的家。',
-    showConfirm: true,
-    showReject: true,
-    phone: '138-****-2640',
-    email: 'zhang@example.com',
-    address: '上海市徐汇区桂林路 188 弄',
-    petName: '巴迪'
-  },
-  {
-    id: 2,
-    type: '领养申请',
-    typeIcon: 'fa-solid fa-heart',
-    date: '2024-01-14 10:20',
-    title: '对"米洛"的领养申请',
-    requester: '王同学',
-    requesterId: 3,
-    reason: '家里已经有一只猫咪，想再领养一只作伴。有丰富的养猫经验，会定期带猫咪体检和打疫苗。',
-    showConfirm: true,
-    showReject: true,
-    phone: '139-****-5678',
-    email: 'wang@example.com',
-    address: '北京市海淀区中关村大街 1 号',
-    petName: '米洛'
-  }
-]);
+const todos = ref<Todo[]>([]);
 
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
@@ -264,6 +236,45 @@ function closeSuccessModal() {
 function closeErrorModal() {
   showErrorModal.value = false;
 }
+
+async function loadTodos() {
+  try {
+    const res = await getMyAdoptTodoList();
+    if (res.code === 200 && Array.isArray(res.data)) {
+      todos.value = res.data.map((item: any, index: number) => {
+        const id = item.id ?? index + 1;
+        const requester = item.requesterName || item.applicantName || item.userName || '未知申请人';
+        const petName = item.petName || item.animalName || '';
+        const createdAt = item.createTime || item.createdAt || item.applyTime || '';
+        const reason = item.reason || item.applyReason || item.remark || '';
+        return {
+          id,
+          type: '领养申请',
+          typeIcon: 'fa-solid fa-heart',
+          date: createdAt,
+          title: petName ? `对"${petName}"的领养申请` : '领养申请',
+          requester,
+          requesterId: item.applicantId || item.userId || undefined,
+          reason,
+          showConfirm: true,
+          showReject: true,
+          phone: item.phone || item.contactPhone,
+          email: item.email || item.contactEmail,
+          address: item.address || item.location,
+          petName
+        } as Todo;
+      });
+    } else {
+      console.error('获取待办列表失败', res);
+    }
+  } catch (err) {
+    console.error('获取待办列表接口异常', err);
+  }
+}
+
+onMounted(() => {
+  loadTodos();
+});
 </script>
 
 <style scoped>
