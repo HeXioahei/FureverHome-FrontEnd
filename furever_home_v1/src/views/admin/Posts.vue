@@ -86,7 +86,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            显示 {{ pendingPosts.length ? (currentPendingPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPendingPage * PAGE_SIZE, pendingPosts.length) }} 条，共 {{ pendingPosts.length }} 条
+            显示 {{ pendingTotal ? (currentPendingPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPendingPage * PAGE_SIZE, pendingTotal) }} 条，共 {{ pendingTotal }} 条
           </p>
           <div class="flex gap-2">
             <button
@@ -174,7 +174,7 @@
         </div>
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 dark:border-gray-800 p-5">
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            显示 {{ publishedPosts.length ? (currentPublishedPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPublishedPage * PAGE_SIZE, publishedPosts.length) }} 条，共 {{ publishedPosts.length }} 条
+            显示 {{ publishedTotal ? (currentPublishedPage - 1) * PAGE_SIZE + 1 : 0 }} 到 {{ Math.min(currentPublishedPage * PAGE_SIZE, publishedTotal) }} 条，共 {{ publishedTotal }} 条
           </p>
           <div class="flex gap-2">
             <button
@@ -256,9 +256,15 @@ import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
 import {
-  fetchPublishedAdminPosts,
-  type AdminPostSummaryDTO
-} from '../../api/adminPostApi';
+  getPendingPosts,
+  getPublishedPosts,
+  getPostDetail,
+  approvePost,
+  rejectPost,
+  deletePost as deletePostApi,
+  type AdminPostSummaryDto,
+  type AdminPostDetailDto
+} from '../../api/adminApi';
 
 interface Post {
   id: number;
@@ -288,11 +294,13 @@ const generatePendingPosts = (): Post[] => {
   }));
 };
 
-const pendingPosts = ref<Post[]>(generatePendingPosts());
-
-// 已发布帖子数据来自后端
+// 待审核和已发布帖子数据来自后端
+const pendingPosts = ref<Post[]>([]);
+const pendingTotal = ref(0);
 const publishedPosts = ref<Post[]>([]);
 const publishedTotal = ref(0);
+const loadingPending = ref(false);
+const loadingPublished = ref(false);
 
 const filteredPendingPosts = computed(() => {
   if (!pendingSearch.value) return pendingPosts.value;
@@ -315,44 +323,91 @@ const filteredPublishedPosts = computed(() => {
   );
 });
 
-const totalPendingPages = computed(() => Math.ceil(filteredPendingPosts.value.length / PAGE_SIZE));
+const totalPendingPages = computed(() => Math.ceil(pendingTotal.value / PAGE_SIZE));
 const totalPublishedPages = computed(() => Math.ceil(publishedTotal.value / PAGE_SIZE));
 
+// 待审核列表由后端分页，前端仅做搜索过滤
 const paginatedPendingPosts = computed(() => {
-  const start = (currentPendingPage.value - 1) * PAGE_SIZE;
-  const end = start + PAGE_SIZE;
-  return filteredPendingPosts.value.slice(start, end);
+  if (!pendingSearch.value) return pendingPosts.value;
+  const search = pendingSearch.value.toLowerCase();
+  return pendingPosts.value.filter(
+    post => post.title.toLowerCase().includes(search) ||
+            post.author.toLowerCase().includes(search) ||
+            post.excerpt.toLowerCase().includes(search)
+  );
 });
 
-// 已发布列表由后端分页，这里不再做二次分页，仅应用搜索过滤
-const paginatedPublishedPosts = computed(() => filteredPublishedPosts.value);
+// 已发布列表由后端分页，前端仅做搜索过滤
+const paginatedPublishedPosts = computed(() => {
+  if (!publishedSearch.value) return publishedPosts.value;
+  const search = publishedSearch.value.toLowerCase();
+  return publishedPosts.value.filter(
+    post =>
+      post.title.toLowerCase().includes(search) ||
+      post.author.toLowerCase().includes(search) ||
+      post.excerpt.toLowerCase().includes(search)
+  );
+});
 
-// 将后端 AdminPostSummaryDTO 映射到前端展示用 Post
-function mapAdminPostToPost(item: AdminPostSummaryDTO): Post {
+// 将后端 AdminPostSummaryDto 映射到前端展示用 Post
+function mapAdminPostToPost(item: AdminPostSummaryDto): Post {
+  const createTime = item.createTime
+    ? typeof item.createTime === 'string'
+      ? new Date(item.createTime).toLocaleString('zh-CN')
+      : new Date(item.createTime).toLocaleString('zh-CN')
+    : '';
   return {
     id: item.postId ?? 0,
     title: item.title ?? '',
     excerpt: item.excerpt ?? '',
     author: item.authorName ?? '未知作者',
-    time: item.createTime ? String(item.createTime) : ''
+    time: createTime
   };
 }
 
+// 加载待审核帖子列表
+async function loadPendingPosts() {
+  try {
+    loadingPending.value = true;
+    const res = await getPendingPosts({
+      page: currentPendingPage.value,
+      pageSize: PAGE_SIZE,
+      keyword: pendingSearch.value || undefined
+    });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      pendingPosts.value = list.map(mapAdminPostToPost);
+      pendingTotal.value = res.data.total ?? list.length;
+    } else {
+      console.warn('获取待审核帖子列表失败', res);
+    }
+  } catch (error) {
+    console.error('获取待审核帖子列表异常', error);
+  } finally {
+    loadingPending.value = false;
+  }
+}
+
+// 加载已发布帖子列表
 async function loadPublishedPosts() {
   try {
-    const res = await fetchPublishedAdminPosts({
+    loadingPublished.value = true;
+    const res = await getPublishedPosts({
       page: currentPublishedPage.value,
-      pageSize: PAGE_SIZE
+      pageSize: PAGE_SIZE,
+      keyword: publishedSearch.value || undefined
     });
-    if (res.code === 0 && res.data) {
-      const records = res.data.records ?? [];
-      publishedPosts.value = records.map(mapAdminPostToPost);
-      publishedTotal.value = res.data.total ?? records.length;
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      publishedPosts.value = list.map(mapAdminPostToPost);
+      publishedTotal.value = res.data.total ?? list.length;
     } else {
       console.warn('获取已发布帖子列表失败', res);
     }
   } catch (error) {
     console.error('获取已发布帖子列表异常', error);
+  } finally {
+    loadingPublished.value = false;
   }
 }
 
@@ -377,9 +432,34 @@ function handleReject(post: Post) {
   showConfirmModal.value = true;
 }
 
-function handleViewDetail(post: Post) {
-  selectedPost.value = post;
-  showPostDetailModal.value = true;
+async function handleViewDetail(post: Post) {
+  try {
+    const res = await getPostDetail(post.id);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      selectedPost.value = {
+        id: res.data.postId ?? post.id,
+        title: res.data.title ?? post.title,
+        excerpt: res.data.content?.substring(0, 100) ?? post.excerpt,
+        author: res.data.authorName ?? post.author,
+        time: res.data.createTime
+          ? typeof res.data.createTime === 'string'
+            ? new Date(res.data.createTime).toLocaleString('zh-CN')
+            : new Date(res.data.createTime).toLocaleString('zh-CN')
+          : post.time
+      };
+      showPostDetailModal.value = true;
+    } else {
+      console.warn('获取帖子详情失败', res);
+      // 如果获取详情失败，仍然显示基本信息
+      selectedPost.value = post;
+      showPostDetailModal.value = true;
+    }
+  } catch (error) {
+    console.error('获取帖子详情异常', error);
+    // 如果获取详情失败，仍然显示基本信息
+    selectedPost.value = post;
+    showPostDetailModal.value = true;
+  }
 }
 
 function handleDelete(post: Post) {
@@ -388,31 +468,55 @@ function handleDelete(post: Post) {
   showConfirmModal.value = true;
 }
 
-function onConfirmModalConfirm() {
+async function onConfirmModalConfirm() {
   if (!selectedPost.value || !confirmAction.value) return;
   
   showConfirmModal.value = false;
   
-  // 执行操作
-  if (confirmAction.value === 'approve') {
-    // TODO: 调用API审核通过
-    console.log('审核通过:', selectedPost.value);
-    showApproveModal.value = true;
-  } else if (confirmAction.value === 'reject') {
-    // TODO: 调用API审核拒绝
-    console.log('审核拒绝:', selectedPost.value);
-    showRejectModal.value = true;
-  } else if (confirmAction.value === 'delete') {
-    // TODO: 调用API删除
-    // 从列表中移除
-    if (activeTab.value === 'pending') {
-      const index = pendingPosts.value.findIndex(p => p.id === selectedPost.value!.id);
-      if (index > -1) pendingPosts.value.splice(index, 1);
-    } else {
-      const index = publishedPosts.value.findIndex(p => p.id === selectedPost.value!.id);
-      if (index > -1) publishedPosts.value.splice(index, 1);
+  try {
+    if (confirmAction.value === 'approve') {
+      // 审核通过
+      const res = await approvePost(selectedPost.value.id);
+      if (res.code === 0 || res.code === 200) {
+        showApproveModal.value = true;
+        // 从待审核列表中移除
+        if (activeTab.value === 'pending') {
+          await loadPendingPosts();
+        }
+      } else {
+        alert(res.message || '审核通过失败');
+      }
+    } else if (confirmAction.value === 'reject') {
+      // 审核拒绝
+      const reason = prompt('请输入拒绝原因（可选）:') || '';
+      const res = await rejectPost(selectedPost.value.id, { reason });
+      if (res.code === 0 || res.code === 200) {
+        showRejectModal.value = true;
+        // 从待审核列表中移除
+        if (activeTab.value === 'pending') {
+          await loadPendingPosts();
+        }
+      } else {
+        alert(res.message || '审核拒绝失败');
+      }
+    } else if (confirmAction.value === 'delete') {
+      // 删除帖子
+      const res = await deletePostApi(selectedPost.value.id);
+      if (res.code === 0 || res.code === 200) {
+        showDeleteSuccessModal.value = true;
+        // 从列表中移除
+        if (activeTab.value === 'pending') {
+          await loadPendingPosts();
+        } else {
+          await loadPublishedPosts();
+        }
+      } else {
+        alert(res.message || '删除失败');
+      }
     }
-    showDeleteSuccessModal.value = true;
+  } catch (error: any) {
+    console.error('操作失败', error);
+    alert(error?.message || '操作失败，请稍后重试');
   }
 }
 
@@ -444,8 +548,18 @@ onMounted(() => {
     activeTab.value = route.query.tab as string;
   }
 
-  if (activeTab.value === 'published') {
+  // 根据当前标签页加载数据
+  if (activeTab.value === 'pending') {
+    loadPendingPosts();
+  } else if (activeTab.value === 'published') {
     loadPublishedPosts();
+  }
+});
+
+// 监听分页变化
+watch(currentPendingPage, () => {
+  if (activeTab.value === 'pending') {
+    loadPendingPosts();
   }
 });
 
@@ -455,11 +569,38 @@ watch(currentPublishedPage, () => {
   }
 });
 
+// 监听标签页切换
 watch(activeTab, (value) => {
-  if (value === 'published') {
+  if (value === 'pending') {
+    currentPendingPage.value = 1;
+    loadPendingPosts();
+  } else if (value === 'published') {
     currentPublishedPage.value = 1;
     loadPublishedPosts();
   }
+});
+
+// 监听搜索关键词变化（防抖）
+let pendingSearchTimer: number | undefined;
+watch(pendingSearch, () => {
+  if (pendingSearchTimer) clearTimeout(pendingSearchTimer);
+  pendingSearchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'pending') {
+      currentPendingPage.value = 1;
+      loadPendingPosts();
+    }
+  }, 500);
+});
+
+let publishedSearchTimer: number | undefined;
+watch(publishedSearch, () => {
+  if (publishedSearchTimer) clearTimeout(publishedSearchTimer);
+  publishedSearchTimer = window.setTimeout(() => {
+    if (activeTab.value === 'published') {
+      currentPublishedPage.value = 1;
+      loadPublishedPosts();
+    }
+  }, 500);
 });
 </script>
 

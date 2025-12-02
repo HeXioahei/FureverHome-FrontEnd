@@ -125,8 +125,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { getConversations, getMessages, sendMessage as sendChatMessage, type ConversationDto, type MessageDto } from '@/api'
 
+// 左侧联系人（会话）用于展示的结构
 interface Contact {
   id: number
   name: string
@@ -137,6 +139,7 @@ interface Contact {
   unread?: number
 }
 
+// 右侧消息展示结构
 interface Message {
   id: number
   content: string
@@ -144,133 +147,185 @@ interface Message {
   isSent: boolean // true=我发送的, false=对方发送的
 }
 
-// Mock联系人数据
-const contacts = ref<Contact[]>([
-  {
-    id: 1,
-    name: '张同学',
-    avatar: '张',
-    avatarColor: 'bg-[#FBBF24]',
-    lastMessage: '关于小橘的领养问题...',
-    time: '10:25'
-  },
-  {
-    id: 2,
-    name: '王老师',
-    avatar: '王',
-    avatarColor: 'bg-[#34D399]',
-    lastMessage: '感谢您救助了校园里的流浪猫',
-    time: '昨天'
-  },
-  {
-    id: 3,
-    name: '宠物救助中心',
-    avatar: '宠',
-    avatarColor: 'bg-[#60A5FA]',
-    lastMessage: '新一批流浪猫需要临时寄养',
-    time: '周一'
-  },
-  {
-    id: 4,
-    name: '刘女士',
-    avatar: '刘',
-    avatarColor: 'bg-[#A78BFA]',
-    lastMessage: '我想申请领养小橘',
-    time: '11月3日'
-  },
-  {
-    id: 5,
-    name: '陈同学',
-    avatar: '陈',
-    avatarColor: 'bg-[#F87171]',
-    lastMessage: '关于小白的生活习惯...',
-    time: '11月2日',
-    unread: 3
-  }
-])
-
-// 当前选中的联系人
-const activeContactId = ref(1)
+// 会话原始数据
+const rawConversations = ref<ConversationDto[]>([])
+// 左侧展示用联系人列表
+const contacts = ref<Contact[]>([])
+// 当前选中的会话ID
+const activeConversationId = ref<number | null>(null)
+// 当前登录用户ID（用于判断消息方向）
+const currentUserId = ref<number | null>(null)
 
 // 搜索关键词
 const searchQuery = ref('')
-
 // 输入框内容
 const messageInput = ref('')
+// 右侧消息列表
+const messages = ref<Message[]>([])
 
-// Mock消息数据
-const messages = ref<Message[]>([
-  {
-    id: 1,
-    content: '您好！我在平台看到了您发布的小橘信息，想了解一下领养流程。',
-    time: '10:15',
-    isSent: false
-  },
-  {
-    id: 2,
-    content: '您好！很高兴您对小橘感兴趣。小橘是一只1岁的橘猫，已经完成疫苗接种和绝育手术，性格非常亲人。',
-    time: '10:18',
-    isSent: true
-  },
-  {
-    id: 3,
-    content: '太好了！我家已经有一只猫咪了，不知道小橘能否与其他猫咪相处？',
-    time: '10:20',
-    isSent: false
-  },
-  {
-    id: 4,
-    content: '小橘性格温和，之前在我这里与其他猫咪相处得很好。如果您有兴趣，我们可以安排一次见面，让两只猫咪先接触一下。',
-    time: '10:22',
-    isSent: true
+// 根据用户名首字生成头像底色（简单 hash）
+const getAvatarColor = (name: string) => {
+  const colors = ['bg-[#FBBF24]', 'bg-[#34D399]', 'bg-[#60A5FA]', 'bg-[#A78BFA]', 'bg-[#F87171]']
+  if (!name) return colors[0]
+  const code = name.charCodeAt(0)
+  return colors[code % colors.length]
+}
+
+// 把后端会话数据映射到左侧联系人列表
+const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
+  return list.map(item => {
+    const name = item.targetUserName || '用户'
+    const avatar = name.charAt(0)
+    return {
+      id: item.conversationId || 0,
+      name,
+      avatar,
+      avatarColor: getAvatarColor(name),
+      lastMessage: item.lastMessage || '',
+      time: item.lastMessageTime
+        ? new Date(item.lastMessageTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+        : '',
+      unread: item.unreadCount && item.unreadCount > 0 ? item.unreadCount : undefined,
+    }
+  })
+}
+
+// 加载会话列表
+const loadConversations = async () => {
+  try {
+    const res = await getConversations({ page: 1, pageSize: 50 })
+    rawConversations.value = res.data.list || []
+    contacts.value = mapConversationsToContacts(rawConversations.value)
+
+    // 如果当前没有选中的会话，默认选中第一个
+    if (!activeConversationId.value && rawConversations.value.length > 0) {
+      activeConversationId.value = rawConversations.value[0].conversationId || null
+    }
+  } catch (e) {
+    console.error('加载会话列表失败', e)
   }
-])
+}
+
+// 加载某个会话的消息列表
+const loadMessages = async (conversationId: number) => {
+  try {
+    const res = await getMessages(conversationId, { page: 1, pageSize: 50 })
+    const list: MessageDto[] = res.data.list || []
+
+    messages.value = list
+      .slice()
+      .sort((a, b) => {
+        const t1 = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const t2 = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return t1 - t2
+      })
+      .map(m => ({
+        id: m.messageId || 0,
+        content: m.content || '',
+        time: m.createdAt
+          ? new Date(m.createdAt).toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '',
+        isSent: currentUserId.value != null && m.senderId === currentUserId.value,
+      }))
+  } catch (e) {
+    console.error('加载消息列表失败', e)
+  }
+}
 
 // 过滤后的联系人列表
 const filteredContacts = computed(() => {
   if (!searchQuery.value.trim()) {
     return contacts.value
   }
+  const keyword = searchQuery.value.toLowerCase()
   return contacts.value.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    contact.name.toLowerCase().includes(keyword)
   )
 })
 
 // 当前选中的联系人
 const activeContact = computed(() => {
-  return contacts.value.find(c => c.id === activeContactId.value)
+  if (!activeConversationId.value) return undefined
+  return contacts.value.find(c => c.id === activeConversationId.value)
 })
 
-// 选择联系人
-const selectContact = (id: number) => {
-  activeContactId.value = id
-  // TODO: 加载该联系人的聊天记录
+// 选择联系人（会话）
+const selectContact = (conversationId: number) => {
+  if (activeConversationId.value === conversationId) return
+  activeConversationId.value = conversationId
+  loadMessages(conversationId)
 }
 
 // 发送消息
-const sendMessage = () => {
-  if (!messageInput.value.trim()) return
+const sendMessage = async () => {
+  if (!messageInput.value.trim() || !activeConversationId.value) return
 
-  const newMessage: Message = {
-    id: messages.value.length + 1,
-    content: messageInput.value,
+  const content = messageInput.value.trim()
+
+  // 先本地追加一条已发送消息，提升交互体验
+  const optimistic: Message = {
+    id: Date.now(),
+    content,
     time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    isSent: true
+    isSent: true,
   }
-
-  messages.value.push(newMessage)
+  messages.value.push(optimistic)
   messageInput.value = ''
 
-  // TODO: 这里未来接后端发送消息接口
+  try {
+    // 在会话中发送消息（后端如果要求 receiverId，可以从会话详情中取；这里先只传 conversationId）
+    await sendChatMessage({
+      conversationId: activeConversationId.value,
+      receiverId: 0, // 具体值依赖后端，如果后端可以根据会话ID推断接收者，可忽略此字段
+      content,
+    })
+
+    // 发送成功后重新拉一遍最新消息，防止顺序或状态不一致
+    await loadMessages(activeConversationId.value)
+    await loadConversations()
+  } catch (e) {
+    console.error('发送消息失败', e)
+  }
 }
 
-// 按回Enter发送
+// 按回车发送
 const handleKeyPress = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     sendMessage()
   }
 }
+
+// 初次挂载时加载当前用户和会话列表
+onMounted(() => {
+  try {
+    const userStr = localStorage.getItem('currentUser')
+    if (userStr) {
+      const u = JSON.parse(userStr)
+      if (u && typeof u.userId === 'number') {
+        currentUserId.value = u.userId
+      }
+    }
+  } catch (e) {
+    console.warn('解析 currentUser 失败', e)
+  }
+
+  loadConversations().then(() => {
+    if (activeConversationId.value) {
+      loadMessages(activeConversationId.value)
+    }
+  })
+})
+
+// 当选中会话变化时，如果没有消息则尝试加载
+watch(activeConversationId, (id) => {
+  if (id && messages.value.length === 0) {
+    loadMessages(id)
+  }
+})
 </script>
 
 <style scoped>
