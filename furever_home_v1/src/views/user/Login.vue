@@ -22,13 +22,6 @@
               class="flex-1 bg-transparent outline-none text-sm text-stone-900 dark:text-white placeholder:text-stone-400"
               placeholder="请输入您的账号或邮箱"
             />
-            <button
-              type="button"
-              class="ml-3 text-sm font-bold text-primary hover:text-primary-hover"
-              @click="focusAccount"
-            >
-              更改
-            </button>
           </div>
 
           <!-- 密码输入 -->
@@ -154,10 +147,6 @@ const successUserName = ref('');
 
 function togglePassword() {
   showPassword.value = !showPassword.value;
-}
-
-function focusAccount() {
-  // 纯前端：更改按钮仅做 UX 辅助，这里不需要额外交互逻辑
 }
 
 function goRegister() {

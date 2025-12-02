@@ -1,86 +1,100 @@
 <template>
-  <div class="relative flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6">
-    <main class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12">
-
-      <div class="flex flex-col items-center gap-2 text-center mb-8">
-        <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
-          登录 FUREVER HOME
-        </h1>
-        <p class="text-sm text-stone-500 dark:text-stone-400 mt-2">
-          使用邮箱验证码登录
-        </p>
-      </div>
-
-      <div class="w-full space-y-5">
-
-        <!-- 邮箱输入 -->
-        <div class="relative flex w-full">
-          <input
-            type="email"
-            v-model="email"
-            placeholder="请输入邮箱地址"
-            class="form-input flex w-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT text-stone-900 dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-all text-sm"
-          />
+  <div class="font-display bg-background-light dark:bg-background-dark text-stone-900 dark:text-stone-200">
+    <div class="relative flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6">
+      <main
+        class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
+      >
+        <!-- 标题 -->
+        <div class="flex flex-col items-center gap-2 text-center mb-8">
+          <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
+            输入验证码
+          </h1>
+          <p class="text-sm text-stone-500 dark:text-stone-400 mt-2">
+            验证码已发送至
+            <span class="font-bold text-stone-900 dark:text-white">{{ email }}</span>
+          </p>
         </div>
 
-        <!-- 验证码输入 -->
-        <div class="relative flex w-full">
-          <input
-            type="text"
-            v-model="code"
-            placeholder="请输入验证码"
-            maxlength="6"
-            class="form-input flex w-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT text-stone-900 dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-all text-sm"
-          />
-          <button type="button" class="absolute right-0 top-0 h-full px-3 text-stone-400 hover:text-stone-500 dark:hover:text-stone-200 flex items-center justify-center" @click="sendCode">
-            发送验证码
-          </button>
+        <div class="w-full space-y-8">
+          <!-- 6 位验证码输入框 -->
+          <div class="flex justify-between gap-2">
+            <input
+              v-for="(item, index) in codes"
+              :key="index"
+              ref="codeInputs"
+              v-model="codes[index]"
+              type="text"
+              maxlength="1"
+              pattern="[0-9]"
+              inputmode="numeric"
+              class="w-12 h-14 text-center text-2xl font-bold bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-600 rounded-DEFAULT focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-stone-900 dark:text-white placeholder:text-stone-300"
+              @input="handleInput($event, index)"
+              @keydown.backspace.prevent="handleBackspace(index)"
+            />
+          </div>
+
+          <div class="text-center text-sm text-stone-400 dark:text-stone-500">
+            60秒后可重新发送
+          </div>
+
+          <div class="text-center">
+            <button
+              type="button"
+              class="text-sm font-bold text-primary hover:text-primary-hover"
+              @click="resendCode"
+            >
+              收不到验证码？
+            </button>
+          </div>
         </div>
-
-        <button class="flex h-12 w-full items-center justify-center rounded-DEFAULT bg-primary px-6 text-base font-bold text-white shadow-sm transition-all hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary mt-2" @click="login">
-          登录
-        </button>
-
-      </div>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
-const router = useRouter();
+const route = useRoute();
+const email = ref<string>((route.query.email as string) || 'user@example.com');
 
-const email = ref('');
-const code = ref('');
+// 6 位验证码
+const codes = ref<string[]>(['', '', '', '', '', '']);
+const codeInputs = ref<HTMLInputElement[]>([] as unknown as HTMLInputElement[]);
 
-// 发送验证码 (模拟)
-const sendCode = () => {
-  if (!validateEmail(email.value)) {
-    alert('请输入正确邮箱');
+onMounted(() => {
+  // 聚焦第一个输入框
+  if (codeInputs.value && codeInputs.value[0]) {
+    codeInputs.value[0].focus();
+  }
+});
+
+function handleInput(e: Event, index: number) {
+  const target = e.target as HTMLInputElement;
+  const value = target.value.replace(/\D/g, '');
+  codes.value[index] = value;
+
+  if (value && index < codes.value.length - 1) {
+    const next = codeInputs.value[index + 1];
+    next && next.focus();
+  }
+}
+
+function handleBackspace(index: number) {
+  if (codes.value[index]) {
+    codes.value[index] = '';
     return;
   }
-  alert('验证码已发送！(模拟)');
-};
-
-// 登录
-const login = () => {
-  if (!validateEmail(email.value)) {
-    alert('请输入正确邮箱');
-    return;
+  if (index > 0) {
+    const prev = codeInputs.value[index - 1];
+    prev && prev.focus();
+    codes.value[index - 1] = '';
   }
-  if (!code.value) {
-    alert('请输入验证码');
-    return;
-  }
+}
 
-  // 登录成功跳转 LoginSuccess
-  router.push({ path: '/login-success', query: { username: email.value.split('@')[0] } });
-};
-
-// 简单邮箱验证
-const validateEmail = (email: string) => {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-};
+function resendCode() {
+  // 这里后续可以接真正的“重发验证码”接口，目前做成前端提示即可
+  alert('验证码已重新发送（示意）');
+}
 </script>
