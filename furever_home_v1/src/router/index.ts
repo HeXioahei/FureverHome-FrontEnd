@@ -78,6 +78,11 @@ const routes: RouteRecordRaw[] = [
     component: PostDetail
   },
   {
+    path: '/forum/new',
+    name: 'PostNew',
+    component: PostNew
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: Profile

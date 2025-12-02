@@ -3,10 +3,10 @@
  * 封装fetch请求，提供统一的请求接口
  */
 
-// API基础URL - 根据实际后端地址修改
+// API基础URL - 默认走 /api，由 Vite 代理到测试环境
 // 开发环境使用相对路径 /api，会经过 Vite 代理转发到后端
 // 生产环境可以通过环境变量 VITE_API_BASE_URL 设置完整后端地址
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:8080/api')
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 // 请求配置接口
 interface RequestConfig extends RequestInit {
