@@ -30,7 +30,13 @@
         </div>
 
         <div class="flex justify-end pt-0">
-          <a href="#" class="text-sm font-bold text-primary hover:text-primary-hover">忘记密码?</a>
+          <button
+            type="button"
+            class="text-sm font-bold text-primary hover:text-primary-hover"
+            @click="goResetPassword"
+          >
+            忘记密码?
+          </button>
         </div>
 
         <button class="flex h-12 w-full items-center justify-center rounded-DEFAULT bg-primary px-6 text-base font-bold text-white shadow-sm transition-all hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary mt-2" @click="loginWithPassword">
@@ -58,6 +64,10 @@ const togglePassword = () => {
   if (input) {
     input.type = showPassword.value ? 'text' : 'password';
   }
+};
+
+const goResetPassword = () => {
+  router.push({ name: 'ResetPasswordRequest', query: { email: email.value } });
 };
 
 const loginWithPassword = () => {

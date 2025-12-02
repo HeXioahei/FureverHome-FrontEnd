@@ -41,6 +41,15 @@ export interface PaginatedResponse<T> {
 }
 
 /**
+ * 获取帖子列表（用于论坛首页）
+ */
+export function getPostList(params?: Partial<PaginationParams>): Promise<ApiResponse<Post[]>> {
+  return httpClient.get<Post[]>('/posts', {
+    params
+  })
+}
+
+/**
  * 获取用户发布的帖子列表（分页）
  * @param userId 用户ID
  * @param params 分页参数
