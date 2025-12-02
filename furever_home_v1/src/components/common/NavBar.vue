@@ -3,6 +3,28 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi'
 
+const showUserMenu = ref(false)
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+// 打开用户中心
+const goUserCenter = () => {
+  showUserMenu.value = false
+  router.push({ name: 'Profile' }) // 你的原来的个人页
+}
+
+// 退出登录 → 回到登录界面
+const logout = () => {
+  localStorage.removeItem('currentUser')
+  localStorage.removeItem('userName')
+  localStorage.removeItem('avatarUrl')
+  showUserMenu.value = false
+  router.push('/login')
+}
+
+
 const route = useRoute()
 const router = useRouter()
 
@@ -87,7 +109,7 @@ onUnmounted(() => {
     </RouterLink>
     <nav>
       <ul class="flex gap-8 text-base">
-        <li 
+        <li
           v-for="item in navItems"
           :key="item.name"
           class="cursor-pointer opacity-90 py-1 border-b-[3px] border-transparent transition-all hover:opacity-100 hover:font-medium"
@@ -97,25 +119,49 @@ onUnmounted(() => {
         </li>
       </ul>
     </nav>
-    <button
-      @click="handleProfileClick"
-      class="flex items-center gap-2 text-sm cursor-pointer hover:opacity-80 transition-opacity"
-      type="button"
+    <!-- 用户按钮 + 下方出现两个操作按钮 -->
+<div class="relative flex flex-col items-end">
+  <!-- 原本的用户按钮 -->
+  <button
+    @click="toggleUserMenu"
+    class="flex items-center gap-2 text-sm cursor-pointer hover:opacity-80 transition-opacity"
+    type="button"
+  >
+    <div
+      v-if="avatarUrl"
+      class="w-8 h-8 rounded-full overflow-hidden bg-white/30 flex items-center justify-center"
     >
-      <div
-        v-if="avatarUrl"
-        class="w-8 h-8 rounded-full overflow-hidden bg-white/30 flex items-center justify-center"
-      >
-        <img :src="avatarUrl" alt="用户头像" class="w-full h-full object-cover" />
-      </div>
-      <div
-        v-else
-        class="w-8 h-8 rounded-full flex items-center justify-center bg-white text-[#FF8C00] font-bold text-sm"
-        style="box-shadow: 0 0 0 2px rgba(255,255,255,0.4);"
-      >
-        {{ userNameInitial }}
-      </div>
-      <span class="font-medium">{{ userName }}</span>
+      <img :src="avatarUrl" alt="用户头像" class="w-full h-full object-cover" />
+    </div>
+    <div
+      v-else
+      class="w-8 h-8 rounded-full flex items-center justify-center bg-white text-[#FF8C00] font-bold text-sm"
+      style="box-shadow: 0 0 0 2px rgba(255,255,255,0.4);"
+    >
+      {{ userNameInitial }}
+    </div>
+    <span class="font-medium">{{ userName }}</span>
+  </button>
+
+  <!-- 点击后出现的两个按钮 -->
+  <div
+    v-if="showUserMenu"
+    class="mt-2 flex flex-col bg-white text-black rounded shadow-md p-2 w-32"
+  >
+    <button
+      class="text-left px-3 py-1 rounded hover:bg-orange-100"
+      @click="goUserCenter"
+    >
+      用户中心
     </button>
+    <button
+      class="text-left px-3 py-1 rounded hover:bg-orange-100"
+      @click="logout"
+    >
+      退出登录
+    </button>
+  </div>
+</div>
+
   </header>
 </template>
