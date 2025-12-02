@@ -88,6 +88,18 @@ export function getPostList(params?: Partial<PaginationParams>): Promise<ApiResp
 }
 
 /**
+ * 搜索帖子
+ * @param params 搜索参数
+ */
+export function searchPosts(params: {
+  keyword: string
+  page?: number
+  pageSize?: number
+}): Promise<ApiResponse<PaginatedResponse<Post>>> {
+  return httpClient.get<PaginatedResponse<Post>>('/post/search', { params })
+}
+
+/**
  * 获取用户发布的帖子列表（他人帖子）
  * @param userId 用户ID
  * @param params 分页参数
