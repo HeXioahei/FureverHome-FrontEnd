@@ -10,14 +10,29 @@
         style="border-color: #F3F4F6;"
         @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
       >
-        <!-- 头部用户信息 -->
-        <div class="flex items-center mb-3">
-          <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-2.5" style="background-color: #FBBF24;">
-            {{ userName.charAt(0) }}
+        <!-- 头部用户信息 & 帖子状态 -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center">
+            <div
+              class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-2.5"
+              style="background-color: #FBBF24;"
+            >
+              {{ userName.charAt(0) }}
+            </div>
+            <div class="flex items-center gap-2.5 text-sm">
+              <span class="font-bold" style="color: #333;">{{ userName }}</span>
+              <span class="text-xs" style="color: #9CA3AF;">{{ post.time }}</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2.5 text-sm">
-            <span class="font-bold" style="color: #333;">{{ userName }}</span>
-            <span class="text-xs" style="color: #9CA3AF;">{{ post.time }}</span>
+
+          <!-- 审核状态标签 -->
+          <div v-if="post.reviewStatus" class="ml-4">
+            <span
+              class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+              :class="getReviewStatusClass(post.reviewStatus)"
+            >
+              审核状态：{{ post.reviewStatus }}
+            </span>
           </div>
         </div>
 
@@ -58,13 +73,22 @@
               {{ post.views }}
             </div>
           </div>
-          <button
-            class="px-4 py-1.5 text-sm font-medium rounded-lg cursor-pointer transition-all hover:opacity-90"
-            style="background-color: #EF4444; color: white;"
-            @click.stop="handleDelete(post)"
-          >
-            <i class="fa-solid fa-trash"></i> 删除
-          </button>
+          <div class="flex items-center gap-3">
+            <button
+              class="px-4 py-1.5 text-sm font-medium rounded-lg cursor-pointer transition-all hover:opacity-90"
+              style="background-color: #F59E0B; color: white;"
+              @click.stop="handleEdit(post)"
+            >
+              <i class="fa-regular fa-pen-to-square"></i> 编辑
+            </button>
+            <button
+              class="px-4 py-1.5 text-sm font-medium rounded-lg cursor-pointer transition-all hover:opacity-90"
+              style="background-color: #EF4444; color: white;"
+              @click.stop="handleDelete(post)"
+            >
+              <i class="fa-solid fa-trash"></i> 删除
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -115,19 +139,19 @@
     <!-- 删除成功弹窗 -->
     <SuccessModal
       :visible="showDeleteSuccessModal"
-      title="删除成功"
-      message="帖子已成功删除。"
+      :title="deleteResult.title"
+      :message="deleteResult.message"
       @close="closeDeleteSuccess"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
-import { getMyPostList } from '@/api/postApi';
+import { getMyPostList, deletePost } from '@/api/postApi';
 
 const router = useRouter();
 
@@ -140,6 +164,8 @@ interface Post {
   likes: number;
   comments: number;
   views: number;
+   // 审核状态：待审核 / 通过 / 拒绝
+  reviewStatus?: string;
 }
 
 const userName = ref('李同学');
@@ -154,24 +180,56 @@ const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pag
 const showDeleteConfirmModal = ref(false);
 const showDeleteSuccessModal = ref(false);
 const postToDelete = ref<Post | null>(null);
+const deleteResult = reactive({
+  title: '删除成功',
+  message: '帖子已成功删除。'
+});
+
+function handleEdit(post: Post) {
+  // 跳转到发帖页面的编辑模式
+  router.push({
+    name: 'PostNew',
+    query: { id: post.id.toString(), mode: 'edit' }
+  });
+}
 
 function handleDelete(post: Post) {
   postToDelete.value = post;
   showDeleteConfirmModal.value = true;
 }
 
-function confirmDelete() {
-  if (postToDelete.value) {
-    // 从列表中删除
-    const index = posts.value.findIndex(p => p.id === postToDelete.value!.id);
-    if (index > -1) {
-      posts.value.splice(index, 1);
-    }
-    showDeleteSuccessModal.value = true;
-    // 这里可以调用API删除帖子
+async function confirmDelete() {
+  if (!postToDelete.value) {
+    showDeleteConfirmModal.value = false;
+    return;
   }
-  showDeleteConfirmModal.value = false;
-  postToDelete.value = null;
+
+  try {
+    const id = postToDelete.value.id;
+    const res = await deletePost(id);
+
+    if (res.code === 200) {
+      // 本地列表中移除
+      const index = posts.value.findIndex(p => p.id === id);
+      if (index > -1) {
+        posts.value.splice(index, 1);
+      }
+      deleteResult.title = '删除成功';
+      deleteResult.message = '帖子已成功删除。';
+    } else {
+      console.error('删除帖子失败', res);
+      deleteResult.title = '删除失败';
+      deleteResult.message = res.message || '删除帖子失败，请稍后重试。';
+    }
+  } catch (err) {
+    console.error('删除帖子接口异常', err);
+    deleteResult.title = '删除失败';
+    deleteResult.message = '删除帖子接口异常，请稍后重试。';
+  } finally {
+    showDeleteConfirmModal.value = false;
+    showDeleteSuccessModal.value = true;
+    postToDelete.value = null;
+  }
 }
 
 function closeDeleteConfirm() {
@@ -216,6 +274,7 @@ async function loadPosts(page = 1) {
           likes: item.likeCount ?? 0,
           comments: item.commentCount ?? 0,
           views: item.viewCount ?? 0,
+          reviewStatus: item.reviewStatus || '',
         } as Post;
       });
     } else {
@@ -247,6 +306,17 @@ function goNext() {
 onMounted(() => {
   loadPosts(currentPage.value);
 });
+
+function getReviewStatusClass(status: string) {
+  if (status === '通过') {
+    return 'bg-green-50 text-green-600';
+  }
+  if (status === '拒绝') {
+    return 'bg-red-50 text-red-500';
+  }
+  // 默认：待审核 或 其它未知状态
+  return 'bg-yellow-50 text-yellow-600';
+}
 </script>
 
 <style scoped>

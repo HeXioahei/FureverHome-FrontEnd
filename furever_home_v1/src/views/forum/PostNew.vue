@@ -2,7 +2,7 @@
   <div class="new-post-page">
     <div class="container">
       <main class="main-content">
-        <h1 class="page-title">发布新帖子</h1>
+        <h1 class="page-title">{{ isEditMode ? '编辑帖子' : '发布新帖子' }}</h1>
 
         <form @submit.prevent="submitPost">
           <!-- 帖子标题和内容 -->
@@ -65,7 +65,7 @@
               :disabled="!isFormValid"
               @click="submitPost"
             >
-              发布帖子
+              {{ isEditMode ? '保存修改' : '发布帖子' }}
             </button>
           </div>
         </form>
@@ -76,8 +76,10 @@
     <div v-if="showSuccessModal" class="modal" @click.self="showSuccessModal = false">
       <div class="modal-content">
         <div class="modal-icon">✅</div>
-        <h2>发布成功！</h2>
-        <p>您的帖子已成功发布，现在可以在论坛中查看。</p>
+        <h2>{{ isEditMode ? '修改已提交' : '提交成功' }}</h2>
+        <p>
+          {{ isEditMode ? '您的帖子修改已提交成功，请等待审核结果。' : '您的帖子已提交成功，请等待审核结果。' }}
+        </p>
         <div class="modal-buttons">
           <button class="btn btn-primary" @click="confirmSuccess">确定</button>
         </div>
@@ -110,10 +112,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { createPost } from '@/api/postApi'; // 后端接口调用
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 后端接口调用
 
+const route = useRoute();
 const router = useRouter();
 
 const MAX_CHARS = 500;
@@ -130,6 +133,10 @@ const showCancelModal = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
 const submittedPostId = ref<number | null>(null);
+
+// 是否为编辑模式（从个人中心或其他地方带着帖子 ID 进入）
+const editingPostId = ref<number | null>(null);
+const isEditMode = computed(() => editingPostId.value !== null);
 
 const charCount = computed(() => postContent.value.length);
 const isFormValid = computed(() => postTitle.value.trim().length>0 && postContent.value.trim().length>0 && charCount.value<=MAX_CHARS);
@@ -175,12 +182,23 @@ const submitPost = async () => {
   }
 
   try{
-    console.log('开始调用 createPost 接口...');
-    const res = await createPost({
-      title: postTitle.value,
-      content: postContent.value,
-      images: uploadedFiles.value.map(f => f.file)
-    }); // 调用接口
+    let res;
+
+    if (isEditMode.value && editingPostId.value !== null) {
+      console.log('开始调用 updatePost 接口...');
+      // 编辑模式：仅更新标题和内容，图片沿用原有的
+      res = await updatePost(editingPostId.value, {
+        title: postTitle.value,
+        content: postContent.value,
+      });
+    } else {
+      console.log('开始调用 createPost 接口...');
+      res = await createPost({
+        title: postTitle.value,
+        content: postContent.value,
+        images: uploadedFiles.value.map(f => f.file)
+      });
+    }
     
     console.log('接口返回:', res);
     
@@ -205,11 +223,37 @@ const cancelPost = ()=>{ if(postTitle.value||postContent.value||uploadedFiles.va
 const confirmSuccess = ()=>{ 
   postTitle.value=''; postContent.value=''; uploadedFiles.value=[];
   showSuccessModal.value=false;
-  if(submittedPostId.value!==null) router.push({ name:'PostDetail', params:{id:submittedPostId.value.toString()}});
-  else router.push({ name:'Forum' });
+  if (isEditMode.value && editingPostId.value !== null) {
+    // 编辑完成后回到帖子详情
+    router.push({ name: 'PostDetail', params: { id: editingPostId.value.toString() } });
+  } else if(submittedPostId.value!==null) {
+    router.push({ name:'PostDetail', params:{id:submittedPostId.value.toString()}});
+  } else {
+    router.push({ name:'Forum' });
+  }
 };
 const confirmCancel = ()=>{ showCancelModal.value=false; router.back() };
 const closeErrorModal = ()=>{ showErrorModal.value=false; errorMessage.value=''; };
+
+// 初始化：如果带有 id 参数，则认为是编辑模式，先拉取帖子详情
+onMounted(async () => {
+  const idParam = route.query.id || route.params.id;
+  const numId = typeof idParam === 'string' ? parseInt(idParam, 10) : Number(idParam);
+  if (!isNaN(numId) && numId > 0) {
+    editingPostId.value = numId;
+    try {
+      const res = await getPostDetail(numId);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        const data: any = res.data;
+        postTitle.value = data.title || '';
+        postContent.value = data.content || data.summary || '';
+        // 目前不处理已有图片/视频预览，保持简单
+      }
+    } catch (err) {
+      console.error('获取帖子详情失败(编辑模式)', err);
+    }
+  }
+});
 </script>
 
 <style scoped>

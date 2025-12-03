@@ -46,12 +46,27 @@ const filteredPets = computed(() => {
     
     // 年龄筛选
     if (ageFilter.value) {
-      const age = pet.age
-      if (ageFilter.value === '0-6' && (age < 0 || age > 6)) return false
-      if (ageFilter.value === '6-12' && (age < 6 || age > 12)) return false
-      if (ageFilter.value === '12-36' && (age < 12 || age > 36)) return false
-      if (ageFilter.value === '36-84' && (age < 36 || age > 84)) return false
-      if (ageFilter.value === '84+' && age < 84) return false
+      const ageInMonths = pet.age // 接口返回的 animalAge 已是“月”为单位
+
+      // 这里的筛选区间统一按“月”处理：
+      // 0-6个月, 6-12个月, 1-3岁(12-36月), 3-7岁(36-84月), 7岁以上(84+月)
+      switch (ageFilter.value) {
+        case '0-6':
+          if (ageInMonths < 0 || ageInMonths > 6) return false
+          break
+        case '6-12':
+          if (ageInMonths < 6 || ageInMonths > 12) return false
+          break
+        case '12-36':
+          if (ageInMonths < 12 || ageInMonths > 36) return false
+          break
+        case '36-84':
+          if (ageInMonths < 36 || ageInMonths > 84) return false
+          break
+        case '84+':
+          if (ageInMonths < 84) return false
+          break
+      }
     }
     
     return true
@@ -86,6 +101,8 @@ const loadPets = async () => {
       pageSize,
       province: provinceFilter.value || undefined,
       city: cityFilter.value || undefined,
+      // 年龄筛选传给后端的也是“月”为单位的区间字符串
+      age: ageFilter.value || undefined,
     })
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0
@@ -259,7 +276,7 @@ onMounted(() => {
               {{ pet.adoption_status }}
             </span>
             <div class="text-xs text-[#666] mt-1.5">
-              临时收养者：{{ pet.fosterer }}
+              {{ pet.adoption_status === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer }}
             </div>
             <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
               已{{ pet.adoption_status }} {{ pet.days_adopted }} 天

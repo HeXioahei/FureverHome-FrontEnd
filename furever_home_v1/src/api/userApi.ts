@@ -53,6 +53,9 @@ export interface CurrentUserInfo {
   [property: string]: any
 }
 
+// 他人主页使用的用户信息结构，与 CurrentUserInfo 一致
+export type OtherUserInfo = CurrentUserInfo
+
 export interface UpdateUserRequest {
   avatarUrl?: string
   location?: string
@@ -178,6 +181,14 @@ export function getUserCreditScore(userId: number): Promise<ApiResponse<CreditSc
  */
 export function getCurrentUser(): Promise<ApiResponse<CurrentUserInfo>> {
   return httpClient.get<CurrentUserInfo>('/user/me')
+}
+
+/**
+ * 获取他人用户信息 /user/{id}
+ * @param userId 用户ID
+ */
+export function getUserById(userId: number): Promise<ApiResponse<OtherUserInfo>> {
+  return httpClient.get<OtherUserInfo>(`/user/${userId}`)
 }
 
 /**

@@ -87,9 +87,10 @@ const loadPetDetail = async () => {
         detail_info: item.shortDescription || '',
         publisher: {
           user_id: String(item.userId ?? ''),
-          username: '',
+          // 使用后端返回的 userName 显示领养人昵称
+          username: item.userName || '',
           avatar_url: '',
-          credit_score: ''
+          credit_score: item.creditScore != null ? String(item.creditScore) : ''
         }
       }
     } else {
@@ -154,10 +155,12 @@ onMounted(() => {
 
           <!-- 领养状态卡片 -->
           <div class="bg-[#fffaf0] p-4 rounded-xl my-5">
-            <span class="inline-block px-2.5 py-1 rounded-full text-[13px] font-semibold mb-2.5 bg-[#fff3cd] text-[#856404]">
-              {{ currentPet.adoption_status }}
-            </span>
-            <p class="text-sm mb-3">当前领养状态：临时收养</p>
+            <div class="flex items-center gap-3 mb-3">
+              <p class="text-sm mb-0">当前领养状态：</p>
+              <span class="inline-block px-2.5 py-1 rounded-full text-[13px] font-semibold bg-[#fff3cd] text-[#856404]">
+                {{ currentPet.adoption_status }}
+              </span>
+            </div>
             <div class="flex items-center gap-3 mt-3">
               <div class="w-[46px] h-[46px] rounded-full bg-[#F3C697] flex items-center justify-center font-semibold text-white">
                 {{ currentPet.publisher.username.charAt(0) }}

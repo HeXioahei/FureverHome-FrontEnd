@@ -88,8 +88,20 @@
             </div>
           </div>
 
-          <div class="text-xs pt-3 border-t" style="color: #9CA3AF; border-color: #F3F4F6;">
-            {{ pet.footerText }}
+          <div
+            class="text-xs pt-3 border-t flex items-center justify-between"
+            style="color: #9CA3AF; border-color: #F3F4F6;"
+          >
+            <span>
+              {{ pet.footerText }}
+            </span>
+            <span
+              v-if="pet.reviewStatus"
+              class="px-2 py-0.5 rounded-full font-medium"
+              :class="getReviewStatusClass(pet.reviewStatus)"
+            >
+              审核状态：{{ pet.reviewStatus }}
+            </span>
           </div>
         </div>
       </div>
@@ -184,6 +196,38 @@
             </div>
           </section>
 
+          <!-- 目前位置 -->
+          <section class="pb-5 border-b border-[#E5E7EB]">
+            <h4 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[#333333]">
+              <i class="fa-solid fa-location-dot text-[#FF8C00]"></i>
+              目前位置
+            </h4>
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label class="block mb-2 text-sm font-semibold text-[#666666]">
+                    所在省份 <span class="text-[#EF4444]">*</span>
+                  </label>
+                  <RegionCascader
+                    v-model:province="editForm.province"
+                    v-model:city="editForm.city"
+                  />
+                </div>
+              </div>
+              <div>
+                <label class="block mb-2 text-sm font-semibold text-[#666666]">
+                  详细地址 <span class="text-[#EF4444]">*</span>
+                </label>
+                <input
+                  v-model="editForm.location"
+                  type="text"
+                  placeholder="详细地址，如街道、小区、楼栋、门牌号等"
+                  class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm focus:border-[#FF8C00] focus:outline-none"
+                />
+              </div>
+            </div>
+          </section>
+
           <section class="pb-5 border-b border-[#E5E7EB]">
             <h4 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[#333333]">
               <i class="fa-solid fa-book text-[#FF8C00]"></i>
@@ -268,7 +312,8 @@ import { computed, reactive, ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
-import { getMyShortAnimals, getMyLongAnimals } from '@/api/animalApi';
+import RegionCascader from '../../../components/common/RegionCascader.vue';
+import { getMyShortAnimals, getMyLongAnimals, deleteAnimal, updateAnimal, ReviewStatus } from '@/api/animalApi';
 
 interface PetCard {
   id: number;
@@ -285,7 +330,12 @@ interface PetCard {
   species: string;
   breed: string;
   sterilized: string;
+  // 省市 + 详细地址
+  province?: string;
+  city?: string;
   location: string;
+  // 审核状态：仅发布者自己在“我的宠物”中可见
+  reviewStatus?: ReviewStatus;
 }
 
 const router = useRouter();
@@ -321,6 +371,18 @@ function switchTab(tab: 'short' | 'long') {
   }
   if (tab === 'long' && longPets.value.length === 0) {
     loadMyLongPets();
+  }
+}
+
+function getReviewStatusClass(status?: ReviewStatus) {
+  switch (status) {
+    case ReviewStatus.通过:
+      return 'bg-green-50 text-green-600';
+    case ReviewStatus.拒绝:
+      return 'bg-red-50 text-red-500';
+    case ReviewStatus.待审核:
+    default:
+      return 'bg-yellow-50 text-yellow-600';
   }
 }
 
@@ -369,7 +431,10 @@ async function loadMyShortPets() {
           species,
           breed: item.breed || '',
           sterilized: sterilizedLabel,
-          location: ''
+          province: item.province || '',
+          city: item.city || '',
+          location: item.currentLocation || '',
+          reviewStatus: item.reviewStatus as ReviewStatus | undefined
         } as PetCard;
       });
     } else {
@@ -392,6 +457,9 @@ const editForm = reactive<Record<string, string>>({
   species: '',
   breed: '',
   sterilized: '',
+  // 省市 + 详细地址
+  province: '',
+  city: '',
   location: '',
   story: '',
   phone: '',
@@ -404,8 +472,7 @@ const basicFields = [
   { key: 'gender', label: '性别', type: 'select', required: true, options: ['公', '母'] },
   { key: 'species', label: '动物种类', type: 'select', required: true, options: ['狗', '猫', '兔子', '鸟类', '其他'] },
   { key: 'breed', label: '动物品种', type: 'text', required: true, placeholder: '例如：布偶猫' },
-  { key: 'sterilized', label: '是否绝育', type: 'select', required: true, options: ['是', '否', '未知'] },
-  { key: 'location', label: '目前位置', type: 'text', required: true, placeholder: '城市/区域' }
+  { key: 'sterilized', label: '是否绝育', type: 'select', required: true, options: ['是', '否', '未知'] }
 ];
 
 function populateEditForm(pet: PetCard) {
@@ -415,7 +482,9 @@ function populateEditForm(pet: PetCard) {
   editForm.species = pet.species;
   editForm.breed = pet.breed;
   editForm.sterilized = pet.sterilized;
-  editForm.location = pet.location;
+  editForm.province = pet.province || '';
+  editForm.city = pet.city || '';
+  editForm.location = pet.location || '';
   editForm.story = pet.story;
   editForm.phone = pet.phone;
   editForm.email = pet.email;
@@ -440,23 +509,52 @@ function cancelEdit() {
   successModal.visible = true;
 }
 
-function submitEdit() {
+async function submitEdit() {
   if (!editingPet.value) return;
-  const list = editingPet.value.type === 'short' ? shortPets.value : longPets.value;
-  const index = list.findIndex(item => item.id === editingPet.value!.id);
-  if (index > -1) {
-    const sterilizedLabel =
-      editForm.sterilized === '是' ? '已绝育' : editForm.sterilized === '否' ? '未绝育' : list[index].sterilized;
-    list[index] = {
-      ...list[index],
-      ...editForm,
-      meta: `${editForm.species || list[index].species} · ${editForm.age || list[index].age} · ${sterilizedLabel}`
+
+  try {
+    const id = editingPet.value.id;
+    const reqBody = {
+      animalName: editForm.name,
+      animalAge: parseInt(editForm.age) || undefined,
+      gender: editForm.gender as any,
+      species: editForm.species as any,
+      breed: editForm.breed,
+      isSterilized: editForm.sterilized as any,
+      province: editForm.province || undefined,
+      city: editForm.city || undefined,
+      currentLocation: editForm.location,
+      shortDescription: editForm.story,
+      contactPhone: editForm.phone,
+      contactEmail: editForm.email,
     };
+
+    const res = await updateAnimal(id, reqBody);
+    if (res.code !== 200) {
+      console.error('更新宠物信息失败', res);
+      successModal.title = '保存失败';
+      successModal.message = res.message || '更新宠物信息失败，请稍后重试。';
+      successModal.visible = true;
+      return;
+    }
+
+    // 更新成功后刷新当前列表
+    if (editingPet.value.type === 'short') {
+      await loadMyShortPets();
+    } else {
+      await loadMyLongPets();
+    }
+
+    showEditModal.value = false;
+    successModal.title = '保存成功';
+    successModal.message = '宠物信息已更新。';
+    successModal.visible = true;
+  } catch (err) {
+    console.error('更新宠物信息接口异常', err);
+    successModal.title = '保存失败';
+    successModal.message = '更新宠物信息接口异常，请稍后重试。';
+    successModal.visible = true;
   }
-  showEditModal.value = false;
-  successModal.title = '保存成功';
-  successModal.message = '宠物信息已更新。';
-  successModal.visible = true;
 }
 
 function handleDelete(pet: PetCard) {
@@ -464,18 +562,39 @@ function handleDelete(pet: PetCard) {
   showDeleteConfirm.value = true;
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   if (!petToDelete.value) return;
-  const list = petToDelete.value.type === 'short' ? shortPets.value : longPets.value;
-  const idx = list.findIndex(item => item.id === petToDelete.value!.id);
-  if (idx > -1) {
-    list.splice(idx, 1);
+
+  try {
+    const id = petToDelete.value.id;
+    const res = await deleteAnimal(id);
+    if (res.code !== 200) {
+      console.error('删除宠物失败', res);
+      successModal.title = '删除失败';
+      successModal.message = res.message || '删除宠物失败，请稍后重试。';
+      successModal.visible = true;
+      return;
+    }
+
+    // 后端删除成功后刷新当前列表
+    if (petToDelete.value.type === 'short') {
+      await loadMyShortPets();
+    } else {
+      await loadMyLongPets();
+    }
+
+    successModal.title = '删除成功';
+    successModal.message = '宠物信息已被删除。';
+    successModal.visible = true;
+  } catch (err) {
+    console.error('删除宠物接口异常', err);
+    successModal.title = '删除失败';
+    successModal.message = '删除宠物接口异常，请稍后重试。';
+    successModal.visible = true;
+  } finally {
+    showDeleteConfirm.value = false;
+    petToDelete.value = null;
   }
-  showDeleteConfirm.value = false;
-  successModal.title = '删除成功';
-  successModal.message = '宠物信息已被删除。';
-  successModal.visible = true;
-  petToDelete.value = null;
 }
 
 function closeSuccessModal() {
