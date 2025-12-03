@@ -703,9 +703,10 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import SuccessModal from '../../components/common/SuccessModal.vue';
 import ErrorModal from '../../components/common/ErrorModal.vue';
-import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
+import { getCurrentUser, getUserById, type CurrentUserInfo } from '../../api/userApi';
 import { getUserPosts, type 帖子公开信息 } from '../../api/postApi';
 import { getUserShortAnimals, getUserLongAnimals, type 动物公开信息 } from '../../api/animalApi';
+import { getOthersRatings, getReceivedRatings, addMyRating, type ReceivedRatingItemDTO } from '../../api/ratingApi';
 
 const router = useRouter();
 const route = useRoute();
@@ -776,49 +777,10 @@ const proofs = ref<Proof[]>([
 
 const proofIntro = ref<string>('');
 
-// 生成50条评价数据
-const generateEvaluations = (): Evaluation[] => {
-  const authors = ['张同学', '王老师', '刘同学', '陈学姐', '赵同学', '孙老师', '周同学', '吴同学', '郑同学', '钱老师', '李同学', '周老师', '吴学姐', '郑老师', '钱同学', '冯同学', '陈老师', '褚同学', '卫老师', '蒋同学'];
-  const contents = [
-    '李同学非常有爱心，对小橘照顾得无微不至，定期分享小橘的成长动态，让我们很放心。',
-    '感谢李同学救助了校园里的流浪猫，并帮助它们找到了温暖的家，非常有责任心。',
-    '李同学救助的小白非常健康活泼，领养过程很顺利，提供了详细的饲养指南。',
-    '非常感谢李同学救助了花花，现在花花在我们家生活得很幸福，性格也越来越开朗。',
-    '李同学对动物很有爱心，救助的猫咪都得到了很好的照顾，值得信赖。',
-    '李同学不仅救助动物，还积极宣传动物保护知识，是校园里的动物保护先锋。',
-    '从李同学那里领养的小橘现在已经完全适应了新家，非常感谢她的帮助和指导。',
-    '李同学救助的动物都很健康，领养流程规范，后续还会关心动物的适应情况。',
-    '非常负责任，定期回访，确保宠物在新家生活得很好。',
-    '李同学的专业知识和爱心让人印象深刻，强烈推荐！',
-    '非常有耐心，对每只宠物都很用心，值得信赖的救助者。',
-    '领养过程非常顺利，李同学提供了很多有用的建议和帮助。',
-    '救助的宠物都很健康，性格也很好，非常适合领养。',
-    '李同学不仅救助动物，还帮助它们找到合适的家庭，非常专业。',
-    '非常有爱心和责任心，强烈推荐！'
-  ];
-  
-  const evaluations: Evaluation[] = [];
-  const months = ['10', '09', '08', '07', '06', '05', '04', '03', '02', '01'];
-  const days = ['15', '20', '25', '10', '05', '28', '18', '12', '08', '22'];
-  
-  for (let i = 1; i <= 50; i++) {
-    const month = months[Math.floor((i - 1) / 5) % months.length] || '10';
-    const day = days[(i - 1) % days.length] || '15';
-    const year = i <= 25 ? '2023' : '2024';
-    evaluations.push({
-      id: i,
-      author: authors[(i - 1) % authors.length] ?? '用户',
-      stars: Math.floor(Math.random() * 2) + 4, // 4-5星
-      content: contents[(i - 1) % contents.length] ?? contents[0] ?? '评价内容',
-      date: `${year}-${month}-${day}`
-    });
-  }
-  
-  return evaluations;
-};
-
-const evaluations = ref<Evaluation[]>(generateEvaluations());
-const rating = ref({ score: 4.9, total: evaluations.value.length });
+// 他人评价列表（从接口获取）
+const evaluations = ref<Evaluation[]>([]);
+// 信誉积分（平均分 & 评价总数），默认值先占位，实际加载后按接口更新
+const rating = ref({ score: 0, total: 0 });
 
 const shortTermAdoptions = ref<AdoptionPet[]>([]);
 const longTermAdoptions = ref<AdoptionPet[]>([]);
@@ -828,8 +790,53 @@ const recentPosts = ref<Post[]>([]);
 const allPosts = ref<Post[]>([]);
 const totalPostCount = ref(0);
 
-function applyCurrentUser(data: CurrentUserInfo) {
-  if (data.userId) {
+// 加载评价列表：
+// - 查看自己的主页：使用 /rating/received（别人对“我”的评价）
+// - 查看他人主页：使用 /rating/others/{targetUserId}（别人对“TA”的评价）
+async function loadUserRatings() {
+  const userId = viewedUserId.value;
+  if (!userId) return;
+  try {
+    const params = { page: 1, pageSize: 50 };
+    const res = isOwnProfile.value
+      ? await getReceivedRatings(params)
+      : await getOthersRatings(userId, params);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const records: ReceivedRatingItemDTO[] = res.data.records ?? [];
+      const mapped: Evaluation[] = records.map((item, index) => {
+        const raw = item.createTime ? String(item.createTime) : '';
+        let date = '';
+        if (raw) {
+          date = raw.includes('T') ? raw.split('T')[0] : raw;
+        }
+        return {
+          id: item.ratingId ?? index + 1,
+          author: item.otherUserName ?? '用户',
+          authorId: item.otherUserId ?? 0,
+          stars: item.score ?? 0,
+          content: item.content ?? '',
+          date,
+        } as Evaluation;
+      });
+      evaluations.value = mapped;
+      if (mapped.length > 0) {
+        const totalScore = mapped.reduce((sum, ev) => sum + ev.stars, 0);
+        rating.value.score = totalScore / mapped.length;
+        rating.value.total = mapped.length;
+      } else {
+        rating.value.score = 0;
+        rating.value.total = 0;
+      }
+    } else {
+      console.error('获取他人评价列表失败(Profile)', res);
+    }
+  } catch (e) {
+    console.error('获取他人评价列表异常(Profile)', e);
+  }
+}
+
+function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean }) {
+  if (options?.asCurrent && data.userId) {
     currentUserId.value = data.userId;
   }
   if (data.userName) {
@@ -901,7 +908,7 @@ function loadUserFromCache() {
     const cached = localStorage.getItem('currentUser');
     if (cached) {
       const me = JSON.parse(cached) as CurrentUserInfo;
-      applyCurrentUser(me);
+      applyUserData(me, { asCurrent: true });
     }
   } catch (e) {
     console.error('解析缓存用户信息失败', e);
@@ -912,11 +919,29 @@ async function loadUserFromApi() {
   try {
     const res = await getCurrentUser();
     if ((res.code === 0 || res.code === 200) && res.data) {
-      applyCurrentUser(res.data);
+      applyUserData(res.data, { asCurrent: true });
       localStorage.setItem('currentUser', JSON.stringify(res.data));
     }
   } catch (e) {
     console.error('获取当前用户信息失败(Profile)', e);
+  }
+}
+
+// 根据路由中的 userId 加载他人主页信息
+async function loadViewedUserFromApi() {
+  const userId = viewedUserId.value;
+  if (!userId || userId === currentUserId.value) {
+    return;
+  }
+  try {
+    const res = await getUserById(userId);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      applyUserData(res.data, { asCurrent: false });
+    } else {
+      console.error('获取他人用户信息失败(Profile)', res);
+    }
+  } catch (e) {
+    console.error('获取他人用户信息异常(Profile)', e);
   }
 }
 
@@ -996,7 +1021,7 @@ function closeProofPreview() {
   previewProofUrl.value = null;
 }
 
-function submitReview() {
+async function submitReview() {
   if (currentRating.value === 0) {
     reviewErrorMessage.value = '请选择评分';
     showReviewErrorModal.value = true;
@@ -1007,10 +1032,31 @@ function submitReview() {
     showReviewErrorModal.value = true;
     return;
   }
-  showReviewSuccessModal.value = true;
-  showReviewModal.value = false;
-  currentRating.value = 0;
-  reviewText.value = '';
+
+  const targetUserId = viewedUserId.value;
+  if (!targetUserId) {
+    reviewErrorMessage.value = '无法获取被评价用户信息，请稍后重试';
+    showReviewErrorModal.value = true;
+    return;
+  }
+
+  try {
+    await addMyRating(targetUserId, {
+      content: reviewText.value.trim(),
+      score: currentRating.value,
+    });
+    // 提交成功后刷新评价列表和评分
+    await loadUserRatings();
+    showReviewSuccessModal.value = true;
+    showReviewModal.value = false;
+    currentRating.value = 0;
+    reviewText.value = '';
+  } catch (e) {
+    console.error('提交评价失败(Profile)', e);
+    const msg = (e as any)?.message || '提交评价失败，请稍后重试';
+    reviewErrorMessage.value = msg;
+    showReviewErrorModal.value = true;
+  }
 }
 
 function closeReviewSuccessModal() {
@@ -1146,14 +1192,30 @@ async function loadUserLongAnimals() {
 
 onMounted(() => {
   loadUserFromCache();
-  loadUserFromApi();
+  loadUserFromApi().then(() => {
+    // 当前用户信息加载完成后，如果路由上带有 userId 且不是自己，再加载他人信息
+    loadViewedUserFromApi();
+    // 初始化加载评价/帖子/宠物等数据
+    loadUserPosts();
+    loadUserShortAnimals();
+    loadUserLongAnimals();
+    loadUserRatings();
+  });
 });
 
-watch(viewedUserId, () => {
-  loadUserPosts();
-  loadUserShortAnimals();
-  loadUserLongAnimals();
-}, { immediate: true });
+// 监听：路由中的 userId 或当前登录用户ID 变化
+// 用于区分「查看自己主页」还是「查看他人主页」，并重新加载相关数据
+watch(
+  () => [viewedUserId.value, currentUserId.value],
+  () => {
+    loadViewedUserFromApi();
+    loadUserPosts();
+    loadUserShortAnimals();
+    loadUserLongAnimals();
+    loadUserRatings();
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>

@@ -32,6 +32,8 @@ export interface 动物公开信息 {
   isSterilized?: IsSterilized
   photoUrls?: string[]
   shortDescription?: string
+  // 审核状态（仅对发布者可见）
+  reviewStatus?: ReviewStatus
   species?: Species
   userId?: number
   [property: string]: any
@@ -81,6 +83,26 @@ export interface CreateAnimalRequest {
   [property: string]: any
 }
 
+// 更新动物信息请求体
+export interface UpdateAnimalRequest {
+  adoptionStatus?: AdoptionStatus
+  animalAge?: number
+  animalName?: string
+  breed?: string
+  city?: string
+  contactEmail?: string
+  contactPhone?: string
+  currentLocation?: string
+  gender?: Gender
+  healthStatus?: string
+  isSterilized?: IsSterilized
+  photoUrls?: string[]
+  province?: string
+  shortDescription?: string
+  species?: Species
+  [property: string]: any
+}
+
 export enum AdoptionStatus {
   短期领养 = '短期领养',
   长期领养 = '长期领养',
@@ -118,6 +140,8 @@ export enum Species {
 export type AnimalListResponse = ApiResponse<PageResult动物公开信息>
 export type AnimalDetailResponse = ApiResponse<动物信息>
 export type CreateAnimalResponse = ApiResponse<void>
+export type DeleteAnimalResponse = ApiResponse<void>
+export type UpdateAnimalResponse = ApiResponse<void>
 
 export function getAnimalList(params: AnimalListRequest) {
   return httpClient.get<PageResult动物公开信息>('/animal/list', { params })
@@ -130,6 +154,16 @@ export function getAnimalDetail(id: number) {
 // 发布动物信息
 export function createAnimal(data: CreateAnimalRequest) {
   return httpClient.post<void>('/animal', data)
+}
+
+// 删除动物信息
+export function deleteAnimal(id: number) {
+  return httpClient.delete<void>(`/animal/${id}`)
+}
+
+// 更新动物信息
+export function updateAnimal(id: number, data: UpdateAnimalRequest) {
+  return httpClient.put<void>(`/animal/${id}`, data)
 }
 
 // 获取当前用户发布的短期宠物列表

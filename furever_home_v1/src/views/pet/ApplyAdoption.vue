@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SuccessModal from '../../components/common/SuccessModal.vue'
 import ErrorModal from '../../components/common/ErrorModal.vue'
 import ConfirmModal from '../../components/common/ConfirmModal.vue'
 import RegionCascader from '../../components/common/RegionCascader.vue'
 import { submitAdopt } from '@/api/adoptApi'
+import { getAnimalDetail } from '@/api/animalApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,13 +30,38 @@ const showErrorModal = ref(false)
 const showCancelConfirmModal = ref(false)
 const errorMessage = ref('')
 
-// Mock宠物数据（实际应该从API获取）
+// 宠物信息（从后端接口获取）
 const petInfo = ref({
-  name: '小橘',
-  breed: '中华田园猫',
-  species: '橘猫',
-  age: '1岁',
-  gender: '公'
+  name: '',
+  breed: '',
+  species: '',
+  age: '',
+  gender: ''
+})
+
+const loadPetInfo = async () => {
+  try {
+    if (!petId.value) return
+    const res = await getAnimalDetail(petId.value)
+    if (res.code === 200 && res.data) {
+      const item: any = res.data
+      petInfo.value = {
+        name: item.animalName || '',
+        breed: item.breed || '',
+        species: item.species || '',
+        age: item.animalAge != null ? `${item.animalAge}岁` : '',
+        gender: item.gender || ''
+      }
+    } else {
+      console.error('获取动物详情失败', res)
+    }
+  } catch (err) {
+    console.error('获取动物详情接口异常', err)
+  }
+}
+
+onMounted(() => {
+  loadPetInfo()
 })
 
 const goBack = () => {
@@ -221,6 +247,18 @@ const closeErrorModal = () => {
             type="text"
             placeholder="请输入您的详细居住地址"
             class="w-full px-4 py-3 border border-[#e0e0e0] rounded-lg text-base transition-all focus:outline-none focus:border-[#FF8C00] focus:shadow-[0_0_0_3px_rgba(255,140,0,0.1)]"
+          />
+        </div>
+
+        <!-- 申请理由 -->
+        <div class="mb-6">
+          <label for="reason" class="block mb-2 font-semibold text-[#333333]">申请领养理由</label>
+          <textarea
+            id="reason"
+            v-model="form.reason"
+            rows="4"
+            placeholder="请简单介绍一下您的养宠经验、生活环境以及为什么想要领养这只小动物"
+            class="w-full px-4 py-3 border border-[#e0e0e0] rounded-lg text-base transition-all resize-none focus:outline-none focus:border-[#FF8C00] focus:shadow-[0_0_0_3px_rgba(255,140,0,0.1)]"
           />
         </div>
 
