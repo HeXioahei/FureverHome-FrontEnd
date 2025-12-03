@@ -20,7 +20,17 @@
         </div>
         <div class="px-6 py-6 space-y-5">
           <div class="flex items-center gap-4">
-            <div class="size-14 rounded-full bg-primary/10 text-primary flex items-center justify-center text-base font-semibold">
+            <img
+              v-if="postData?.authorAvatar"
+              :src="postData.authorAvatar"
+              :alt="postData.author"
+              class="size-14 rounded-full object-cover shrink-0"
+              @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+            />
+            <div
+              v-if="!postData?.authorAvatar || !postData.authorAvatar.trim()"
+              class="size-14 rounded-full bg-primary/10 text-primary flex items-center justify-center text-base font-semibold shrink-0"
+            >
               {{ postData?.author?.charAt(0) || '头' }}
             </div>
             <div>
@@ -44,34 +54,73 @@
             />
           </div>
           <!-- 评论列表 -->
-          <div v-if="postData?.comments && postData.comments.length > 0" class="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-5">
+          <div class="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-5">
             <h4 class="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-base">chat</span>评论 ({{ postData.comments.length }})
+              <span class="material-symbols-outlined text-base">chat</span>评论 ({{ commentsTotal }})
             </h4>
-            <ul class="space-y-3 max-h-64 overflow-y-auto pr-2">
+            <div v-if="loadingComments" class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+              加载中...
+            </div>
+            <ul v-else-if="comments.length > 0" class="space-y-3">
               <li
-                v-for="(comment, index) in postData.comments"
-                :key="index"
+                v-for="comment in comments"
+                :key="comment.commentId"
                 class="flex gap-3"
               >
-                <div class="size-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-medium shrink-0">
-                  {{ comment.author?.charAt(0) || '头' }}
+                <img
+                  v-if="comment.userAvatar"
+                  :src="comment.userAvatar"
+                  :alt="comment.userName"
+                  class="size-9 rounded-full object-cover shrink-0"
+                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                />
+                <div
+                  v-if="!comment.userAvatar || !comment.userAvatar.trim()"
+                  class="size-9 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center text-xs font-medium shrink-0"
+                >
+                  {{ comment.userName?.charAt(0) || '头' }}
                 </div>
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium text-slate-900 dark:text-white">{{ comment.author || '未知用户' }}</span>
-                    <span class="text-xs text-slate-400">{{ comment.time || '未知时间' }}</span>
+                    <span class="text-sm font-medium text-slate-900 dark:text-white">{{ comment.userName || '未知用户' }}</span>
+                    <span class="text-xs text-slate-400">{{ formatTime(comment.createTime) }}</span>
                   </div>
                   <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ comment.content || '暂无内容' }}</p>
                 </div>
               </li>
             </ul>
-          </div>
-          <div v-else class="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-5">
-            <h4 class="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-base">chat</span>评论 (0)
-            </h4>
-            <p class="text-sm text-slate-500 dark:text-slate-400">暂无评论</p>
+            <p v-else class="text-sm text-slate-500 dark:text-slate-400">暂无评论</p>
+            <!-- 评论分页 -->
+            <div v-if="commentsTotal > 0" class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                显示 {{ (commentPage - 1) * COMMENT_PAGE_SIZE + 1 }} 到 {{ Math.min(commentPage * COMMENT_PAGE_SIZE, commentsTotal) }} 条，共 {{ commentsTotal }} 条
+              </p>
+              <div class="flex gap-2">
+                <button
+                  :disabled="commentPage === 1"
+                  class="px-3 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="commentPage--"
+                >
+                  上一页
+                </button>
+                <button
+                  v-for="page in commentTotalPages"
+                  :key="page"
+                  class="px-3 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-xs transition-colors"
+                  :class="page === commentPage ? 'bg-blue-500 text-white border-blue-500' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'"
+                  @click="commentPage = page"
+                >
+                  {{ page }}
+                </button>
+                <button
+                  :disabled="commentPage === commentTotalPages"
+                  class="px-3 py-1 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="commentPage++"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 px-6 py-4 rounded-b-2xl">
@@ -88,11 +137,8 @@
 </template>
 
 <script setup lang="ts">
-interface Comment {
-  author?: string;
-  time?: string;
-  content?: string;
-}
+import { ref, computed, watch } from 'vue';
+import { getPostComments, type AdminCommentDto } from '../../api/adminApi';
 
 interface PostData {
   id?: number;
@@ -100,10 +146,12 @@ interface PostData {
   content?: string;
   excerpt?: string;
   author?: string;
+  authorAvatar?: string;
   time?: string;
   images?: string[];
-  comments?: Comment[];
 }
+
+const COMMENT_PAGE_SIZE = 5;
 
 const props = defineProps<{
   visible: boolean;
@@ -113,6 +161,61 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: [];
 }>();
+
+const comments = ref<AdminCommentDto[]>([]);
+const commentsTotal = ref(0);
+const commentPage = ref(1);
+const loadingComments = ref(false);
+
+const commentTotalPages = computed(() => Math.ceil(commentsTotal.value / COMMENT_PAGE_SIZE));
+
+function formatTime(time?: string | Date): string {
+  if (!time) return '未知时间';
+  const date = typeof time === 'string' ? new Date(time) : time;
+  return date.toLocaleString('zh-CN');
+}
+
+async function loadComments() {
+  if (!props.postData?.id) return;
+  
+  try {
+    loadingComments.value = true;
+    const res = await getPostComments(props.postData.id, {
+      page: commentPage.value,
+      pageSize: COMMENT_PAGE_SIZE
+    });
+    
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      comments.value = list;
+      commentsTotal.value = res.data.total ?? list.length;
+    } else {
+      comments.value = [];
+      commentsTotal.value = 0;
+    }
+  } catch (error) {
+    console.error('获取评论列表异常', error);
+    comments.value = [];
+    commentsTotal.value = 0;
+  } finally {
+    loadingComments.value = false;
+  }
+}
+
+// 监听 visible 和 postData.id 变化，重新加载评论
+watch([() => props.visible, () => props.postData?.id], ([newVisible, newId]) => {
+  if (newVisible && newId) {
+    commentPage.value = 1;
+    loadComments();
+  }
+});
+
+// 监听分页变化，重新加载评论
+watch(commentPage, () => {
+  if (props.visible && props.postData?.id) {
+    loadComments();
+  }
+});
 
 function handleClose() {
   emit('close');
@@ -127,4 +230,3 @@ function handleClose() {
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 </style>
-

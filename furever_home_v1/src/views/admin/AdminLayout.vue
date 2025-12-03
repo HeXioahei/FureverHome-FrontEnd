@@ -59,24 +59,48 @@
         <router-view />
       </main>
     </div>
+
+    <!-- 退出登录确认弹窗 -->
+    <ConfirmModal
+      :visible="showLogoutConfirmModal"
+      title="确认退出登录"
+      message="确定要退出登录吗？"
+      @confirm="confirmLogout"
+      @cancel="showLogoutConfirmModal = false"
+      @close="showLogoutConfirmModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ConfirmModal from '../../components/admin/ConfirmModal.vue';
 
 const route = useRoute();
 const router = useRouter();
+
+const showLogoutConfirmModal = ref(false);
 
 function isActive(routeName: string): boolean {
   return route.name === routeName;
 }
 
 function handleLogout() {
-  if (confirm('确定要退出登录吗？')) {
-    // TODO: 实现退出登录逻辑
-    router.push('/');
-  }
+  showLogoutConfirmModal.value = true;
+}
+
+function confirmLogout() {
+  // TODO: 实现退出登录逻辑
+  // 清除 token 等登录信息
+  localStorage.removeItem('bearerToken');
+  localStorage.removeItem('saTokenName');
+  localStorage.removeItem('saTokenValue');
+  localStorage.removeItem('roles');
+  localStorage.removeItem('currentUser');
+  
+  showLogoutConfirmModal.value = false;
+  router.push('/');
 }
 </script>
 

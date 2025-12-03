@@ -11,7 +11,7 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
-  },
+    },
   server: {
     proxy: {
       // 代理前台的 /api 接口到后端测试环境

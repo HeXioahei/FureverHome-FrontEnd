@@ -11,7 +11,7 @@
         @click="router.push({ name: 'AdminPosts', query: { tab: 'published' } })"
       >
         <div class="flex justify-between items-center">
-          <p class="text-base font-medium leading-normal">帖子总量</p>
+          <p class="text-base font-medium leading-normal">已发布帖子总量</p>
           <span class="material-symbols-outlined">article</span>
         </div>
         <p class="tracking-light text-4xl font-bold leading-tight">{{ stats.totalPosts }}</p>

@@ -60,8 +60,18 @@
               </h3>
             </div>
             <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div class="size-10 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-sm font-medium shrink-0">
-                {{ petData?.adopterAvatar || '领' }}
+              <img
+                v-if="petData?.adopterAvatar"
+                :src="petData.adopterAvatar"
+                :alt="petData.adopterName"
+                class="size-10 rounded-full object-cover shrink-0"
+                @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+              />
+              <div
+                v-if="!petData?.adopterAvatar || !petData.adopterAvatar.trim()"
+                class="size-10 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-sm font-medium shrink-0"
+              >
+                {{ petData?.adopterName?.charAt(0) || '领' }}
               </div>
               <div>
                 <p class="text-sm text-slate-400 dark:text-slate-500 mb-0.5">领养者</p>
