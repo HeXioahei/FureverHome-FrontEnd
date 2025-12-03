@@ -18,3 +18,21 @@ export type AdoptMineListResponse = ApiResponse<AdoptTodoItem[]>
 export function getMyAdoptMineList() {
   return httpClient.get<AdoptTodoItem[]>('/adopt/mine')
 }
+
+// 提交领养申请请求体
+export interface SubmitAdoptRequest {
+  adoptReason: string
+  animalId: number
+  city: string
+  email: string
+  livingLocation: string
+  phone: string
+  province: string
+  userName: string
+  [property: string]: any
+}
+
+// 提交领养申请
+export function submitAdopt(data: SubmitAdoptRequest) {
+  return httpClient.post<void>('/adopt', data)
+}

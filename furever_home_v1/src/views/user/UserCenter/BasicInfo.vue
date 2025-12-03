@@ -177,9 +177,17 @@
             <div
               v-for="url in proofPhotos"
               :key="url"
-              class="w-24 h-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center"
+              class="relative w-24 h-24 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center cursor-pointer"
+              @click="openPreview(url)"
             >
               <img :src="url" alt="爱宠证明" class="w-full h-full object-cover" />
+              <button
+                type="button"
+                class="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs flex items-center justify-center cursor-pointer"
+                @click.stop="removeProof(url)"
+              >
+                ×
+              </button>
             </div>
           </div>
         </div>
@@ -211,6 +219,29 @@
       :message="errorMessage"
       @close="showErrorModal = false"
     />
+
+    <!-- 证明大图预览 -->
+    <div
+      v-if="showPreview"
+      class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center"
+      @click.self="closePreview"
+    >
+      <div class="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden shadow-xl">
+        <button
+          type="button"
+          class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center text-lg cursor-pointer"
+          @click="closePreview"
+        >
+          ×
+        </button>
+        <img
+          v-if="previewUrl"
+          :src="previewUrl"
+          alt="爱宠证明预览"
+          class="max-w-[90vw] max-h-[90vh] object-contain block"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -225,7 +256,7 @@ import {
   type CurrentUserInfo,
   type UpdateUserRequest
 } from '../../../api/userApi';
-import { uploadImage } from '../../../api/storageApi';
+import { uploadImage, deleteImage } from '../../../api/storageApi';
 
 interface FormData {
   age: number;
@@ -252,6 +283,8 @@ const proofPhotos = ref<string[]>([]);
 const proofInputRef = ref<HTMLInputElement | null>(null);
 const showErrorModal = ref(false);
 const errorMessage = ref('最多只能上传 3 张爱宠证明照片');
+const showPreview = ref(false);
+const previewUrl = ref<string | null>(null);
 
 function mapSexToGender(sex?: Sex): 'male' | 'female' | 'secret' {
   if (sex === Sex.男) return 'male';
@@ -281,6 +314,39 @@ async function loadCurrentUser() {
     }
   } catch (error) {
     console.error('获取当前用户信息失败', error);
+  }
+}
+
+function openPreview(url: string) {
+  previewUrl.value = url
+  showPreview.value = true
+}
+
+function closePreview() {
+  showPreview.value = false
+  previewUrl.value = null
+}
+
+async function removeProof(url: string) {
+  // 从 URL 中提取对象名（最后一段路径），如果失败则直接使用原字符串
+  const parts = url.split('/')
+  const object = parts[parts.length - 1] || url
+
+  try {
+    isLoading.value = true
+    const res = await deleteImage(object)
+    if (res.code === 0 || res.code === 200) {
+      proofPhotos.value = proofPhotos.value.filter(item => item !== url)
+    } else {
+      errorMessage.value = res.message || '删除爱宠证明失败，请稍后重试'
+      showErrorModal.value = true
+    }
+  } catch (error) {
+    console.error('删除爱宠证明失败', error)
+    errorMessage.value = '删除爱宠证明失败，请稍后重试'
+    showErrorModal.value = true
+  } finally {
+    isLoading.value = false
   }
 }
 
