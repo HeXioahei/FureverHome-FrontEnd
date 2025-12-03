@@ -20,7 +20,17 @@
         </div>
         <div class="px-6 py-6 space-y-5 text-sm text-slate-600 dark:text-slate-300">
           <div class="flex items-center gap-3">
-            <div class="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium">
+            <img
+              v-if="applicationData?.applicantAvatar"
+              :src="applicationData.applicantAvatar"
+              :alt="applicationData.applicant"
+              class="size-12 rounded-full object-cover shrink-0"
+              @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+            />
+            <div
+              v-if="!applicationData?.applicantAvatar || !applicationData.applicantAvatar.trim()"
+              class="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium shrink-0"
+            >
               {{ applicationData?.applicant?.charAt(0) || '头' }}
             </div>
             <div>
@@ -49,7 +59,22 @@
           </div>
           <div v-if="applicationData?.targetUser" class="space-y-2">
             <p class="text-xs uppercase tracking-wide text-slate-400 mb-1.5">被申请用户</p>
-            <p class="text-base font-medium text-slate-900 dark:text-white">{{ applicationData.targetUser }}</p>
+            <div class="flex items-center gap-3">
+              <img
+                v-if="applicationData.targetUserAvatar"
+                :src="applicationData.targetUserAvatar"
+                :alt="applicationData.targetUser"
+                class="size-10 rounded-full object-cover shrink-0"
+                @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+              />
+              <div
+                v-if="!applicationData.targetUserAvatar || !applicationData.targetUserAvatar.trim()"
+                class="size-10 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+              >
+                {{ applicationData.targetUser?.charAt(0) || '用' }}
+              </div>
+              <p class="text-base font-medium text-slate-900 dark:text-white">{{ applicationData.targetUser }}</p>
+            </div>
           </div>
         </div>
         <div class="flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800 px-6 py-4 rounded-b-2xl">
@@ -69,8 +94,10 @@
 interface ApplicationData {
   id?: number;
   applicant?: string;
+  applicantAvatar?: string;
   petName?: string;
   targetUser?: string;
+  targetUserAvatar?: string;
   time?: string;
   phone?: string;
   email?: string;

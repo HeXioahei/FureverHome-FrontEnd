@@ -62,6 +62,7 @@ export interface AdminPostSummaryDto {
   excerpt?: string
   authorId?: number
   authorName?: string
+  authorAvatar?: string
   reviewStatus?: PostReviewStatus | string
   viewCount?: number
   likeCount?: number
@@ -76,21 +77,26 @@ export interface AdminPostDetailDto {
   content?: string
   authorId?: number
   authorName?: string
+  authorAvatar?: string
   reviewStatus?: PostReviewStatus | string
   viewCount?: number
   likeCount?: number
   commentCount?: number
   createTime?: string | Date
   images?: string[]
+  mediaUrls?: string[]
   comments?: AdminCommentDto[]
   [property: string]: any
 }
 
 export interface AdminCommentDto {
   commentId?: number
+  parentCommentId?: number
   content?: string
-  authorId?: number
-  authorName?: string
+  userId?: number
+  userName?: string
+  userAvatar?: string
+  likeCount?: number
   createTime?: string | Date
   [property: string]: any
 }
@@ -148,6 +154,14 @@ export function deletePost(id: number): Promise<ApiResponse<void>> {
   return adminHttpClient.delete<void>(`/admin/posts/${id}`)
 }
 
+/**
+ * 分页获取帖子评论列表
+ * GET /admin/posts/{id}/comments
+ */
+export function getPostComments(id: number, params?: { page?: number; pageSize?: number }): Promise<ApiResponse<PageResult<AdminCommentDto>>> {
+  return adminHttpClient.get<PageResult<AdminCommentDto>>(`/admin/posts/${id}/comments`, { params })
+}
+
 // ==================== Animals 宠物管理 ====================
 
 export enum AnimalSpecies {
@@ -189,6 +203,7 @@ export interface AdminAnimalSummaryDto {
   reviewStatus?: AnimalReviewStatus | string
   ownerId?: number
   ownerName?: string
+  ownerAvatar?: string
   createdAt?: string | Date
   [property: string]: any
 }
@@ -204,9 +219,14 @@ export interface AdminAnimalDetailDto {
   reviewStatus?: AnimalReviewStatus | string
   ownerId?: number
   ownerName?: string
+  ownerAvatar?: string
   createdAt?: string | Date
   description?: string
+  shortDescription?: string
   images?: string[]
+  photoUrls?: string[]
+  healthStatus?: string
+  sterilizedDisplay?: string
   [property: string]: any
 }
 
@@ -214,6 +234,14 @@ export interface AnimalReviewRequest {
   reason?: string
   animalId: number
   [property: string]: any
+}
+
+/**
+ * 获取待审核的宠物列表
+ * GET /admin/animals/pending
+ */
+export function getPendingAnimals(params?: AdminPageParams): Promise<ApiResponse<PageResult<AdminAnimalSummaryDto>>> {
+  return adminHttpClient.get<PageResult<AdminAnimalSummaryDto>>('/admin/animals/pending', { params })
 }
 
 /**
@@ -298,6 +326,10 @@ export interface AdminAdoptSummaryDto {
   adoptId?: number
   userId?: number
   userName?: string
+  userAvatar?: string
+  targetUserId?: number
+  targetUserName?: string
+  targetUserAvatar?: string
   animalId?: number
   animalName?: string
   applicationStatus?: AdoptApplicationStatus | string
@@ -311,6 +343,10 @@ export interface AdminAdoptDetailDto {
   adoptId?: number
   userId?: number
   userName?: string
+  userAvatar?: string
+  targetUserId?: number
+  targetUserName?: string
+  targetUserAvatar?: string
   animalId?: number
   animalName?: string
   applicationStatus?: AdoptApplicationStatus | string
@@ -318,6 +354,8 @@ export interface AdminAdoptDetailDto {
   createTime?: string | Date
   passTime?: string | Date
   reason?: string
+  adoptReason?: string
+  address?: string
   contactInfo?: string
   [property: string]: any
 }

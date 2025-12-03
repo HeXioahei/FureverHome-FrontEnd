@@ -3,18 +3,32 @@
     <header>
       <h1 class="text-[#111318] dark:text-white text-3xl font-bold leading-tight tracking-[-0.033em]">管理帖子</h1>
     </header>
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <p class="text-sm text-gray-500 dark:text-gray-400">待审核帖子</p>
+        <div class="flex items-end justify-between">
+          <h3 class="text-3xl font-semibold text-[#111318] dark:text-white">{{ stats.pending }}</h3>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <p class="text-sm text-gray-500 dark:text-gray-400">已发布帖子</p>
+        <div class="flex items-end justify-between">
+          <h3 class="text-3xl font-semibold text-[#111318] dark:text-white">{{ stats.published }}</h3>
+        </div>
+      </div>
+    </section>
     <section class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
       <div class="flex flex-wrap border-b border-gray-100 dark:border-gray-800 text-sm font-medium">
         <button
           class="py-4 px-6 transition-colors"
-          :class="activeTab === 'pending' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
+          :class="activeTab === 'pending' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 border-b-2 border-transparent hover:text-blue-500'"
           @click="activeTab = 'pending'"
         >
           待审核的帖子列表
         </button>
         <button
           class="py-4 px-6 transition-colors"
-          :class="activeTab === 'published' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
+          :class="activeTab === 'published' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 border-b-2 border-transparent hover:text-blue-500'"
           @click="activeTab = 'published'"
         >
           已发布的帖子列表
@@ -34,7 +48,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-5 p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
           <div
             v-for="post in paginatedPendingPosts"
             :key="post.id"
@@ -43,7 +57,19 @@
             <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ post.id }}</span>
             <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
               <div class="flex items-center gap-3">
-                <div class="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">头像</div>
+                <img
+                  v-if="post.authorAvatar"
+                  :src="post.authorAvatar"
+                  :alt="post.author"
+                  class="size-9 rounded-full object-cover shrink-0"
+                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                />
+                <div
+                  v-if="!post.authorAvatar || !post.authorAvatar.trim()"
+                  class="size-9 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+                >
+                  {{ post.author?.charAt(0) || '头' }}
+                </div>
                 <div class="flex flex-col">
                   <span class="text-gray-900 dark:text-white">{{ post.author }}</span>
                 </div>
@@ -100,7 +126,7 @@
               v-for="page in totalPendingPages"
               :key="page"
               class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-              :class="page === currentPendingPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+              :class="page === currentPendingPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
               @click="currentPendingPage = page"
             >
               {{ page }}
@@ -129,7 +155,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-5 p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
           <div
             v-for="post in paginatedPublishedPosts"
             :key="post.id"
@@ -138,7 +164,19 @@
             <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ post.id }}</span>
             <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
               <div class="flex items-center gap-3">
-                <div class="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">头像</div>
+                <img
+                  v-if="post.authorAvatar"
+                  :src="post.authorAvatar"
+                  :alt="post.author"
+                  class="size-9 rounded-full object-cover shrink-0"
+                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                />
+                <div
+                  v-if="!post.authorAvatar || !post.authorAvatar.trim()"
+                  class="size-9 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+                >
+                  {{ post.author?.charAt(0) || '头' }}
+                </div>
                 <div class="flex flex-col">
                   <span class="text-gray-900 dark:text-white">{{ post.author }}</span>
                 </div>
@@ -188,7 +226,7 @@
               v-for="page in totalPublishedPages"
               :key="page"
               class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-              :class="page === currentPublishedPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+              :class="page === currentPublishedPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
               @click="currentPublishedPage = page"
             >
               {{ page }}
@@ -211,10 +249,12 @@
       :post-data="selectedPost ? {
         id: selectedPost.id,
         title: selectedPost.title,
+        content: selectedPostDetail?.content ?? selectedPost.excerpt,
         excerpt: selectedPost.excerpt,
         author: selectedPost.author,
+        authorAvatar: selectedPost.authorAvatar,
         time: selectedPost.time,
-        comments: []
+        images: selectedPostDetail?.images ?? selectedPostDetail?.mediaUrls ?? []
       } : undefined"
       @close="showPostDetailModal = false"
     />
@@ -244,17 +284,33 @@
       @cancel="onConfirmModalCancel"
       @close="onConfirmModalCancel"
     />
+    <RejectReasonModal
+      :visible="showRejectReasonModal"
+      title="请输入拒绝原因"
+      message="请输入拒绝原因（可选）:"
+      @confirm="onRejectReasonConfirm"
+      @cancel="onRejectReasonCancel"
+      @close="onRejectReasonCancel"
+    />
+    <ErrorModal
+      :visible="showErrorModal"
+      :message="errorMessage"
+      @confirm="showErrorModal = false"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import PostDetailModal from '../../components/admin/PostDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import RejectReasonModal from '../../components/admin/RejectReasonModal.vue';
+import ErrorModal from '../../components/admin/ErrorModal.vue';
 import {
   getPendingPosts,
   getPublishedPosts,
@@ -271,28 +327,24 @@ interface Post {
   title: string;
   excerpt: string;
   author: string;
+  authorAvatar?: string;
   time: string;
 }
 
 const route = useRoute();
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 4;
+
+const stats = reactive({
+  pending: 0,
+  published: 0,
+  total: 0
+});
 
 const activeTab = ref<string>((route.query.tab as string) || 'pending');
 const pendingSearch = ref('');
 const publishedSearch = ref('');
 const currentPendingPage = ref(1);
 const currentPublishedPage = ref(1);
-
-// 生成示例数据
-const generatePendingPosts = (): Post[] => {
-  return Array.from({ length: 32 }, (_, i) => ({
-    id: 2001 + i,
-    title: `待审核帖子 ${2001 + i}`,
-    excerpt: '发布者介绍一只待领养宠物的背景、性格以及适合的家庭环境，等待管理员审核。',
-    author: ['周八', '吴九', '郑十', '钱十一', '吕十二'][i % 5],
-    time: `2023-07-${(i % 20) + 1} ${9 + (i % 9)}:${(i * 5) % 60}`
-  }));
-};
 
 // 待审核和已发布帖子数据来自后端
 const pendingPosts = ref<Post[]>([]);
@@ -306,7 +358,8 @@ const filteredPendingPosts = computed(() => {
   if (!pendingSearch.value) return pendingPosts.value;
   const search = pendingSearch.value.toLowerCase();
   return pendingPosts.value.filter(
-    post => post.title.toLowerCase().includes(search) ||
+    post =>
+      post.title.toLowerCase().includes(search) ||
             post.author.toLowerCase().includes(search) ||
             post.excerpt.toLowerCase().includes(search)
   );
@@ -360,7 +413,8 @@ function mapAdminPostToPost(item: AdminPostSummaryDto): Post {
     id: item.postId ?? 0,
     title: item.title ?? '',
     excerpt: item.excerpt ?? '',
-    author: item.authorName ?? '未知作者',
+    author: (item.authorName ?? '未知作者') as string,
+    authorAvatar: item.authorAvatar,
     time: createTime
   };
 }
@@ -378,6 +432,8 @@ async function loadPendingPosts() {
       const list = res.data.list || res.data.records || [];
       pendingPosts.value = list.map(mapAdminPostToPost);
       pendingTotal.value = res.data.total ?? list.length;
+      stats.pending = pendingTotal.value;
+      stats.total = stats.pending + stats.published;
     } else {
       console.warn('获取待审核帖子列表失败', res);
     }
@@ -401,6 +457,8 @@ async function loadPublishedPosts() {
       const list = res.data.list || res.data.records || [];
       publishedPosts.value = list.map(mapAdminPostToPost);
       publishedTotal.value = res.data.total ?? list.length;
+      stats.published = publishedTotal.value;
+      stats.total = stats.pending + stats.published;
     } else {
       console.warn('获取已发布帖子列表失败', res);
     }
@@ -417,6 +475,9 @@ const showApproveModal = ref(false);
 const showRejectModal = ref(false);
 const showDeleteSuccessModal = ref(false);
 const showConfirmModal = ref(false);
+const showRejectReasonModal = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 const confirmAction = ref<'approve' | 'reject' | 'delete' | null>(null);
 const selectedPost = ref<Post | null>(null);
 
@@ -432,6 +493,8 @@ function handleReject(post: Post) {
   showConfirmModal.value = true;
 }
 
+const selectedPostDetail = ref<any>(null);
+
 async function handleViewDetail(post: Post) {
   try {
     const res = await getPostDetail(post.id);
@@ -441,24 +504,28 @@ async function handleViewDetail(post: Post) {
         title: res.data.title ?? post.title,
         excerpt: res.data.content?.substring(0, 100) ?? post.excerpt,
         author: res.data.authorName ?? post.author,
+        authorAvatar: res.data.authorAvatar ?? post.authorAvatar,
         time: res.data.createTime
           ? typeof res.data.createTime === 'string'
             ? new Date(res.data.createTime).toLocaleString('zh-CN')
             : new Date(res.data.createTime).toLocaleString('zh-CN')
           : post.time
       };
+      selectedPostDetail.value = res.data;
       showPostDetailModal.value = true;
     } else {
       console.warn('获取帖子详情失败', res);
       // 如果获取详情失败，仍然显示基本信息
       selectedPost.value = post;
+      selectedPostDetail.value = null;
       showPostDetailModal.value = true;
     }
   } catch (error) {
     console.error('获取帖子详情异常', error);
     // 如果获取详情失败，仍然显示基本信息
-    selectedPost.value = post;
-    showPostDetailModal.value = true;
+  selectedPost.value = post;
+  selectedPostDetail.value = null;
+  showPostDetailModal.value = true;
   }
 }
 
@@ -473,6 +540,19 @@ async function onConfirmModalConfirm() {
   
   showConfirmModal.value = false;
   
+  if (confirmAction.value === 'reject') {
+    // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    showRejectReasonModal.value = true;
+    return;
+  }
+  
+  // 其他操作直接执行
+  await executeAction();
+}
+
+async function executeAction(reason: string = '') {
+  if (!selectedPost.value || !confirmAction.value) return;
+  
   try {
     if (confirmAction.value === 'approve') {
       // 审核通过
@@ -484,11 +564,11 @@ async function onConfirmModalConfirm() {
           await loadPendingPosts();
         }
       } else {
-        alert(res.message || '审核通过失败');
+        errorMessage.value = res.message || '审核通过失败';
+        showErrorModal.value = true;
       }
     } else if (confirmAction.value === 'reject') {
       // 审核拒绝
-      const reason = prompt('请输入拒绝原因（可选）:') || '';
       const res = await rejectPost(selectedPost.value.id, { reason });
       if (res.code === 0 || res.code === 200) {
         showRejectModal.value = true;
@@ -497,7 +577,8 @@ async function onConfirmModalConfirm() {
           await loadPendingPosts();
         }
       } else {
-        alert(res.message || '审核拒绝失败');
+        errorMessage.value = res.message || '审核拒绝失败';
+        showErrorModal.value = true;
       }
     } else if (confirmAction.value === 'delete') {
       // 删除帖子
@@ -511,13 +592,26 @@ async function onConfirmModalConfirm() {
           await loadPublishedPosts();
         }
       } else {
-        alert(res.message || '删除失败');
+        errorMessage.value = res.message || '删除失败';
+        showErrorModal.value = true;
       }
     }
   } catch (error: any) {
     console.error('操作失败', error);
-    alert(error?.message || '操作失败，请稍后重试');
+    errorMessage.value = error?.message || '操作失败，请稍后重试';
+    showErrorModal.value = true;
   }
+}
+
+function onRejectReasonConfirm(reason: string) {
+  showRejectReasonModal.value = false;
+  executeAction(reason);
+}
+
+function onRejectReasonCancel() {
+  showRejectReasonModal.value = false;
+  confirmAction.value = null;
+  selectedPost.value = null;
 }
 
 function onConfirmModalCancel() {
@@ -548,12 +642,10 @@ onMounted(() => {
     activeTab.value = route.query.tab as string;
   }
 
-  // 根据当前标签页加载数据
-  if (activeTab.value === 'pending') {
-    loadPendingPosts();
-  } else if (activeTab.value === 'published') {
-    loadPublishedPosts();
-  }
+  // 进入页面时，同时加载待审核和已发布帖子，
+  // 让顶部统计卡片中的数量可以立即显示真实数据
+  loadPendingPosts();
+  loadPublishedPosts();
 });
 
 // 监听分页变化

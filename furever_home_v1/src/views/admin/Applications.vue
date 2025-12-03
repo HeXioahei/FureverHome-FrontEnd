@@ -3,6 +3,14 @@
     <header>
       <h1 class="text-[#111318] dark:text-white text-3xl font-bold leading-tight tracking-[-0.033em]">管理申请</h1>
     </header>
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 p-5">
+        <p class="text-sm text-gray-500 dark:text-gray-400">待审核申请</p>
+        <div class="flex items-end justify-between">
+          <h3 class="text-3xl font-semibold text-[#111318] dark:text-white">{{ stats.pending }}</h3>
+        </div>
+      </div>
+    </section>
     <section class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
       <div class="border-b border-gray-100 dark:border-gray-800 p-5 flex flex-wrap gap-4 justify-between items-center">
         <div>
@@ -18,32 +26,58 @@
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-5 p-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
         <div
           v-for="app in paginatedApplications"
           :key="app.id"
           class="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-[#1C202B] shadow-sm p-5 flex flex-col gap-4"
         >
           <div class="flex items-center gap-3">
-            <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">申请 #{{ app.id }}</span>
-            <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <span class="material-symbols-outlined text-base">schedule</span>
-              <span>{{ app.time }}</span>
-            </div>
+            <span class="px-2 py-1 rounded-full text-xs bg-primary/10 text-primary">#{{ app.id }}</span>
           </div>
           <div class="space-y-2.5 text-xs text-gray-600 dark:text-gray-400">
             <div class="flex items-center gap-2">
               <p class="text-gray-500 dark:text-gray-400">申请者：</p>
+              <img
+                v-if="app.applicantAvatar"
+                :src="app.applicantAvatar"
+                :alt="app.applicant"
+                class="size-7 rounded-full object-cover shrink-0"
+                @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+              />
+              <div
+                v-if="!app.applicantAvatar || !app.applicantAvatar.trim()"
+                class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+              >
+                {{ getNameInitial(app.applicant) }}
+              </div>
               <p class="text-gray-900 dark:text-white font-medium">{{ app.applicant }}</p>
             </div>
             <div class="flex items-center gap-2">
               <p class="text-gray-500 dark:text-gray-400">被申请用户：</p>
+              <img
+                v-if="app.targetUserAvatar"
+                :src="app.targetUserAvatar"
+                :alt="app.targetUser"
+                class="size-7 rounded-full object-cover shrink-0"
+                @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+              />
+              <div
+                v-if="!app.targetUserAvatar || !app.targetUserAvatar.trim()"
+                class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+              >
+                {{ getNameInitial(app.targetUser) }}
+              </div>
               <p class="text-gray-900 dark:text-white font-medium">{{ app.targetUser }}</p>
             </div>
             <div class="flex items-center gap-2">
               <p class="text-gray-500 dark:text-gray-400">申请的宠物：</p>
               <p class="text-gray-900 dark:text-white font-medium">{{ app.petName }}</p>
             </div>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <p class="text-gray-500 dark:text-gray-400">申请时间：</p>
+            <span>{{ app.time }}</span>
           </div>
           <div class="flex items-center gap-2 justify-end">
             <button
@@ -86,7 +120,7 @@
             v-for="page in totalPages"
             :key="page"
             class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-            :class="page === currentPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+            :class="page === currentPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
             @click="currentPage = page"
           >
             {{ page }}
@@ -108,13 +142,15 @@
       :application-data="selectedApplication ? {
         id: selectedApplication.id,
         applicant: selectedApplication.applicant,
+        applicantAvatar: selectedApplication.applicantAvatar,
         petName: selectedApplication.petName,
         targetUser: selectedApplication.targetUser,
+        targetUserAvatar: selectedApplication.targetUserAvatar,
         time: selectedApplication.time,
-        phone: '138-****-2640',
-        email: `${selectedApplication.applicant.toLowerCase()}@example.com`,
-        address: '上海市徐汇区桂林路 188 弄',
-        reason: '希望领养一只性格温顺的宠物作为伴侣。'
+        phone: selectedApplicationDetail?.contactInfo?.split(',')[0] || '138-****-2640',
+        email: selectedApplicationDetail?.contactInfo?.split(',')[1] || `${selectedApplication.applicant?.toLowerCase()}@example.com`,
+        address: selectedApplicationDetail?.address || '上海市徐汇区桂林路 188 弄',
+        reason: selectedApplicationDetail?.adoptReason || selectedApplicationDetail?.reason || '希望领养一只性格温顺的宠物作为伴侣。'
       } : undefined"
       @close="showApplicationDetailModal = false"
     />
@@ -138,17 +174,34 @@
       @cancel="onConfirmModalCancel"
       @close="onConfirmModalCancel"
     />
+    <RejectReasonModal
+      :visible="showRejectReasonModal"
+      title="请输入拒绝原因"
+      message="请输入拒绝原因（可选）:"
+      @confirm="onRejectReasonConfirm"
+      @cancel="onRejectReasonCancel"
+      @close="onRejectReasonCancel"
+    />
+    <ErrorModal
+      :visible="showErrorModal"
+      :message="errorMessage"
+      @confirm="showErrorModal = false"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
 import ApplicationDetailModal from '../../components/admin/ApplicationDetailModal.vue';
 import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import RejectReasonModal from '../../components/admin/RejectReasonModal.vue';
+import ErrorModal from '../../components/admin/ErrorModal.vue';
 import {
   getPendingAdopts,
+  getProcessedAdopts,
   getAdoptDetail,
   approveAdopt,
   rejectAdopt,
@@ -159,17 +212,29 @@ import {
 interface Application {
   id: number;
   applicant: string;
+  applicantAvatar?: string;
   petName: string;
   targetUser: string;
+  targetUserAvatar?: string;
   time: string;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 4;
+const stats = reactive({
+  pending: 0,
+  processed: 0,
+  total: 0
+});
 const search = ref('');
 const currentPage = ref(1);
 const applications = ref<Application[]>([]);
 const applicationsTotal = ref(0);
 const loading = ref(false);
+
+function getNameInitial(name: string): string {
+  if (!name) return '用';
+  return name.trim().charAt(0) || '用';
+}
 
 // 后端分页，前端仅做搜索过滤
 const filteredApplications = computed(() => {
@@ -196,8 +261,10 @@ function mapAdoptToApplication(item: AdminAdoptSummaryDto): Application {
   return {
     id: item.adoptId ?? 0,
     applicant: item.userName ?? '未知申请人',
+    applicantAvatar: item.userAvatar,
     petName: item.animalName ?? '未知宠物',
-    targetUser: item.animalName ?? '未知', // 这里可能需要根据实际业务调整
+    targetUser: item.targetUserName ?? '未知用户',
+    targetUserAvatar: item.targetUserAvatar,
     time: createTime
   };
 }
@@ -215,6 +282,8 @@ async function loadApplications() {
       const list = res.data.list || res.data.records || [];
       applications.value = list.map(mapAdoptToApplication);
       applicationsTotal.value = res.data.total ?? list.length;
+      stats.pending = applicationsTotal.value;
+      stats.total = stats.pending + stats.processed;
     } else {
       console.warn('获取待审核领养申请列表失败', res);
     }
@@ -225,11 +294,31 @@ async function loadApplications() {
   }
 }
 
+// 加载已处理申请数量（仅用于统计卡片）
+async function loadProcessedStats() {
+  try {
+    const res = await getProcessedAdopts({
+      page: 1,
+      pageSize: 1
+    });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const total = res.data.total ?? (res.data.list?.length || res.data.records?.length || 0);
+      stats.processed = total;
+      stats.total = stats.pending + stats.processed;
+    }
+  } catch (error) {
+    console.error('获取已处理领养申请统计异常', error);
+  }
+}
+
 // 弹窗状态
 const showApplicationDetailModal = ref(false);
 const showApproveModal = ref(false);
 const showRejectModal = ref(false);
 const showConfirmModal = ref(false);
+const showRejectReasonModal = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 const confirmAction = ref<'approve' | 'reject' | null>(null);
 const selectedApplication = ref<Application | null>(null);
 
@@ -245,6 +334,8 @@ function handleReject(app: Application) {
   showConfirmModal.value = true;
 }
 
+const selectedApplicationDetail = ref<any>(null);
+
 async function handleViewDetail(app: Application) {
   try {
     const res = await getAdoptDetail(app.id);
@@ -253,22 +344,27 @@ async function handleViewDetail(app: Application) {
       selectedApplication.value = {
         id: data.adoptId ?? app.id,
         applicant: data.userName ?? app.applicant,
+        applicantAvatar: data.userAvatar ?? app.applicantAvatar,
         petName: data.animalName ?? app.petName,
-        targetUser: data.animalName ?? app.targetUser,
+        targetUser: data.targetUserName ?? app.targetUser,
+        targetUserAvatar: data.targetUserAvatar ?? app.targetUserAvatar,
         time: data.createTime
           ? typeof data.createTime === 'string'
             ? new Date(data.createTime).toLocaleString('zh-CN')
             : new Date(data.createTime).toLocaleString('zh-CN')
           : app.time
       };
+      selectedApplicationDetail.value = data;
       showApplicationDetailModal.value = true;
     } else {
       selectedApplication.value = app;
+      selectedApplicationDetail.value = null;
       showApplicationDetailModal.value = true;
     }
   } catch (error) {
     console.error('获取领养申请详情异常', error);
     selectedApplication.value = app;
+    selectedApplicationDetail.value = null;
     showApplicationDetailModal.value = true;
   }
 }
@@ -277,6 +373,19 @@ async function onConfirmModalConfirm() {
   if (!selectedApplication.value || !confirmAction.value) return;
   
   showConfirmModal.value = false;
+  
+  if (confirmAction.value === 'reject') {
+    // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    showRejectReasonModal.value = true;
+    return;
+  }
+  
+  // 其他操作直接执行
+  await executeAction();
+}
+
+async function executeAction(reason: string = '') {
+  if (!selectedApplication.value || !confirmAction.value) return;
   
   try {
     if (confirmAction.value === 'approve') {
@@ -287,24 +396,38 @@ async function onConfirmModalConfirm() {
         // 重新加载列表
         await loadApplications();
       } else {
-        alert(res.message || '审核通过失败');
+        errorMessage.value = res.message || '审核通过失败';
+        showErrorModal.value = true;
       }
     } else if (confirmAction.value === 'reject') {
       // 审核拒绝
-      const reason = prompt('请输入拒绝原因（可选）:') || '';
       const res = await rejectAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id, reason });
       if (res.code === 0 || res.code === 200) {
         showRejectModal.value = true;
         // 重新加载列表
         await loadApplications();
+        await loadProcessedStats();
       } else {
-        alert(res.message || '审核拒绝失败');
+        errorMessage.value = res.message || '审核拒绝失败';
+        showErrorModal.value = true;
       }
     }
   } catch (error: any) {
     console.error('操作失败', error);
-    alert(error?.message || '操作失败，请稍后重试');
+    errorMessage.value = error?.message || '操作失败，请稍后重试';
+    showErrorModal.value = true;
   }
+}
+
+function onRejectReasonConfirm(reason: string) {
+  showRejectReasonModal.value = false;
+  executeAction(reason);
+}
+
+function onRejectReasonCancel() {
+  showRejectReasonModal.value = false;
+  confirmAction.value = null;
+  selectedApplication.value = null;
 }
 
 function onConfirmModalCancel() {
@@ -326,6 +449,7 @@ function onRejectConfirm() {
 
 onMounted(() => {
   loadApplications();
+  loadProcessedStats();
 });
 
 // 监听分页变化

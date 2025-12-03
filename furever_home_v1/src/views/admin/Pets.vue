@@ -17,7 +17,7 @@
         </div>
       </div>
       <div class="bg-white dark:bg-[#181C25] rounded-xl border border-gray-100 dark:border-gray-800 p-5">
-        <p class="text-sm text-gray-500 dark:text-gray-400">待审核短期</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">待审核宠物</p>
         <div class="flex items-end justify-between">
           <h3 class="text-3xl font-semibold text-[#111318] dark:text-white">{{ stats.pending }}</h3>
         </div>
@@ -27,21 +27,21 @@
       <div class="flex flex-wrap border-b border-gray-100 dark:border-gray-800 text-sm font-medium">
         <button
           class="py-4 px-6 transition-colors"
-          :class="activeTab === 'pending' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
+          :class="activeTab === 'pending' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 border-b-2 border-transparent hover:text-blue-500'"
           @click="activeTab = 'pending'"
         >
           待审核的宠物列表
         </button>
         <button
           class="py-4 px-6 transition-colors"
-          :class="activeTab === 'shortTerm' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
+          :class="activeTab === 'shortTerm' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 border-b-2 border-transparent hover:text-blue-500'"
           @click="activeTab = 'shortTerm'"
         >
           已发布的短期宠物列表
         </button>
         <button
           class="py-4 px-6 transition-colors"
-          :class="activeTab === 'longTerm' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 border-b-2 border-transparent hover:text-primary'"
+          :class="activeTab === 'longTerm' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 border-b-2 border-transparent hover:text-blue-500'"
           @click="activeTab = 'longTerm'"
         >
           已发布的长期宠物列表
@@ -61,7 +61,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-5 p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
           <div
             v-for="pet in paginatedPendingPets"
             :key="pet.id"
@@ -99,15 +99,25 @@
                 <p class="text-gray-500 dark:text-gray-400">领养者：</p>
                 <!-- <p class="text-gray-900 dark:text-white font-medium">{{ pet.adopterName || pet.publisher }}</p> -->
                 <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
-                    {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
+                  <img
+                    v-if="pet.ownerAvatar"
+                    :src="pet.ownerAvatar"
+                    :alt="pet.publisher"
+                    class="size-7 rounded-full object-cover shrink-0"
+                    @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                  />
+                  <div
+                    v-if="!pet.ownerAvatar || !pet.ownerAvatar.trim()"
+                    class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+                  >
+                    {{ pet.publisher?.charAt(0) || '领' }}
                   </div>
                   <div class="flex-1 min-w-0">
                     <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
                   </div>
                 </div>
               </div>
-              <p class="text-gray-500 dark:text-gray-400">申请时间：{{ pet.publishedAt }}</p>
+              <p class="text-gray-500 dark:text-gray-400">提交时间：{{ pet.publishedAt }}</p>
             </div>
             <div class="flex items-center gap-2 justify-end">
               <button
@@ -150,7 +160,7 @@
               v-for="page in totalPendingPages"
               :key="page"
               class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-              :class="page === currentPendingPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+            :class="page === currentPendingPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
               @click="currentPendingPage = page"
             >
               {{ page }}
@@ -179,7 +189,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-5 p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
           <div
             v-for="pet in paginatedShortTermPets"
             :key="pet.id"
@@ -205,6 +215,7 @@
               </div>
             </div>
             <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <p class="text-gray-500 dark:text-gray-400">领养者：</p>
               <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
                 {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
               </div>
@@ -246,7 +257,7 @@
               v-for="page in totalShortTermPages"
               :key="page"
               class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-              :class="page === currentShortTermPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+            :class="page === currentShortTermPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
               @click="currentShortTermPage = page"
             >
               {{ page }}
@@ -275,7 +286,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-5 p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4 gap-5 p-5">
           <div
             v-for="pet in paginatedLongTermPets"
             :key="pet.id"
@@ -301,6 +312,7 @@
               </div>
             </div>
             <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+              <p class="text-gray-500 dark:text-gray-400">领养者：</p>
               <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
                 {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
               </div>
@@ -342,7 +354,7 @@
               v-for="page in totalLongTermPages"
               :key="page"
               class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-              :class="page === currentLongTermPage ? 'bg-primary text-white border-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
+            :class="page === currentLongTermPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
               @click="currentLongTermPage = page"
             >
               {{ page }}
@@ -362,17 +374,30 @@
     <!-- 弹窗组件 -->
     <PetDetailModal
       :visible="showPetDetailModal"
-      :pet-data="selectedPet ? {
+      :pet-data="selectedPet && selectedPetDetail ? {
+        id: selectedPet.id,
+        name: selectedPetDetail.animalName ?? selectedPet.name,
+        category: selectedPetDetail.species ?? selectedPet.category.split('  ')[0] ?? '未知',
+        breed: selectedPetDetail.breed ?? selectedPet.category.split('  ')[1] ?? '未知',
+        gender: selectedPetDetail.gender ?? '未知',
+        age: selectedPetDetail.animalAge ? `${selectedPetDetail.animalAge}个月` : '未知',
+        neutered: selectedPetDetail.sterilizedDisplay ?? '未知',
+        description: selectedPetDetail.shortDescription ?? selectedPetDetail.description ?? '暂无简介',
+        mainImage: selectedPetDetail.photoUrls?.[0] ?? selectedPetDetail.images?.[0],
+        galleryImages: selectedPetDetail.photoUrls ?? selectedPetDetail.images ?? [],
+        adopterName: selectedPetDetail.ownerName ?? selectedPet.adopterName ?? selectedPet.publisher,
+        adopterAvatar: selectedPetDetail.ownerAvatar ?? selectedPet.adopterAvatar
+      } : selectedPet ? {
         id: selectedPet.id,
         name: selectedPet.name,
-        category: selectedPet.category.split('  ')[0],
-        breed: selectedPet.category.split('  ')[1] || selectedPet.category,
+        category: selectedPet.category.split('  ')[0] ?? '未知',
+        breed: selectedPet.category.split('  ')[1] ?? selectedPet.category,
         gender: '未知',
         age: '未知',
         neutered: '未知',
-        description: `${selectedPet.name}的详细信息`,
+        description: '暂无简介',
         adopterName: selectedPet.adopterName || selectedPet.publisher,
-        adopterAvatar: selectedPet.adopterAvatar || selectedPet.publisher?.charAt(0) || '领'
+        adopterAvatar: selectedPet.adopterAvatar
       } : undefined"
       @close="showPetDetailModal = false"
     />
@@ -402,6 +427,20 @@
       @cancel="onConfirmModalCancel"
       @close="onConfirmModalCancel"
     />
+    <RejectReasonModal
+      :visible="showRejectReasonModal"
+      title="请输入拒绝原因"
+      message="请输入拒绝原因（可选）:"
+      @confirm="onRejectReasonConfirm"
+      @cancel="onRejectReasonCancel"
+      @close="onRejectReasonCancel"
+    />
+    <ErrorModal
+      :visible="showErrorModal"
+      :message="errorMessage"
+      @confirm="showErrorModal = false"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
@@ -413,8 +452,10 @@ import ApproveModal from '../../components/admin/ApproveModal.vue';
 import RejectModal from '../../components/admin/RejectModal.vue';
 import DeleteSuccessModal from '../../components/admin/DeleteSuccessModal.vue';
 import ConfirmModal from '../../components/admin/ConfirmModal.vue';
+import RejectReasonModal from '../../components/admin/RejectReasonModal.vue';
+import ErrorModal from '../../components/admin/ErrorModal.vue';
 import {
-  getPendingShortAnimals,
+  getPendingAnimals,
   getShortAnimals,
   getLongAnimals,
   getAnimalDetail,
@@ -431,6 +472,7 @@ interface Pet {
   name: string;
   category: string;
   publisher: string;
+  ownerAvatar?: string;
   publishedAt: string;
   adopterName?: string;
   adopterAvatar?: string;
@@ -438,7 +480,7 @@ interface Pet {
 }
 
 const route = useRoute();
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 4;
 
 const activeTab = ref<string>((route.query.tab as string) || 'pending');
 const pendingSearch = ref('');
@@ -518,9 +560,10 @@ function mapAnimalToPet(item: AdminAnimalSummaryDto, petType: 'shortTerm' | 'lon
     name: item.animalName ?? '',
     category: `${item.species ?? ''}  ${item.breed ?? ''}`.trim(),
     publisher: item.ownerName ?? '未知发布者',
+    ownerAvatar: item.ownerAvatar,
     publishedAt: createdAt,
     adopterName: item.ownerName,
-    adopterAvatar: item.ownerName?.charAt(0) || '未',
+    adopterAvatar: item.ownerAvatar,
     petType
   };
 }
@@ -542,24 +585,31 @@ async function loadStats() {
 }
 
 // 加载待审核宠物列表
-// 注意：后端只有 pending-short 接口，返回待审核的短期宠物列表
 async function loadPendingPets() {
   try {
     loadingPending.value = true;
-    const shortRes = await getPendingShortAnimals({
+    const res = await getPendingAnimals({
       page: currentPendingPage.value,
       pageSize: PAGE_SIZE,
       keyword: pendingSearch.value || undefined
     });
     
-    const pendingList = (shortRes.code === 0 || shortRes.code === 200) && shortRes.data
-      ? (shortRes.data.list || shortRes.data.records || []).map(item => mapAnimalToPet(item, 'shortTerm'))
-      : [];
-    
-    pendingPets.value = pendingList;
-    pendingTotal.value = shortRes.data?.total ?? 0;
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const list = res.data.list || res.data.records || [];
+      // 根据 adoptionStatus 判断是短期还是长期
+      pendingPets.value = list.map(item => {
+        const petType = item.adoptionStatus === '长期领养' ? 'longTerm' : 'shortTerm';
+        return mapAnimalToPet(item, petType);
+      });
+      pendingTotal.value = res.data.total ?? list.length;
+    } else {
+      pendingPets.value = [];
+      pendingTotal.value = 0;
+    }
   } catch (error) {
     console.error('获取待审核宠物列表异常', error);
+    pendingPets.value = [];
+    pendingTotal.value = 0;
   } finally {
     loadingPending.value = false;
   }
@@ -613,6 +663,9 @@ const showApproveModal = ref(false);
 const showRejectModal = ref(false);
 const showDeleteSuccessModal = ref(false);
 const showConfirmModal = ref(false);
+const showRejectReasonModal = ref(false);
+const showErrorModal = ref(false);
+const errorMessage = ref('');
 const confirmAction = ref<'approve' | 'reject' | 'delete' | null>(null);
 const selectedPet = ref<Pet | null>(null);
 
@@ -628,6 +681,8 @@ function handleReject(pet: Pet) {
   showConfirmModal.value = true;
 }
 
+const selectedPetDetail = ref<AdminAnimalDetailDto | null>(null);
+
 async function handleViewDetail(pet: Pet) {
   try {
     const res = await getAnimalDetail(pet.id);
@@ -638,23 +693,27 @@ async function handleViewDetail(pet: Pet) {
         name: data.animalName ?? pet.name,
         category: `${data.species ?? ''}  ${data.breed ?? ''}`.trim() || pet.category,
         publisher: data.ownerName ?? pet.publisher,
+        ownerAvatar: data.ownerAvatar ?? pet.ownerAvatar,
         publishedAt: data.createdAt
           ? typeof data.createdAt === 'string'
             ? new Date(data.createdAt).toLocaleString('zh-CN')
             : new Date(data.createdAt).toLocaleString('zh-CN')
           : pet.publishedAt,
         adopterName: data.ownerName,
-        adopterAvatar: data.ownerName?.charAt(0) || '未',
+        adopterAvatar: data.ownerAvatar,
         petType: pet.petType
       };
+      selectedPetDetail.value = data;
       showPetDetailModal.value = true;
     } else {
       selectedPet.value = pet;
+      selectedPetDetail.value = null;
       showPetDetailModal.value = true;
     }
   } catch (error) {
     console.error('获取宠物详情异常', error);
     selectedPet.value = pet;
+    selectedPetDetail.value = null;
     showPetDetailModal.value = true;
   }
 }
@@ -670,6 +729,19 @@ async function onConfirmModalConfirm() {
   
   showConfirmModal.value = false;
   
+  if (confirmAction.value === 'reject') {
+    // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    showRejectReasonModal.value = true;
+    return;
+  }
+  
+  // 其他操作直接执行
+  await executeAction();
+}
+
+async function executeAction(reason: string = '') {
+  if (!selectedPet.value || !confirmAction.value) return;
+  
   try {
     if (confirmAction.value === 'approve') {
       // 审核通过
@@ -681,11 +753,11 @@ async function onConfirmModalConfirm() {
           await loadStats();
         }
       } else {
-        alert(res.message || '审核通过失败');
+        errorMessage.value = res.message || '审核通过失败';
+        showErrorModal.value = true;
       }
     } else if (confirmAction.value === 'reject') {
       // 审核拒绝
-      const reason = prompt('请输入拒绝原因（可选）:') || '';
       const res = await rejectAnimal(selectedPet.value.id, { animalId: selectedPet.value.id, reason });
       if (res.code === 0 || res.code === 200) {
         showRejectModal.value = true;
@@ -694,7 +766,8 @@ async function onConfirmModalConfirm() {
           await loadStats();
         }
       } else {
-        alert(res.message || '审核拒绝失败');
+        errorMessage.value = res.message || '审核拒绝失败';
+        showErrorModal.value = true;
       }
     } else if (confirmAction.value === 'delete') {
       // 删除宠物
@@ -708,13 +781,26 @@ async function onConfirmModalConfirm() {
         }
         await loadStats();
       } else {
-        alert(res.message || '删除失败');
+        errorMessage.value = res.message || '删除失败';
+        showErrorModal.value = true;
       }
     }
   } catch (error: any) {
     console.error('操作失败', error);
-    alert(error?.message || '操作失败，请稍后重试');
+    errorMessage.value = error?.message || '操作失败，请稍后重试';
+    showErrorModal.value = true;
   }
+}
+
+function onRejectReasonConfirm(reason: string) {
+  showRejectReasonModal.value = false;
+  executeAction(reason);
+}
+
+function onRejectReasonCancel() {
+  showRejectReasonModal.value = false;
+  confirmAction.value = null;
+  selectedPet.value = null;
 }
 
 function onConfirmModalCancel() {
