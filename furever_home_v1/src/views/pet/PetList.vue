@@ -40,8 +40,6 @@ const pageSize = 6
 
 const filteredPets = computed(() => {
   return pets.value.filter((pet) => {
-    if (provinceFilter.value && !pet.location.includes(provinceFilter.value)) return false
-    if (cityFilter.value && !pet.location.includes(cityFilter.value)) return false
     if (speciesFilter.value && pet.species !== speciesFilter.value) return false
     if (genderFilter.value && pet.gender !== genderFilter.value) return false
     if (adoptionStatusFilter.value && pet.adoption_status !== adoptionStatusFilter.value) return false
@@ -58,6 +56,7 @@ const filteredPets = computed(() => {
     
     return true
   })
+})
 
 watch(
   () => provinceFilter.value,
@@ -65,7 +64,14 @@ watch(
     cityFilter.value = ''
   }
 )
-})
+
+watch(
+  [provinceFilter, cityFilter, speciesFilter, genderFilter, ageFilter, adoptionStatusFilter],
+  () => {
+    currentPage.value = 1
+    loadPets()
+  }
+)
 
 const totalPages = computed(() => Math.max(1, Math.ceil((total.value || filteredPets.value.length) / pageSize)))
 
@@ -75,7 +81,12 @@ const paginatedPets = computed(() => {
 
 const loadPets = async () => {
   try {
-    const res = await getAnimalList({ page: currentPage.value, pageSize })
+    const res = await getAnimalList({
+      page: currentPage.value,
+      pageSize,
+      province: provinceFilter.value || undefined,
+      city: cityFilter.value || undefined,
+    })
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0
       const records = res.data.records ?? []
@@ -83,7 +94,7 @@ const loadPets = async () => {
         id: item.animalId,
         name: item.animalName,
         photo_url: Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : '',
-        fosterer: '',
+        fosterer: item.adopterName || '',
         location: item.location || '',
         species: item.species || '',
         age: item.animalAge ?? 0,
@@ -91,7 +102,7 @@ const loadPets = async () => {
         adoption_status: item.adoptionStatus || '',
         breed: item.breed || '',
         health_status: item.healthStatus || '',
-        days_adopted: 0,
+        days_adopted: item.adoptionDays ?? 0,
       }))
     } else {
       console.error('获取动物列表失败', res)

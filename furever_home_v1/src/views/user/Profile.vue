@@ -90,7 +90,7 @@
               v-for="proof in proofs" 
               :key="proof.id" 
               class="h-30 bg-gray-200 rounded-2xl flex items-center justify-center text-gray-500 text-sm text-center p-2.5 cursor-pointer hover:opacity-80 transition-opacity overflow-hidden"
-              @click="handleProofClick(proof)"
+              @click="openProofPreview(proof)"
             >
               <template v-if="proof.fileUrl">
                 <img :src="proof.fileUrl" alt="爱宠证明" class="w-full h-full object-cover" />
@@ -673,14 +673,39 @@
       </div>
     </footer>
   </div>
+
+  <!-- 爱宠证明大图预览 -->
+  <div
+    v-if="showProofPreview"
+    class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center"
+    @click.self="closeProofPreview"
+  >
+    <div class="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden shadow-xl">
+      <button
+        type="button"
+        class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center text-lg cursor-pointer"
+        @click="closeProofPreview"
+      >
+        ×
+      </button>
+      <img
+        v-if="previewProofUrl"
+        :src="previewProofUrl"
+        alt="爱宠证明预览"
+        class="max-w-[90vw] max-h-[90vh] object-contain block"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import SuccessModal from '../../components/common/SuccessModal.vue';
 import ErrorModal from '../../components/common/ErrorModal.vue';
 import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
+import { getUserPosts, type 帖子公开信息 } from '../../api/postApi';
+import { getUserShortAnimals, getUserLongAnimals, type 动物公开信息 } from '../../api/animalApi';
 
 const router = useRouter();
 const route = useRoute();
@@ -701,7 +726,7 @@ const isOwnProfile = computed(() => {
 
 interface Stat { key: string; label: string; value: number; }
 interface Experience { id: number; text: string; }
-interface Proof { id: number; title: string; status: 'approved' | 'pending' | 'rejected'; reason?: string; }
+interface Proof { id: number; title: string; status: 'approved' | 'pending' | 'rejected'; reason?: string; fileUrl?: string; }
 interface Evaluation { id: number; author: string; stars: number; content: string; date: string; appealable?: boolean; }
 interface AdoptionPet { id: number; name: string; gender: string; desc: string; days: number; status: 'approved' | 'pending' | 'rejected'; statusLabel: string; bgClass: string; titleClass: string; reason?: string; }
 interface Post { id: number; title: string; date: string; summary: string; status: 'approved' | 'pending' | 'rejected'; statusLabel: string; colorClass: string; reason?: string; }
@@ -795,106 +820,13 @@ const generateEvaluations = (): Evaluation[] => {
 const evaluations = ref<Evaluation[]>(generateEvaluations());
 const rating = ref({ score: 4.9, total: evaluations.value.length });
 
-const shortTermAdoptions = ref<AdoptionPet[]>([
-  { id: 1, name: '小黑', gender: '公', desc: '狗 · 8个月 · 未绝育', days: 8, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 2, name: '灰灰', gender: '母', desc: '猫 · 5个月 · 已绝育', days: 5, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 4, name: '小橘', gender: '公', desc: '橘猫 · 9个月', days: 45, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 5, name: '小白', gender: '母', desc: '比熊犬 · 1岁', days: 12, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 6, name: '豆豆', gender: '公', desc: '泰迪 · 6个月', days: 20, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 7, name: '球球', gender: '母', desc: '金毛 · 1岁', days: 30, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 11, name: '毛毛', gender: '公', desc: '拉布拉多 · 10个月', days: 15, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 12, name: '乐乐', gender: '母', desc: '英短 · 7个月', days: 25, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 13, name: '欢欢', gender: '公', desc: '哈士奇 · 1岁', days: 18, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 14, name: '甜甜', gender: '母', desc: '波斯猫 · 8个月', days: 22, status: 'approved', statusLabel: '短期领养', bgClass: '', titleClass: '', reason: '' }
-]);
+const shortTermAdoptions = ref<AdoptionPet[]>([]);
+const longTermAdoptions = ref<AdoptionPet[]>([]);
 
-const longTermAdoptions = ref<AdoptionPet[]>([
-  { id: 3, name: '雪球', gender: '母', desc: '猫 · 3岁 · 已绝育', days: 120, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 8, name: '花花', gender: '母', desc: '三花猫 · 2岁', days: 150, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 9, name: '旺财', gender: '公', desc: '金毛犬 · 2岁', days: 200, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 10, name: '米洛', gender: '母', desc: '布偶猫 · 1岁', days: 90, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 15, name: '多多', gender: '公', desc: '边牧 · 2岁', days: 180, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 16, name: '咪咪', gender: '母', desc: '美短 · 1.5岁', days: 100, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 17, name: '大毛', gender: '公', desc: '阿拉斯加 · 3岁', days: 250, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 18, name: '小美', gender: '母', desc: '加菲猫 · 2岁', days: 140, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 19, name: '阿黄', gender: '公', desc: '中华田园犬 · 2.5岁', days: 220, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' },
-  { id: 20, name: '小咪', gender: '母', desc: '暹罗猫 · 1岁', days: 95, status: 'approved', statusLabel: '长期领养', bgClass: '', titleClass: '', reason: '' }
-]);
-
-const recentPosts = ref<Post[]>([
-  { id: 1, title: '小橘的近况更新', date: '2023-11-05', summary: '小橘最近状态很好，体重增加了，也越来越亲人了。每天都会在门口迎接我回家...', status: 'approved', statusLabel: '已通过', colorClass: 'text-orange-500' },
-  { id: 2, title: '寻找小白的新家', date: '2023-10-20', summary: '小白是一只非常温顺的比熊犬，已经完成所有疫苗接种，正在寻找一个有爱的永久家庭...', status: 'approved', statusLabel: '已通过', colorClass: 'text-blue-500' }
-]);
-
-// 生成20条帖子数据
-const generateAllPosts = (): Post[] => {
-  const titles = [
-    '小橘的近况更新',
-    '寻找小白的新家',
-    '校园流浪猫救助记录',
-    '自制猫饭配方分享',
-    '金毛犬戈尔迪领养信息',
-    '猫咪米洛的日常',
-    '宠物健康护理小贴士',
-    '领养后的适应期注意事项',
-    '如何训练新领养的狗狗',
-    '猫咪行为解读指南',
-    '宠物疫苗接种时间表',
-    '流浪动物救助经验分享',
-    '宠物日常饮食搭配',
-    '领养前的准备工作',
-    '宠物绝育的重要性',
-    '如何选择适合的宠物',
-    '宠物日常护理技巧',
-    '领养成功案例分享',
-    '宠物心理健康关注',
-    '社区宠物救助活动'
-  ];
-  
-  const summaries = [
-    '小橘最近状态很好，体重增加了，也越来越亲人了。每天都会在门口迎接我回家...',
-    '小白是一只非常温顺的比熊犬，已经完成所有疫苗接种，正在寻找一个有爱的永久家庭...',
-    '最近在校园里发现了几只流浪猫，已经为它们提供了食物和临时住所。如果有同学愿意领养，请联系我。',
-    '经过多次尝试和改良，终于找到了一套适合学生党的自制猫饭配方。分享如何用有限的预算为猫咪提供营养均衡的饮食。',
-    '戈尔迪是一只3岁的金毛犬，性格温顺，喜欢和人互动，适合有孩子的家庭。',
-    '米洛是一只非常活泼的布偶猫，喜欢玩耍和互动。今天分享一些它的日常照片。',
-    '定期体检、合理饮食、适量运动是保持宠物健康的关键要素。',
-    '新领养的宠物需要时间适应新环境，主人需要给予足够的耐心和关爱。',
-    '通过正向强化训练方法，可以帮助新领养的狗狗更快地适应家庭生活。',
-    '了解猫咪的行为语言，可以更好地与它们沟通，建立良好的关系。',
-    '按照正确的时间表为宠物接种疫苗，是预防疾病的重要措施。',
-    '分享一些在救助流浪动物过程中积累的宝贵经验和心得体会。',
-    '合理的饮食搭配对宠物的健康至关重要，需要根据年龄和健康状况调整。',
-    '在领养宠物之前，需要做好充分的准备工作，包括心理和物质准备。',
-    '宠物绝育不仅可以控制数量，还能预防多种疾病，提高生活质量。',
-    '选择适合自己生活方式的宠物，是建立良好关系的第一步。',
-    '日常的护理工作包括梳毛、清洁、修剪等，需要定期进行。',
-    '分享一些成功的领养案例，希望能给准备领养的朋友一些启发。',
-    '关注宠物的心理健康，及时发现和处理行为问题。',
-    '参与社区宠物救助活动，为流浪动物提供帮助，传递爱心。'
-  ];
-  
-  const dates = [
-    '2023-11-05', '2023-10-20', '2023-10-15', '2023-10-10', '2023-10-05',
-    '2023-09-28', '2023-09-20', '2023-09-15', '2023-09-10', '2023-09-05',
-    '2023-08-28', '2023-08-20', '2023-08-15', '2023-08-10', '2023-08-05',
-    '2023-07-28', '2023-07-20', '2023-07-15', '2023-07-10', '2023-07-05'
-  ];
-  
-  const colorClasses = ['text-orange-500', 'text-blue-500', 'text-green-500', 'text-purple-500', 'text-pink-500'];
-  
-  return titles.map((title, index) => ({
-    id: index + 1,
-    title,
-    date: dates[index] || '2023-11-05',
-    summary: summaries[index] ?? summaries[0] ?? '帖子内容',
-    status: 'approved' as const,
-    statusLabel: '已通过',
-    colorClass: colorClasses[index % colorClasses.length] ?? 'text-orange-500'
-  }));
-};
-
-const allPosts = ref<Post[]>(generateAllPosts());
+// 帖子数据（从接口获取）
+const recentPosts = ref<Post[]>([]);
+const allPosts = ref<Post[]>([]);
+const totalPostCount = ref(0);
 
 function applyCurrentUser(data: CurrentUserInfo) {
   if (data.userId) {
@@ -921,6 +853,46 @@ function applyCurrentUser(data: CurrentUserInfo) {
       status: 'approved',
       fileUrl: url
     }));
+  }
+}
+
+// 加载他人短期领养宠物列表
+async function loadUserShortAnimals() {
+  const userId = viewedUserId.value;
+  if (!userId) return;
+  try {
+    const res = await getUserShortAnimals(userId, { page: 1, pageSize: 50 });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const records: 动物公开信息[] = res.data.records ?? [];
+      const mapped: AdoptionPet[] = records.map((item, index) => {
+        const id = item.animalId ?? index + 1;
+        const name = item.animalName ?? '';
+        const gender = item.gender ?? '';
+        const species = item.species ?? '';
+        const ageText = item.animalAge != null ? `${item.animalAge}岁` : '';
+        const sterilizedText = item.isSterilized ?? '';
+        const descParts = [species, ageText, sterilizedText].filter(Boolean);
+        const desc = descParts.join(' · ');
+        const days = item.adoptionDays ?? 0;
+        return {
+          id,
+          name,
+          gender: String(gender),
+          desc,
+          days,
+          status: 'approved',
+          statusLabel: '短期领养',
+          bgClass: '',
+          titleClass: '',
+          reason: ''
+        } as AdoptionPet;
+      });
+      shortTermAdoptions.value = mapped;
+    } else {
+      console.error('获取他人短期宠物列表失败', res);
+    }
+  } catch (e) {
+    console.error('获取他人短期宠物列表异常', e);
   }
 }
 
@@ -957,6 +929,8 @@ const showLongTermPetsModal = ref(false);
 const showAllPostsModal = ref(false);
 const currentRating = ref(0);
 const reviewText = ref('');
+const showProofPreview = ref(false);
+const previewProofUrl = ref<string | null>(null);
 
 // 分页相关状态
 const reviewsPerPage = 5; // 评论每页显示5条
@@ -1008,6 +982,18 @@ function handleProofClick(proof: Proof) {
     reviewErrorMessage.value = '拒绝理由：' + proof.reason + '\n您可以点击"重新提交"按钮再次上传。';
     showReviewErrorModal.value = true;
   }
+}
+
+function openProofPreview(proof: Proof) {
+  if (proof.fileUrl) {
+    previewProofUrl.value = proof.fileUrl;
+    showProofPreview.value = true;
+  }
+}
+
+function closeProofPreview() {
+  showProofPreview.value = false;
+  previewProofUrl.value = null;
 }
 
 function submitReview() {
@@ -1083,10 +1069,91 @@ function getUserIdByName(name: string): number {
   return nameToIdMap[name] || 1;
 }
 
+// 加载用户帖子列表（他人帖子）
+async function loadUserPosts() {
+  const userId = viewedUserId.value;
+  if (!userId) return;
+  try {
+    const res = await getUserPosts(userId, { page: 1, pageSize: 50 });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const records: 帖子公开信息[] = res.data.records ?? [];
+      const mapped: Post[] = records.map((item, index) => {
+        const raw = item.createTime ? String(item.createTime) : '';
+        let date: string = '';
+        if (raw) {
+          date = raw.includes('T') ? raw.split('T')[0] : raw;
+        }
+        return {
+          id: item.postId ?? index + 1,
+          title: item.title ?? '',
+          date,
+          summary: item.content ?? '',
+          status: 'approved',
+          statusLabel: '已发布',
+          colorClass: 'text-orange-500'
+        };
+      });
+      allPosts.value = mapped;
+      recentPosts.value = mapped.slice(0, 2);
+      totalPostCount.value = res.data.total ?? mapped.length;
+    } else {
+      console.error('获取用户帖子列表失败', res);
+    }
+  } catch (e) {
+    console.error('获取用户帖子列表异常', e);
+  }
+}
+
+// 加载他人长期领养宠物列表
+async function loadUserLongAnimals() {
+  const userId = viewedUserId.value;
+  if (!userId) return;
+  try {
+    const res = await getUserLongAnimals(userId, { page: 1, pageSize: 50 });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const records: 动物公开信息[] = res.data.records ?? [];
+      const mapped: AdoptionPet[] = records.map((item, index) => {
+        const id = item.animalId ?? index + 1;
+        const name = item.animalName ?? '';
+        const gender = item.gender ?? '';
+        const species = item.species ?? '';
+        const ageText = item.animalAge != null ? `${item.animalAge}岁` : '';
+        const sterilizedText = item.isSterilized ?? '';
+        const descParts = [species, ageText, sterilizedText].filter(Boolean);
+        const desc = descParts.join(' · ');
+        const days = item.adoptionDays ?? 0;
+        return {
+          id,
+          name,
+          gender: String(gender),
+          desc,
+          days,
+          status: 'approved',
+          statusLabel: '长期领养',
+          bgClass: '',
+          titleClass: '',
+          reason: ''
+        } as AdoptionPet;
+      });
+      longTermAdoptions.value = mapped;
+    } else {
+      console.error('获取他人长期宠物列表失败', res);
+    }
+  } catch (e) {
+    console.error('获取他人长期宠物列表异常', e);
+  }
+}
+
 onMounted(() => {
   loadUserFromCache();
   loadUserFromApi();
 });
+
+watch(viewedUserId, () => {
+  loadUserPosts();
+  loadUserShortAnimals();
+  loadUserLongAnimals();
+}, { immediate: true });
 </script>
 
 <style scoped>

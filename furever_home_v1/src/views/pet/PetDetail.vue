@@ -81,7 +81,7 @@ const loadPetDetail = async () => {
         animal_age: item.animalAge ?? 0,
         health_status: item.healthStatus || '',
         is_sterilized: item.isSterilized || '',
-        animal_location: '',
+        animal_location: item.currentLocation || '',
         adoption_status: item.adoptionStatus || '',
         short_description: item.shortDescription || '',
         detail_info: item.shortDescription || '',

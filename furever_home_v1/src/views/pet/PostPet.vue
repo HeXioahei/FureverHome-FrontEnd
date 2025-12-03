@@ -5,6 +5,7 @@ import SuccessModal from '../../components/common/SuccessModal.vue'
 import ErrorModal from '../../components/common/ErrorModal.vue'
 import ImageViewer from '../../components/common/ImageViewer.vue'
 import { provinceCityOptions } from '@/constants/regions'
+import { createAnimal, AdoptionStatus, Gender, IsSterilized, Species } from '@/api/animalApi'
 
 interface PetForm {
   name: string
@@ -134,22 +135,45 @@ const validateForm = (): boolean => {
   return true
 }
 
-const submitForm = () => {
+const submitForm = async () => {
   if (!validateForm()) {
     return
   }
 
-  // 组合省市 + 详细地址为 location，方便后端按地区筛选
-  form.value.location = [
+  // 组合省市 + 详细地址为当前所在位置
+  const currentLocation = [
     form.value.province,
     form.value.city,
     form.value.detailAddress
   ].join('')
 
-  // TODO: 这里未来接后端提交接口
-  console.log('提交审核', form.value)
-  console.log('上传的文件', uploadedFiles.value)
-  showSuccessModal.value = true
+  const animalAge = Number(form.value.age)
+
+  const reqBody = {
+    adoptionStatus: AdoptionStatus.短期领养,
+    animalAge: Number.isNaN(animalAge) ? undefined : animalAge,
+    animalName: form.value.name,
+    breed: form.value.breed || undefined,
+    city: form.value.city,
+    contactEmail: form.value.email,
+    contactPhone: form.value.phone,
+    currentLocation,
+    gender: form.value.gender as Gender,
+    healthStatus: form.value.healthStatus || '健康',
+    isSterilized: form.value.sterilized as IsSterilized,
+    photoUrls: getImageUrls(),
+    province: form.value.province,
+    shortDescription: form.value.story ? form.value.story.slice(0, 100) : undefined,
+    species: form.value.species as Species,
+  }
+
+  try {
+    await createAnimal(reqBody)
+    showSuccessModal.value = true
+  } catch (err: any) {
+    errorMessage.value = err?.message || '发布动物信息失败，请稍后重试'
+    showErrorModal.value = true
+  }
 }
 
 const closeSuccessModal = () => {
@@ -230,6 +254,7 @@ const closeErrorModal = () => {
                   <option value="">请选择</option>
                   <option value="公">公</option>
                   <option value="母">母</option>
+                  <option value="未知">未知</option>
                 </select>
               </div>
 

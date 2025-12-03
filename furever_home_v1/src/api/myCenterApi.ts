@@ -64,14 +64,20 @@ export interface 动物信息 {
   animalId?: number
   animalName?: string
   breed?: string
+  contactEmail?: string
+  currentLocation?: string
   gender?: Gender
   healthStatus?: string
   isSterilized?: IsSterilized
+  ownerEmail?: string
+  ownerLocation?: string
+  ownerPhone?: string
   photoUrls?: string[]
   reviewStatus?: ReviewStatus
   shortDescription?: string
   species?: Species
   userId?: number
+  userName?: string
   [property: string]: any
 }
 

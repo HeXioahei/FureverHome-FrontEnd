@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import SuccessModal from '../../components/common/SuccessModal.vue'
 import ErrorModal from '../../components/common/ErrorModal.vue'
 import ConfirmModal from '../../components/common/ConfirmModal.vue'
+import RegionCascader from '../../components/common/RegionCascader.vue'
+import { submitAdopt } from '@/api/adoptApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,7 +18,9 @@ const form = ref({
   address: '',
   reason: '',
   contactPhone: '',
-  contactEmail: ''
+  contactEmail: '',
+  province: '',
+  city: ''
 })
 
 const agreedToTerms = ref(false)
@@ -57,7 +61,9 @@ const validateForm = (): boolean => {
     { key: 'address', label: '居住地址' },
     { key: 'reason', label: '申请领养理由' },
     { key: 'contactPhone', label: '联系电话' },
-    { key: 'contactEmail', label: '电子邮箱' }
+    { key: 'contactEmail', label: '电子邮箱' },
+    { key: 'province', label: '所在省份' },
+    { key: 'city', label: '所在城市' },
   ]
 
   const missingFields: string[] = []
@@ -82,18 +88,29 @@ const validateForm = (): boolean => {
   return true
 }
 
-const submitApplication = () => {
+const submitApplication = async () => {
   if (!validateForm()) {
     return
   }
 
-  // TODO: 这里未来接后端提交接口
-  console.log('提交领养申请', {
-    petId: petId.value,
-    ...form.value
-  })
+  try {
+    const reqBody = {
+      adoptReason: form.value.reason,
+      animalId: petId.value,
+      city: form.value.city,
+      email: form.value.contactEmail,
+      livingLocation: form.value.address,
+      phone: form.value.contactPhone,
+      province: form.value.province,
+      userName: form.value.fullName,
+    }
 
-  showSuccessModal.value = true
+    await submitAdopt(reqBody)
+    showSuccessModal.value = true
+  } catch (err: any) {
+    errorMessage.value = err?.message || '提交领养申请失败，请稍后重试'
+    showErrorModal.value = true
+  }
 }
 
 const closeSuccessModal = () => {
@@ -189,6 +206,14 @@ const closeErrorModal = () => {
         </div>
 
         <div class="mb-6">
+          <label class="block mb-2 font-semibold text-[#333333]">所在地区</label>
+          <RegionCascader
+            v-model:province="form.province"
+            v-model:city="form.city"
+          />
+        </div>
+
+        <div class="mb-6">
           <label for="address" class="block mb-2 font-semibold text-[#333333]">居住地址</label>
           <input
             id="address"
@@ -197,16 +222,6 @@ const closeErrorModal = () => {
             placeholder="请输入您的详细居住地址"
             class="w-full px-4 py-3 border border-[#e0e0e0] rounded-lg text-base transition-all focus:outline-none focus:border-[#FF8C00] focus:shadow-[0_0_0_3px_rgba(255,140,0,0.1)]"
           />
-        </div>
-
-        <div class="mb-6">
-          <label for="reason" class="block mb-2 font-semibold text-[#333333]">申请领养理由</label>
-          <textarea
-            id="reason"
-            v-model="form.reason"
-            placeholder="请简要说明您申请领养的理由和您能为宠物提供的环境"
-            class="w-full px-4 py-3 border border-[#e0e0e0] rounded-lg text-base h-[120px] resize-y transition-all focus:outline-none focus:border-[#FF8C00] focus:shadow-[0_0_0_3px_rgba(255,140,0,0.1)]"
-          ></textarea>
         </div>
 
         <!-- 联系方式 -->

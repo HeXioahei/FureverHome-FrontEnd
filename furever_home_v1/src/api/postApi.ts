@@ -25,6 +25,21 @@ export interface Post {
   category?: string
 }
 
+// 他人帖子列表 DTO（与后端 /post/user/{userId}/list 返回的 帖子公开信息 对齐）
+export interface 帖子公开信息 {
+  commentCount?: number
+  content?: string
+  createTime?: string | Date
+  likeCount?: number
+  mediaUrls?: string
+  postId?: number
+  title?: string
+  userId?: number
+  userName?: string
+  viewCount?: number
+  [property: string]: any
+}
+
 // 分页参数接口
 export interface PaginationParams {
   page: number
@@ -71,6 +86,17 @@ export interface MyPostListPageResult {
 
 export type MyPostListResponse = ApiResponse<MyPostListPageResult>
 
+// 他人帖子列表分页结果（PageResult帖子公开信息）
+export interface PageResult帖子公开信息 {
+  page?: number
+  pageSize?: number
+  records?: 帖子公开信息[]
+  total?: number
+  [property: string]: any
+}
+
+export type UserPostListResponse = ApiResponse<PageResult帖子公开信息>
+
 /**
  * 获取当前登录用户发布的帖子列表（我的帖子）
  * @param params 分页参数
@@ -101,17 +127,15 @@ export function searchPosts(params: {
 
 /**
  * 获取用户发布的帖子列表（他人帖子）
+ * 对应后端接口：GET /api/post/user/{userId}/list
  * @param userId 用户ID
  * @param params 分页参数
  */
 export function getUserPosts(
   userId: number,
-  params: PaginationParams
-): Promise<ApiResponse<PaginatedResponse<Post>>> {
-  return httpClient.get<PaginatedResponse<Post>>(
-    `/post/user/${userId}/list`,
-    { params }
-  )
+  params: { page?: number; pageSize?: number; [property: string]: any }
+): Promise<UserPostListResponse> {
+  return httpClient.get<PageResult帖子公开信息>(`/post/user/${userId}/list`, { params })
 }
 
 /**
