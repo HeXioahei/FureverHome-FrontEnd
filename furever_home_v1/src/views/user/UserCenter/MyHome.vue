@@ -9,7 +9,7 @@
     <div class="grid grid-cols-3 gap-5 mb-10">
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
         <span class="text-sm font-medium" style="color: #6B7280;">已发布内容</span>
-        <span class="text-4xl font-bold mt-2.5" style="color: #111;">3</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ publishedPostCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-30">
         <span class="text-sm font-medium" style="color: #6B7280;">我的待办</span>
@@ -48,8 +48,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { getCurrentUser, type CurrentUserInfo } from '../../../api/userApi';
+import { getMyPostList } from '../../../api/postApi';
 
 const userName = ref('用户');
+const publishedPostCount = ref(0);
 
 interface Activity {
   id: number;
@@ -104,8 +106,28 @@ async function loadCurrentUser() {
   }
 }
 
+// 加载已审核通过的帖子数量
+async function loadPublishedPostCount() {
+  try {
+    const res = await getMyPostList({ page: 1, pageSize: 1000 }); // 获取足够多的数据以统计总数
+    if (res.code === 200 && res.data && res.data.records) {
+      // 统计审核状态为"通过"的帖子数量
+      const approvedPosts = res.data.records.filter((post: any) => {
+        const reviewStatus = post.reviewStatus || '';
+        return reviewStatus === '通过' || reviewStatus === 'approved';
+      });
+      publishedPostCount.value = approvedPosts.length;
+    } else {
+      console.error('获取我的帖子列表失败', res);
+    }
+  } catch (error) {
+    console.error('获取已发布帖子数量失败（MyHome）', error);
+  }
+}
+
 onMounted(() => {
   loadCurrentUser();
+  loadPublishedPostCount();
 });
 </script>
 

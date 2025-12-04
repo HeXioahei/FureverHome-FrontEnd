@@ -8,20 +8,60 @@
 
       <!-- 搜索栏 -->
       <div class="search-container">
+        <div class="search-type-tabs">
+          <button
+            class="search-tab"
+            :class="{ active: searchType === 'post' }"
+            @click="switchSearchType('post')"
+          >
+            帖子
+          </button>
+          <button
+            class="search-tab"
+            :class="{ active: searchType === 'user' }"
+            @click="switchSearchType('user')"
+          >
+            用户
+          </button>
+        </div>
         <div class="search-box">
           <input
             type="text"
             class="search-input"
-            placeholder="搜索帖子、话题或用户..."
+            :placeholder="searchType === 'post' ? '搜索帖子...' : '搜索用户...'"
             v-model="searchQuery"
             @keyup.enter="handleSearch"
           />
           <button class="search-btn" @click="handleSearch">搜索</button>
         </div>
       </div>
+      
+      <!-- 用户搜索结果 -->
+      <div v-if="searchType === 'user' && searchResults.users.length > 0" class="user-results">
+        <h3 class="results-title">用户搜索结果</h3>
+        <div class="user-list">
+          <div
+            v-for="user in searchResults.users"
+            :key="user.userId"
+            class="user-card"
+            @click="goToUserProfile(user.userId)"
+          >
+            <div class="user-avatar">{{ user.avatarInitial }}</div>
+            <div class="user-info">
+              <div class="user-name">{{ user.userName }}</div>
+              <div class="user-meta">用户ID: {{ user.userId }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 无搜索结果提示 -->
+      <div v-if="searchQuery.trim() && searchType === 'user' && searchResults.users.length === 0 && !isSearching" class="no-results">
+        未找到相关用户
+      </div>
 
       <!-- 帖子列表 -->
-      <div class="post-list">
+      <div v-if="searchType === 'post'" class="post-list">
         <div
           v-for="post in posts"
           :key="post.id"
@@ -51,9 +91,13 @@
             </div>
           </div>
 
-          <div class="post-stats">
-            <div class="stat-item">
-              <i class="fa-solid fa-heart"></i> {{ post.likes }}
+          <div class="post-stats" @click.stop>
+            <div
+              class="stat-item"
+              :class="{ liked: post.isLiked }"
+              @click="(e) => toggleLike(post, e)"
+            >
+              <i class="fa-solid fa-thumbs-up"></i> {{ post.likes }}
             </div>
             <div class="stat-item">
               <i class="fa-solid fa-comment"></i> {{ post.comments }}
@@ -77,6 +121,8 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
+import { likePost as likePostApi } from '@/api/commentapi';
+import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
 
 interface Post {
   id: number;
@@ -89,11 +135,27 @@ interface Post {
   likes: number;
   comments: number;
   views: string;
+  isLiked?: boolean;
 }
 
 const router = useRouter();
 const posts = ref<Post[]>([]);
 const searchQuery = ref('');
+const currentUser = ref<CurrentUserInfo | null>(null);
+const searchType = ref<'post' | 'user'>('post');
+const isSearching = ref(false);
+
+interface UserSearchResult {
+  userId: number;
+  userName: string;
+  avatarInitial: string;
+}
+
+const searchResults = ref<{
+  users: UserSearchResult[];
+}>({
+  users: []
+});
 
 // 示例数据（用于展示和接口失败时的fallback）
 const getExamplePosts = (): Post[] => [
@@ -123,23 +185,106 @@ const getExamplePosts = (): Post[] => [
   }
 ];
 
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    // 先从缓存获取
+    const cached = localStorage.getItem('currentUser');
+    if (cached) {
+      try {
+        currentUser.value = JSON.parse(cached) as CurrentUserInfo;
+      } catch (e) {
+        console.error('解析缓存用户信息失败', e);
+      }
+    }
+    // 再从接口获取最新信息
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      currentUser.value = res.data;
+      localStorage.setItem('currentUser', JSON.stringify(res.data));
+    }
+  } catch (error) {
+    console.error('获取当前用户信息失败', error);
+  }
+};
+
+// 将后端返回的帖子列表（可能是数组或分页结果）转换为前端展示结构
+const mapPosts = (list: any[]): Post[] => {
+  return list.map((p: any) => {
+    // 解析图片：优先 images，其次 mediaUrls（可能是字符串或 JSON 字符串）
+    let images: string[] = [];
+    if (Array.isArray(p.images)) {
+      images = p.images;
+    } else if (Array.isArray(p.mediaUrls)) {
+      images = p.mediaUrls;
+    } else if (typeof p.mediaUrls === 'string' && p.mediaUrls) {
+      try {
+        const parsed = JSON.parse(p.mediaUrls);
+        if (Array.isArray(parsed)) {
+          images = parsed;
+        } else {
+          images = [p.mediaUrls];
+        }
+      } catch {
+        images = [p.mediaUrls];
+      }
+    }
+
+    // 判断是否是当前用户发布的帖子
+    let authorName = p.authorName || p.userName || '未知用户';
+    let avatarInitial = authorName[0] || '用';
+    
+    if (currentUser.value && p.userId === currentUser.value.userId) {
+      authorName = '我';
+      avatarInitial = '我';
+    }
+
+    // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
+    let isLiked = false;
+    if (typeof p.isLiked === 'boolean') {
+      isLiked = p.isLiked;
+    } else if (typeof p.liked === 'boolean') {
+      isLiked = p.liked;
+    } else {
+      // 如果接口没有返回点赞状态，从本地存储读取
+      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+      isLiked = likedPosts.includes(p.id || p.postId);
+    }
+
+    return {
+      id: p.id || p.postId,
+      author: authorName,
+      avatarInitial: avatarInitial,
+      timeAgo: p.timeAgo || p.createTime || '刚刚',
+      title: p.title || '无标题',
+      content: p.content || p.summary || '',
+      images,
+      likes: p.likes || p.likeCount || 0,
+      comments: p.comments || p.commentCount || 0,
+      views: p.views || p.viewCount || '0',
+      isLiked: isLiked
+    } as Post;
+  });
+};
+
 // 加载帖子列表
 const loadPosts = async () => {
   try {
     const res = await getPostList();
-    if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-      posts.value = res.data.map((p: any) => ({
-        id: p.id || p.postId,
-        author: p.authorName || '未知用户',
-        avatarInitial: (p.authorName || '用')[0],
-        timeAgo: p.timeAgo || p.createTime || '刚刚',
-        title: p.title || '无标题',
-        content: p.content || p.summary || '',
-        images: p.images || [],
-        likes: p.likes || p.likeCount || 0,
-        comments: p.comments || p.commentCount || 0,
-        views: p.views || p.viewCount || '0'
-      }));
+    let list: any[] = [];
+
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        list = res.data;
+      } else if (Array.isArray((res.data as any).list)) {
+        list = (res.data as any).list;
+      } else if (Array.isArray((res.data as any).records)) {
+        list = (res.data as any).records;
+      }
+    }
+
+    if (list.length > 0) {
+      posts.value = mapPosts(list);
     } else {
       // 接口返回空数据，使用示例数据
       posts.value = getExamplePosts();
@@ -155,38 +300,187 @@ const loadPosts = async () => {
 const handleSearch = async () => {
   if (!searchQuery.value.trim()) {
     // 如果搜索框为空，加载全部帖子
-    loadPosts();
+    if (searchType.value === 'post') {
+      loadPosts();
+    } else {
+      searchResults.value.users = [];
+    }
     return;
   }
   
-  try {
-    const res = await searchPosts({
-      keyword: searchQuery.value.trim(),
-      page: 1,
-      pageSize: 20
-    });
-    
-    if (res.data && res.data.list && res.data.list.length > 0) {
-      posts.value = res.data.list.map((p: any) => ({
-        id: p.id || p.postId,
-        author: p.authorName || '未知用户',
-        avatarInitial: (p.authorName || '用')[0],
-        timeAgo: p.timeAgo || p.createTime || '刚刚',
-        title: p.title || '无标题',
-        content: p.content || p.summary || '',
-        images: p.images || [],
-        likes: p.likes || p.likeCount || 0,
-        comments: p.comments || p.commentCount || 0,
-        views: p.views || p.viewCount || '0'
-      }));
-    } else {
-      // 搜索无结果
-      posts.value = [];
+  const keyword = searchQuery.value.trim().toLowerCase();
+  
+  if (searchType.value === 'post') {
+    // 搜索帖子
+    isSearching.value = true;
+    try {
+      const res = await searchPosts({
+        keyword: keyword,
+        page: 1,
+        pageSize: 100 // 获取更多结果以便前端过滤
+      });
+      
+      if (res.data && res.data.list && res.data.list.length > 0) {
+        // 前端再次过滤，只匹配标题和内容
+        const filtered = res.data.list.filter((p: any) => {
+          const title = (p.title || '').toLowerCase();
+          const content = (p.content || p.summary || '').toLowerCase();
+          
+          return title.includes(keyword) || content.includes(keyword);
+        });
+        
+        posts.value = filtered.map((p: any) => {
+          // 判断是否是当前用户发布的帖子
+          let authorName = p.authorName || '未知用户';
+          let avatarInitial = authorName[0] || '用';
+          
+          if (currentUser.value && p.userId === currentUser.value.userId) {
+            authorName = '我';
+            avatarInitial = '我';
+          }
+          
+          // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
+          let isLiked = false;
+          if (typeof p.isLiked === 'boolean') {
+            isLiked = p.isLiked;
+          } else if (typeof p.liked === 'boolean') {
+            isLiked = p.liked;
+          } else {
+            // 如果接口没有返回点赞状态，从本地存储读取
+            const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+            isLiked = likedPosts.includes(p.id || p.postId);
+          }
+          
+          return {
+            id: p.id || p.postId,
+            author: authorName,
+            avatarInitial: avatarInitial,
+            timeAgo: p.timeAgo || p.createTime || '刚刚',
+            title: p.title || '无标题',
+            content: p.content || p.summary || '',
+            images: p.images || [],
+            likes: p.likes || p.likeCount || 0,
+            comments: p.comments || p.commentCount || 0,
+            views: p.views || p.viewCount || '0',
+            isLiked: isLiked
+          };
+        });
+      } else {
+      // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
+      const allPosts = await getAllPostsForSearch();
+      const filtered = allPosts.filter((p: any) => {
+        const title = (p.title || '').toLowerCase();
+        const content = (p.content || p.summary || '').toLowerCase();
+        
+        return title.includes(keyword) || content.includes(keyword);
+      });
+        
+        posts.value = mapPosts(filtered);
+      }
+    } catch (error) {
+      console.error('搜索帖子失败:', error);
+      // 搜索失败，尝试从前端已加载的帖子中搜索
+      try {
+        const allPosts = await getAllPostsForSearch();
+        const filtered = allPosts.filter((p: any) => {
+          const title = (p.title || '').toLowerCase();
+          const content = (p.content || p.summary || '').toLowerCase();
+          
+          return title.includes(keyword) || content.includes(keyword);
+        });
+        
+        posts.value = mapPosts(filtered);
+      } catch (e) {
+        console.error('前端搜索也失败:', e);
+        posts.value = [];
+      }
+    } finally {
+      isSearching.value = false;
     }
+  } else {
+    // 搜索用户
+    isSearching.value = true;
+    try {
+      // 通过搜索帖子来找到匹配的用户
+      const res = await searchPosts({
+        keyword: keyword,
+        page: 1,
+        pageSize: 100
+      });
+      
+      const userMap = new Map<number, UserSearchResult>();
+      
+      if (res.data && res.data.list) {
+        res.data.list.forEach((p: any) => {
+          const userId = p.userId;
+          const userName = p.authorName || p.userName || '未知用户';
+          const userNameLower = userName.toLowerCase();
+          const userIdStr = String(userId || '');
+          
+          // 如果用户名或用户ID包含关键词
+          if (userId && (userNameLower.includes(keyword) || userIdStr.includes(keyword))) {
+            if (!userMap.has(userId)) {
+              userMap.set(userId, {
+                userId: userId,
+                userName: userName,
+                avatarInitial: userName[0] || '用'
+              });
+            }
+          }
+        });
+      }
+      
+      // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
+      if (userMap.size === 0) {
+        const allPosts = await getAllPostsForSearch();
+        allPosts.forEach((p: any) => {
+          const userId = p.userId;
+          const userName = p.authorName || p.userName || '未知用户';
+          const userNameLower = userName.toLowerCase();
+          const userIdStr = String(userId || '');
+          
+          if (userId && (userNameLower.includes(keyword) || userIdStr.includes(keyword))) {
+            if (!userMap.has(userId)) {
+              userMap.set(userId, {
+                userId: userId,
+                userName: userName,
+                avatarInitial: userName[0] || '用'
+              });
+            }
+          }
+        });
+      }
+      
+      searchResults.value.users = Array.from(userMap.values());
+    } catch (error) {
+      console.error('搜索用户失败:', error);
+      searchResults.value.users = [];
+    } finally {
+      isSearching.value = false;
+    }
+  }
+};
+
+// 获取所有帖子用于前端搜索（当后端搜索失败时）
+const getAllPostsForSearch = async (): Promise<any[]> => {
+  try {
+    const res = await getPostList({ page: 1, pageSize: 1000 });
+    let list: any[] = [];
+    
+    if (res.data) {
+      if (Array.isArray(res.data)) {
+        list = res.data;
+      } else if (Array.isArray((res.data as any).list)) {
+        list = (res.data as any).list;
+      } else if (Array.isArray((res.data as any).records)) {
+        list = (res.data as any).records;
+      }
+    }
+    
+    return list;
   } catch (error) {
-    console.error('搜索失败:', error);
-    // 搜索失败，加载全部帖子
-    loadPosts();
+    console.error('获取帖子列表失败:', error);
+    return [];
   }
 };
 
@@ -200,7 +494,82 @@ const goToPostCreation = () => {
   router.push({ name: 'PostNew' });
 };
 
-onMounted(() => {
+// 跳转到用户主页
+const goToUserProfile = (userId: number) => {
+  router.push({ name: 'Profile', params: { id: userId } });
+};
+
+// 切换搜索类型
+const switchSearchType = (type: 'post' | 'user') => {
+  searchType.value = type;
+  searchQuery.value = '';
+  searchResults.value.users = [];
+  if (type === 'post') {
+    loadPosts();
+  } else {
+    // 切换到用户搜索时，清空帖子列表
+    posts.value = [];
+  }
+};
+
+// 更新本地存储的点赞状态
+const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+  try {
+    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    if (liked) {
+      if (!likedPosts.includes(postId)) {
+        likedPosts.push(postId);
+      }
+    } else {
+      const index = likedPosts.indexOf(postId);
+      if (index > -1) {
+        likedPosts.splice(index, 1);
+      }
+    }
+    localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+  } catch (error) {
+    console.error('更新点赞状态到本地存储失败', error);
+  }
+};
+
+// 点赞/取消点赞
+const toggleLike = async (post: Post, event?: Event) => {
+  // 阻止事件冒泡，避免触发卡片点击
+  if (event) {
+    event.stopPropagation();
+  }
+  
+  const previousLiked = post.isLiked ?? false;
+  const previousLikes = post.likes || 0;
+
+  // 乐观更新UI
+  post.isLiked = !previousLiked;
+  if (post.isLiked) {
+    // 如果之前未点赞，现在点赞，数量+1
+    post.likes = (post.likes || 0) + 1;
+  } else {
+    // 如果之前已点赞，现在取消点赞，数量-1
+    post.likes = Math.max(0, (post.likes || 0) - 1);
+  }
+  
+  // 更新本地存储
+  updateLikedPostsStorage(post.id, post.isLiked);
+
+  try {
+    await likePostApi(post.id);
+  } catch (error: any) {
+    // 回滚UI状态
+    post.isLiked = previousLiked;
+    post.likes = previousLikes;
+    // 回滚本地存储
+    updateLikedPostsStorage(post.id, previousLiked);
+    console.error('点赞失败:', error);
+  }
+};
+
+onMounted(async () => {
+  // 先加载当前用户信息
+  await loadCurrentUser();
   loadPosts();
 });
 </script>
@@ -248,6 +617,35 @@ onMounted(() => {
   box-shadow: var(--shadow);
   padding: 20px;
   margin-bottom: 30px;
+}
+
+.search-type-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.search-tab {
+  padding: 8px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: white;
+  color: var(--text-sub);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.search-tab:hover {
+  border-color: #FF8C00;
+  color: #FF8C00;
+}
+
+.search-tab.active {
+  background: #FF8C00 !important;
+  color: white !important;
+  border-color: #FF8C00 !important;
 }
 
 .search-box {
@@ -395,6 +793,17 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 5px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.stat-item:hover {
+  color: #FF8C00 !important;
+}
+
+/* 点过赞后的高亮状态，使用主色橙色并强制覆盖 */
+.stat-item.liked {
+  color: #FF8C00 !important;
 }
 
 /* 发布帖子按钮 */
@@ -424,6 +833,81 @@ onMounted(() => {
   box-shadow: 0 6px 25px rgba(255, 140, 66, 0.5);
 }
 
+/* 用户搜索结果 */
+.user-results {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 25px;
+  margin-bottom: 30px;
+}
+
+.results-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: var(--text-main);
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #fafafa;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.user-card:hover {
+  background: #f0f0f0;
+  transform: translateX(5px);
+}
+
+.user-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #FF8C00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.user-meta {
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.no-results {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-sub);
+  font-size: 16px;
+}
+
 /* 响应式 */
 @media (max-width: 850px) {
   .new-post-btn {
@@ -431,6 +915,15 @@ onMounted(() => {
     font-size: 14px;
     bottom: 20px;
     right: 20px;
+  }
+  
+  .search-type-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .search-tab {
+    padding: 6px 16px;
+    font-size: 13px;
   }
 }
 </style>
