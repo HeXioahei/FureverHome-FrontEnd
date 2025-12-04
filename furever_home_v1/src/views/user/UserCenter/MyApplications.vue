@@ -141,6 +141,7 @@ interface Application {
   // 是否由当前用户主动撤销
   cancelledByUser?: boolean;
   // 详情相关字段
+  avatar?: string;
   requester?: string;
   phone?: string;
   email?: string;
@@ -280,6 +281,7 @@ async function handleViewDetail(application: Application) {
       const detail: AdoptDetail = res.data;
       currentApplication.value = {
         ...application,
+        avatar: (detail as any).applicantAvatar || application.avatar,
         requester: detail.userName || application.requester,
         date: (detail.createTime as string) || application.date,
         phone: detail.phone || application.phone,
@@ -305,7 +307,7 @@ async function loadApplications() {
   try {
     const res = await getMyAdoptMineList();
     if (res.code === 200 && Array.isArray(res.data)) {
-      applications.value = res.data.map((item: AdoptTodoItem & { status?: string; applyStatus?: string; applicationStatus?: ApplicationStatus | string; reviewStatus?: ReviewStatus | string }, index: number) => {
+      applications.value = res.data.map((item: AdoptTodoItem & { status?: string; applyStatus?: string; applicationStatus?: ApplicationStatus | string; reviewStatus?: ReviewStatus | string; confirmStatus?: string }, index: number) => {
         const id = item.adoptId ?? index + 1;
         const petName = item.animalName || '';
         const petBreed = ''; // 当前接口未提供品种，可后端补充
@@ -314,12 +316,12 @@ async function loadApplications() {
         const date = item.createTime ? String(item.createTime) : '';
 
         // 统一把后端返回的状态转成普通字符串
-        const applicationStatusStr = String(
-          (item as any).applicationStatus ?? ''
-        ).trim() as ApplicationStatus | string;
         const reviewStatusStr = String(
           (item as any).reviewStatus ?? ''
         ).trim() as ReviewStatus | string;
+        const confirmStatusStr = String(
+          (item as any).confirmStatus ?? ''
+        ).trim();
 
         let status: Application['status'];
 
@@ -331,17 +333,17 @@ async function loadApplications() {
         else if (reviewStatusStr === ReviewStatus.拒绝 || reviewStatusStr === '拒绝') {
           status = 'adminRejected';
         }
-        // 3）管理员通过 + applicationStatus = 申请成功 -> 对方已同意
+        // 3）管理员通过 + confirmStatus = 已同意 -> 对方已同意
         else if (
           (reviewStatusStr === ReviewStatus.通过 || reviewStatusStr === '通过') &&
-          applicationStatusStr === ApplicationStatus.申请成功
+          confirmStatusStr === '已同意'
         ) {
           status = 'approved';
         }
-        // 4）管理员通过 + applicationStatus = 申请失败 -> 对方已拒绝
+        // 4）管理员通过 + confirmStatus = 已拒绝 -> 对方已拒绝
         else if (
           (reviewStatusStr === ReviewStatus.通过 || reviewStatusStr === '通过') &&
-          applicationStatusStr === ApplicationStatus.申请失败
+          confirmStatusStr === '已拒绝'
         ) {
           status = 'rejected';
         }
@@ -358,6 +360,7 @@ async function loadApplications() {
           date,
           status,
           cancelledByUser: !!item.cancelledByUser,
+          avatar: (item as any).applicantAvatar || undefined,
           requester: undefined,
           phone: undefined,
           email: undefined,

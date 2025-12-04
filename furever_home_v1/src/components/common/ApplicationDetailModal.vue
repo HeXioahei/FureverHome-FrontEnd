@@ -24,8 +24,17 @@
         <!-- 申请人信息 -->
         <div class="mb-6">
           <div class="flex items-center gap-4 mb-4">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold" style="background-color: #F3C697;">
-              {{ application.requester?.charAt(0) || '用' }}
+            <!-- 头像：优先显示图片，其次显示昵称首字 -->
+            <div class="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-white text-lg font-bold" style="background-color: #F3C697;">
+              <img
+                v-if="application.avatar"
+                :src="application.avatar"
+                alt="avatar"
+                class="w-full h-full object-cover"
+              />
+              <span v-else>
+                {{ application.requester?.charAt(0) || '用' }}
+              </span>
             </div>
             <div>
               <h3 class="text-xl font-bold mb-1" style="color: #333333;">{{ application.requester }}</h3>
@@ -85,6 +94,7 @@
 interface Props {
   visible: boolean
   application: {
+    avatar?: string
     requester?: string
     date?: string
     phone?: string
