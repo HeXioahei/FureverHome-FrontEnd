@@ -23,8 +23,14 @@
             
             <div class="flex items-center gap-2 mb-3 text-sm" style="color: #333;">
               <span class="font-normal">申请人：</span>
-              <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-0.5">
-                <i class="fa-regular fa-circle"></i>
+              <div class="w-6 h-6 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-xs mr-0.5">
+                <img
+                  v-if="todo.avatar"
+                  :src="todo.avatar"
+                  alt="avatar"
+                  class="w-full h-full object-cover"
+                />
+                <i v-else class="fa-regular fa-circle"></i>
               </div>
               <span 
                 class="font-bold cursor-pointer transition-colors hover:text-[#FF8C00]" 
@@ -178,6 +184,7 @@ interface Todo {
   reason: string;
   showConfirm: boolean;
   showReject: boolean;
+  avatar?: string;
   // 处理结果（同意 / 婉拒），用于在本页面上展示状态变化
   resultText?: string;
   // 申请详情相关字段
@@ -216,6 +223,7 @@ async function handleViewDetail(todo: Todo) {
 
       currentTodo.value = {
         ...todo,
+        avatar: (detail as any).applicantAvatar || todo.avatar,
         requester: detail.userName || todo.requester,
         date: (detail.createTime as string) || todo.date,
         phone: detail.phone || todo.phone,
@@ -353,6 +361,7 @@ async function loadTodos() {
           reason,
           showConfirm: true,
           showReject: true,
+          avatar: item.applicantAvatar || undefined,
           resultText: undefined,
           // 列表接口目前不返回电话/邮箱/地址等，这些在详情接口中获取
           phone: undefined,

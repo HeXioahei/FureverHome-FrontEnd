@@ -321,7 +321,7 @@ const closeErrorModal = () => {
     <!-- 错误模态框 -->
     <ErrorModal
       :visible="showErrorModal"
-      title="信息不完整"
+      title="申请失败"
       :message="errorMessage"
       @close="closeErrorModal"
     />

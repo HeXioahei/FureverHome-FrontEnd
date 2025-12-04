@@ -107,20 +107,42 @@ const loadPets = async () => {
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0
       const records = res.data.records ?? []
-      pets.value = records.map((item: any) => ({
-        id: item.animalId,
-        name: item.animalName,
-        photo_url: Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : '',
-        fosterer: item.adopterName || '',
-        location: item.location || '',
-        species: item.species || '',
-        age: item.animalAge ?? 0,
-        gender: item.gender || '',
-        adoption_status: item.adoptionStatus || '',
-        breed: item.breed || '',
-        health_status: item.healthStatus || '',
-        days_adopted: item.adoptionDays ?? 0,
-      }))
+      pets.value = records.map((item: any) => {
+        // 处理 photoUrls 既可能是数组，也可能是 JSON 字符串的情况
+        let photos: string[] = []
+        if (Array.isArray(item.photoUrls)) {
+          photos = item.photoUrls
+        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+          try {
+            const parsed = JSON.parse(item.photoUrls)
+            if (Array.isArray(parsed)) {
+              photos = parsed
+            }
+          } catch (e) {
+            // ignore parse error
+          }
+        }
+        const photoUrl: string =
+          (item.animalPhoto as string | undefined) ||
+          (photos.length > 0 ? (photos[0] as string) : '') ||
+          ''
+
+        return {
+          id: item.animalId,
+          name: item.animalName as string,
+          // 兼容后端两种字段：photoUrls(string[]) / animalPhoto(string)
+          photo_url: photoUrl,
+          fosterer: (item.adopterName as string) || '',
+          location: (item.location as string) || '',
+          species: (item.species as string) || '',
+          age: (item.animalAge as number) ?? 0,
+          gender: (item.gender as string) || '',
+          adoption_status: (item.adoptionStatus as string) || '',
+          breed: (item.breed as string) || '',
+          health_status: (item.healthStatus as string) || '',
+          days_adopted: (item.adoptionDays as number) ?? 0,
+        }
+      })
     } else {
       console.error('获取动物列表失败', res)
     }
@@ -150,7 +172,9 @@ const openImageViewer = (imageUrl: string, event?: Event) => {
     event.stopPropagation()
   }
   // 获取所有宠物的图片URL列表
-  const allImages = pets.map(p => p.photo_url).filter(url => url)
+  const allImages = pets.value
+    .map((p: Pet) => p.photo_url)
+    .filter((url: string) => Boolean(url))
   const index = allImages.indexOf(imageUrl)
   if (index > -1) {
     currentImageList.value = allImages
