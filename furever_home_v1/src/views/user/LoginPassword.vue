@@ -39,7 +39,11 @@
           </button>
         </div>
 
-        <button class="flex h-12 w-full items-center justify-center rounded-DEFAULT bg-primary px-6 text-base font-bold text-white shadow-sm transition-all hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary mt-2" @click="loginWithPassword">
+        <button
+          class="flex h-12 w-full items-center justify-center rounded-DEFAULT bg-primary px-6 text-base font-bold text-white shadow-sm transition-all hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          :disabled="loading"
+          @click="loginWithPassword"
+        >
           登录
         </button>
 
@@ -50,13 +54,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { userLogin } from '@/api/authApi';
+import { processLoginSuccess } from '@/utils/authHelpers';
 
+const route = useRoute();
 const router = useRouter();
 
-const email = ref('user@example.com');
+const email = ref<string>((route.query.email as string) || 'user@example.com');
 const password = ref('');
 const showPassword = ref(false);
+const loading = ref(false);
 
 const togglePassword = () => {
   showPassword.value = !showPassword.value;
@@ -70,12 +78,25 @@ const goResetPassword = () => {
   router.push({ name: 'ResetPasswordRequest', query: { email: email.value } });
 };
 
-const loginWithPassword = () => {
+const loginWithPassword = async () => {
+  if (!email.value || !email.value.includes('@')) {
+    alert('请输入正确的邮箱地址');
+    return;
+  }
   if (!password.value) {
     alert('请输入密码');
     return;
   }
-  // 登录成功跳转 LoginSuccess
-  router.push({ path: '/login-success', query: { username: email.value.split('@')[0] } });
+
+  loading.value = true;
+  try {
+    const res = await userLogin({ account: email.value, password: password.value });
+    const { targetRouteName } = await processLoginSuccess(res, email.value);
+    await router.push({ name: targetRouteName });
+  } catch (error: any) {
+    alert(error?.message || '登录失败，请稍后再试');
+  } finally {
+    loading.value = false;
+  }
 };
 </script>

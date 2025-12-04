@@ -73,13 +73,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { sendResetPasswordCode } from '@/api/authApi'
 
 const router = useRouter()
 
 const email = ref('')
 const submitting = ref(false)
 
-// 发送重置邮件（这里先做前端流程演示，后端接入时可调用真实 API）
 const handleSendResetEmail = async () => {
   if (!email.value || !email.value.includes('@')) {
     alert('请输入正确的邮箱地址')
@@ -88,14 +88,8 @@ const handleSendResetEmail = async () => {
 
   submitting.value = true
   try {
-    // TODO: 接入后端接口：发送重置密码邮件
-    // await sendResetPasswordEmail({ email: email.value })
-
-    // 这里用一个小延时模拟请求
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    // 实际产品里，这一步应该是用户去邮箱点链接再回来。
-    // 为了方便演示，这里直接跳到设置新密码页面，并把邮箱带过去。
+    await sendResetPasswordCode({ email: email.value })
+    alert('验证码已发送，请查收邮箱')
     router.push({
       name: 'ResetPasswordNew',
       query: { email: email.value }

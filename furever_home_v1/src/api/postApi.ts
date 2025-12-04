@@ -153,25 +153,9 @@ export function getPostDetail(postId: number): Promise<ApiResponse<Post>> {
 export function createPost(data: {
   title: string
   content: string
-  summary?: string
-  images?: File[]
-  tags?: string[]
-  category?: string
+  mediaUrls?: string[]
 }): Promise<ApiResponse<Post>> {
-  const formData = new FormData()
-  formData.append('title', data.title)
-  formData.append('content', data.content)
-  if (data.summary) formData.append('summary', data.summary)
-  if (data.tags) formData.append('tags', JSON.stringify(data.tags))
-  if (data.category) formData.append('category', data.category)
-  
-  if (data.images && data.images.length > 0) {
-    data.images.forEach((image, index) => {
-      formData.append(`images`, image)
-    })
-  }
-  
-  return httpClient.upload<Post>('/post', formData)
+  return httpClient.post<Post>('/post', data)
 }
 
 /**

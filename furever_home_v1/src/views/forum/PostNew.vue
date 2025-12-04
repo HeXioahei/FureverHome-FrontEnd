@@ -193,10 +193,14 @@ const submitPost = async () => {
       });
     } else {
       console.log('开始调用 createPost 接口...');
+      const mediaUrls = uploadedFiles.value
+        .map(file => file.preview)
+        .filter((url): url is string => Boolean(url));
+
       res = await createPost({
         title: postTitle.value,
         content: postContent.value,
-        images: uploadedFiles.value.map(f => f.file)
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
       });
     }
     
