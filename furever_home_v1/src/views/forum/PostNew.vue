@@ -134,8 +134,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 后端接口调用
-import { uploadImage } from '@/api/storageApi';
+import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 帖子相关接口
+import { uploadImage } from '@/api/storageApi'; // 图片上传接口，返回后端真实 URL
 
 const route = useRoute();
 const router = useRouter();
@@ -156,6 +156,7 @@ const postContent = ref('');
 const uploadedFiles = ref<UploadedMedia[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const isDragOver = ref(false);
+const isSubmitting = ref(false);
 
 const showSuccessModal = ref(false);
 const showCancelModal = ref(false);
@@ -252,7 +253,10 @@ const submitPost = async () => {
     return;
   }
 
+  if (isSubmitting.value) return;
+
   try{
+    isSubmitting.value = true;
     let res;
 
     if (isEditMode.value && editingPostId.value !== null) {
@@ -264,7 +268,21 @@ const submitPost = async () => {
       });
     } else {
       console.log('开始调用 createPost 接口...');
-      const mediaUrls = await uploadAllImages();
+
+      // 先把本地选择的文件上传到后端存储，获得真实的在线 URL
+      const mediaUrls: string[] = [];
+      for (const item of uploadedFiles.value) {
+        try {
+          const uploadRes = await uploadImage(item.file);
+          if ((uploadRes.code === 0 || uploadRes.code === 200) && uploadRes.data) {
+            mediaUrls.push(uploadRes.data);
+          } else {
+            console.warn('上传图片失败，跳过该文件:', item.name, uploadRes.message);
+          }
+        } catch (e) {
+          console.error('上传图片出错，跳过该文件:', item.name, e);
+        }
+      }
 
       res = await createPost({
         title: postTitle.value,
@@ -289,6 +307,8 @@ const submitPost = async () => {
     console.error('提交接口失败:', err);
     errorMessage.value = err?.message || err?.toString() || '发布失败，请检查网络连接或稍后重试';
     showErrorModal.value = true;
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
