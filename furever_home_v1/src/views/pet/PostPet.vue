@@ -6,6 +6,7 @@ import ErrorModal from '../../components/common/ErrorModal.vue'
 import ImageViewer from '../../components/common/ImageViewer.vue'
 import { provinceCityOptions } from '@/constants/regions'
 import { createAnimal, AdoptionStatus, Gender, IsSterilized, Species } from '@/api/animalApi'
+import { uploadImage } from '@/api/storageApi'
 
 interface PetForm {
   name: string
@@ -22,6 +23,11 @@ interface PetForm {
   story: string
   phone: string
   email: string
+}
+
+interface LocalUploadFile {
+  file: File
+  preview: string
 }
 
 const router = useRouter()
@@ -50,7 +56,7 @@ const cityOptions = computed(() => {
   return province ? province.cities : []
 })
 
-const uploadedFiles = ref<File[]>([])
+const uploadedFiles = ref<LocalUploadFile[]>([])
 const showSuccessModal = ref(false)
 const showErrorModal = ref(false)
 const showFileLimitModal = ref(false)
@@ -71,7 +77,10 @@ const handleFileUpload = (event: Event) => {
       showFileLimitModal.value = true
       return
     }
-    uploadedFiles.value.push(...newFiles)
+    newFiles.forEach(file => {
+      const preview = URL.createObjectURL(file)
+      uploadedFiles.value.push({ file, preview })
+    })
   }
 }
 
@@ -79,8 +88,8 @@ const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
 }
 
-const getFileUrl = (file: File) => {
-  return URL.createObjectURL(file)
+const getFileUrl = (item: LocalUploadFile) => {
+  return item.preview
 }
 
 const showImageViewer = ref(false)
@@ -96,7 +105,24 @@ const closeImageViewer = () => {
 }
 
 const getImageUrls = () => {
-  return uploadedFiles.value.map(file => getFileUrl(file))
+  return uploadedFiles.value.map(item => item.preview)
+}
+
+const uploadAllImages = async (): Promise<string[]> => {
+  const urls: string[] = []
+  for (const item of uploadedFiles.value) {
+    try {
+      const res = await uploadImage(item.file)
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        urls.push(res.data)
+      } else {
+        throw new Error(res.message || '图片上传失败，请稍后重试')
+      }
+    } catch (error: any) {
+      throw new Error(error?.message || '图片上传失败，请稍后重试')
+    }
+  }
+  return urls
 }
 
 const triggerFileInput = () => {
@@ -147,27 +173,28 @@ const submitForm = async () => {
     form.value.detailAddress
   ].join('')
 
-  const animalAge = Number(form.value.age)
-
-  const reqBody = {
-    adoptionStatus: AdoptionStatus.短期领养,
-    animalAge: Number.isNaN(animalAge) ? undefined : animalAge,
-    animalName: form.value.name,
-    breed: form.value.breed || undefined,
-    city: form.value.city,
-    contactEmail: form.value.email,
-    contactPhone: form.value.phone,
-    currentLocation,
-    gender: form.value.gender as Gender,
-    healthStatus: form.value.healthStatus || '健康',
-    isSterilized: form.value.sterilized as IsSterilized,
-    photoUrls: getImageUrls(),
-    province: form.value.province,
-    shortDescription: form.value.story ? form.value.story.slice(0, 100) : undefined,
-    species: form.value.species as Species,
-  }
-
   try {
+    const animalAge = Number(form.value.age)
+    const photoUrls = await uploadAllImages()
+
+    const reqBody = {
+      adoptionStatus: AdoptionStatus.短期领养,
+      animalAge: Number.isNaN(animalAge) ? undefined : animalAge,
+      animalName: form.value.name,
+      breed: form.value.breed || undefined,
+      city: form.value.city,
+      contactEmail: form.value.email,
+      contactPhone: form.value.phone,
+      currentLocation,
+      gender: form.value.gender as Gender,
+      healthStatus: form.value.healthStatus || '健康',
+      isSterilized: form.value.sterilized as IsSterilized,
+      photoUrls,
+      province: form.value.province,
+      shortDescription: form.value.story ? form.value.story.slice(0, 100) : undefined,
+      species: form.value.species as Species,
+    }
+
     await createAnimal(reqBody)
     showSuccessModal.value = true
   } catch (err: any) {
@@ -380,7 +407,7 @@ const closeErrorModal = () => {
               >
                 <img
                   :src="getFileUrl(file)"
-                  :alt="file.name"
+                  :alt="file.file.name"
                   class="w-full h-full object-cover"
                 />
                 <button

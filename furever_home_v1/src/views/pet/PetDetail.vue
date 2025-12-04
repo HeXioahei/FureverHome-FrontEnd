@@ -99,10 +99,24 @@ const loadPetDetail = async () => {
     const res = await getAnimalDetail(petId.value)
     if (res.code === 200 && res.data) {
       const item: any = res.data
+      // 处理 photoUrls 既可能是数组，也可能是 JSON 字符串的情况
+      let photos: string[] = []
+      if (Array.isArray(item.photoUrls)) {
+        photos = item.photoUrls
+      } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+        try {
+          const parsed = JSON.parse(item.photoUrls)
+          if (Array.isArray(parsed)) {
+            photos = parsed
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+      }
       currentPet.value = {
         id: item.animalId ?? petId.value,
         animal_name: item.animalName || '',
-        photo_urls: Array.isArray(item.photoUrls) ? item.photoUrls : [],
+        photo_urls: photos,
         species: item.species || '',
         breed: item.breed || '',
         gender: item.gender || '',
@@ -117,7 +131,8 @@ const loadPetDetail = async () => {
           user_id: String(item.userId ?? ''),
           // 使用后端返回的 userName 显示领养人昵称
           username: item.userName || '',
-          avatar_url: '',
+          // 使用后端返回的 userAvatar 作为头像地址，例如 "/api/storage/image/xxx.jpg"
+          avatar_url: item.userAvatar || '',
           credit_score: item.creditScore != null ? String(item.creditScore) : ''
         }
       }
@@ -201,8 +216,16 @@ onMounted(() => {
               </span>
             </div>
             <div class="flex items-center gap-3 mt-3">
-              <div class="w-[46px] h-[46px] rounded-full bg-[#F3C697] flex items-center justify-center font-semibold text-white">
-                {{ currentPet.publisher.username.charAt(0) }}
+              <div class="w-[46px] h-[46px] rounded-full bg-[#F3C697] flex items-center justify-center font-semibold text-white overflow-hidden">
+                <img
+                  v-if="currentPet.publisher.avatar_url"
+                  :src="currentPet.publisher.avatar_url"
+                  alt="用户头像"
+                  class="w-full h-full object-cover rounded-full"
+                />
+                <span v-else>
+                  {{ currentPet.publisher.username.charAt(0) }}
+                </span>
               </div>
               <div class="flex-1">
                 <div class="font-semibold text-[#333333]">{{ currentPet.publisher.username }}</div>
