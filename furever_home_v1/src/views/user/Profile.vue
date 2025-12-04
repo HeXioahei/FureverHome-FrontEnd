@@ -180,8 +180,16 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
-                {{ pet.name }}的照片
+              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+                <img
+                  v-if="pet.photoUrl"
+                  :src="pet.photoUrl"
+                  :alt="pet.name"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>
+                  {{ pet.name }}的照片
+                </span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -214,8 +222,16 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
-                {{ pet.name }}的照片
+              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+                <img
+                  v-if="pet.photoUrl"
+                  :src="pet.photoUrl"
+                  :alt="pet.name"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>
+                  {{ pet.name }}的照片
+                </span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -406,8 +422,16 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
-                {{ pet.name }}的照片
+              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+                <img
+                  v-if="pet.photoUrl"
+                  :src="pet.photoUrl"
+                  :alt="pet.name"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>
+                  {{ pet.name }}的照片
+                </span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -481,8 +505,16 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600" style="background-color: #FFE4B5;">
-                {{ pet.name }}的照片
+              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+                <img
+                  v-if="pet.photoUrl"
+                  :src="pet.photoUrl"
+                  :alt="pet.name"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>
+                  {{ pet.name }}的照片
+                </span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -729,7 +761,20 @@ interface Stat { key: string; label: string; value: number; }
 interface Experience { id: number; text: string; }
 interface Proof { id: number; title: string; status: 'approved' | 'pending' | 'rejected'; reason?: string; fileUrl?: string; }
 interface Evaluation { id: number; author: string; stars: number; content: string; date: string; appealable?: boolean; }
-interface AdoptionPet { id: number; name: string; gender: string; desc: string; days: number; status: 'approved' | 'pending' | 'rejected'; statusLabel: string; bgClass: string; titleClass: string; reason?: string; }
+interface AdoptionPet {
+  id: number;
+  name: string;
+  gender: string;
+  desc: string;
+  days: number;
+  status: 'approved' | 'pending' | 'rejected';
+  statusLabel: string;
+  bgClass: string;
+  titleClass: string;
+  reason?: string;
+  // 宠物封面图（photoUrls 的第一张或 animalPhoto）
+  photoUrl?: string;
+}
 interface Post { id: number; title: string; date: string; summary: string; status: 'approved' | 'pending' | 'rejected'; statusLabel: string; colorClass: string; reason?: string; }
 interface Badge { id: number; name: string; }
 
@@ -892,6 +937,23 @@ async function loadUserShortAnimals() {
         const descParts = [species, ageText, sterilizedText].filter(Boolean);
         const desc = descParts.join(' · ');
         const days = item.adoptionDays ?? 0;
+        // 解析 photoUrls（可能是数组或 JSON 字符串）
+        let photos: string[] = [];
+        if (Array.isArray(item.photoUrls)) {
+          photos = item.photoUrls as string[];
+        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+          try {
+            const parsed = JSON.parse(item.photoUrls as unknown as string);
+            if (Array.isArray(parsed)) {
+              photos = parsed as string[];
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+        const photoUrl: string | undefined =
+          (item as any).animalPhoto ||
+          (photos.length > 0 ? photos[0] : undefined);
         return {
           id,
           name,
@@ -902,7 +964,8 @@ async function loadUserShortAnimals() {
           statusLabel: '短期领养',
           bgClass: '',
           titleClass: '',
-          reason: ''
+          reason: '',
+          photoUrl,
         } as AdoptionPet;
       });
       shortTermAdoptions.value = mapped;
@@ -1201,6 +1264,23 @@ async function loadUserLongAnimals() {
         const descParts = [species, ageText, sterilizedText].filter(Boolean);
         const desc = descParts.join(' · ');
         const days = item.adoptionDays ?? 0;
+        // 解析 photoUrls（可能是数组或 JSON 字符串）
+        let photos: string[] = [];
+        if (Array.isArray(item.photoUrls)) {
+          photos = item.photoUrls as string[];
+        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+          try {
+            const parsed = JSON.parse(item.photoUrls as unknown as string);
+            if (Array.isArray(parsed)) {
+              photos = parsed as string[];
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+        const photoUrl: string | undefined =
+          (item as any).animalPhoto ||
+          (photos.length > 0 ? photos[0] : undefined);
         return {
           id,
           name,
@@ -1211,7 +1291,8 @@ async function loadUserLongAnimals() {
           statusLabel: '长期领养',
           bgClass: '',
           titleClass: '',
-          reason: ''
+          reason: '',
+          photoUrl,
         } as AdoptionPet;
       });
       longTermAdoptions.value = mapped;

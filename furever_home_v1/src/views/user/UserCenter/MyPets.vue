@@ -240,6 +240,52 @@
             ></textarea>
           </section>
 
+          <!-- 宠物照片管理 -->
+          <section class="pb-5 border-b border-[#E5E7EB]">
+            <h4 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[#333333]">
+              <i class="fa-solid fa-image text-[#FF8C00]"></i>
+              宠物照片
+            </h4>
+            <div
+              class="border-2 border-dashed border-[#E5E7EB] rounded-xl p-6 text-center cursor-pointer transition-all hover:border-[#FF8C00] hover:bg-[rgba(255,140,0,0.03)]"
+              @click="triggerPhotoUpload"
+            >
+              <input
+                ref="photoInputRef"
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                class="hidden"
+                @change="onPhotoSelected"
+              />
+              <div class="text-3xl mb-2.5 text-[#666666]">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <div class="text-sm text-[#666666] mb-1.5">
+                点击上传新的宠物照片
+              </div>
+              <div class="text-xs text-[#9CA3AF]">
+                支持 JPG、JPEG、PNG、WEBP 格式
+              </div>
+            </div>
+            <div v-if="editPhotos.length" class="mt-4 flex flex-wrap gap-3">
+              <div
+                v-for="url in editPhotos"
+                :key="url"
+                class="relative w-24 h-24 rounded-lg overflow-hidden border border-[#E5E7EB] cursor-pointer"
+                @click="openImagePreview(url)"
+              >
+                <img :src="url" alt="宠物照片" class="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  class="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 z-10"
+                  @click.stop="removePhoto(url)"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </section>
+
           <section class="pb-5 border-b border-[#E5E7EB]">
             <h4 class="text-lg font-semibold mb-4 flex items-center gap-2 text-[#333333]">
               <i class="fa-solid fa-address-book text-[#FF8C00]"></i>
@@ -304,6 +350,29 @@
       :message="successModal.message"
       @close="closeSuccessModal"
     />
+
+    <!-- 编辑时图片大图预览 -->
+    <div
+      v-if="showImagePreview && previewImageUrl"
+      class="fixed inset-0 bg-black/60 z-[3100] flex items-center justify-center"
+      @click.self="closeImagePreview"
+    >
+      <div class="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden shadow-xl">
+        <button
+          type="button"
+          class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center text-lg cursor-pointer"
+          @click="closeImagePreview"
+        >
+          ×
+        </button>
+        <img
+          v-if="previewImageUrl"
+          :src="previewImageUrl"
+          alt="宠物照片预览"
+          class="max-w-[90vw] max-h-[90vh] object-contain block"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -314,6 +383,7 @@ import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import RegionCascader from '../../../components/common/RegionCascader.vue';
 import { getMyShortAnimals, getMyLongAnimals, deleteAnimal, updateAnimal, ReviewStatus } from '@/api/animalApi';
+import { uploadImage, deleteImage } from '@/api/storageApi';
 
 interface PetCard {
   id: number;
@@ -336,6 +406,8 @@ interface PetCard {
   location: string;
   // 审核状态：仅发布者自己在“我的宠物”中可见
   reviewStatus?: ReviewStatus;
+  // 所有图片 URL 列表
+  photos?: string[];
 }
 
 const router = useRouter();
@@ -416,13 +488,30 @@ async function loadMyShortPets() {
               : item.isSterilized || '未知';
         const ageLabel = item.animalAge != null ? `${item.animalAge}个月` : '';
         const species = item.species || '';
+        // 处理 photoUrls 既可能是数组，也可能是 JSON 字符串的情况
+        let photos: string[] = [];
+        if (Array.isArray(item.photoUrls)) {
+          photos = item.photoUrls;
+        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+          try {
+            const parsed = JSON.parse(item.photoUrls);
+            if (Array.isArray(parsed)) {
+              photos = parsed;
+            }
+          } catch (e) {
+            // ignore parse error
+          }
+        }
         return {
           id: item.animalId ?? 0,
           name: item.animalName || '',
           meta: `${species || '未知'} · ${ageLabel || '未知'} · ${sterilizedLabel}`,
           type: 'short',
           days: 0,
-          cover: Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : '',
+          // 兼容后端两种字段：photoUrls(string[]) / animalPhoto(string)
+          cover:
+            (item.animalPhoto as string | undefined) ||
+            (photos.length > 0 ? photos[0] : ''),
           story: item.shortDescription || '',
           phone: '',
           email: '',
@@ -434,7 +523,8 @@ async function loadMyShortPets() {
           province: item.province || '',
           city: item.city || '',
           location: item.currentLocation || '',
-          reviewStatus: item.reviewStatus as ReviewStatus | undefined
+          reviewStatus: item.reviewStatus as ReviewStatus | undefined,
+          photos,
         } as PetCard;
       });
     } else {
@@ -466,6 +556,13 @@ const editForm = reactive<Record<string, string>>({
   email: ''
 });
 
+// 编辑态下的图片列表
+const editPhotos = ref<string[]>([]);
+const isUploading = ref(false);
+const photoInputRef = ref<HTMLInputElement | null>(null);
+const showImagePreview = ref(false);
+const previewImageUrl = ref<string | null>(null);
+
 const basicFields = [
   { key: 'name', label: '动物名称', type: 'text', required: true, placeholder: '例如：豆豆' },
   { key: 'age', label: '年龄', type: 'text', required: true, placeholder: '例如：6个月/2岁' },
@@ -488,6 +585,7 @@ function populateEditForm(pet: PetCard) {
   editForm.story = pet.story;
   editForm.phone = pet.phone;
   editForm.email = pet.email;
+  editPhotos.value = pet.photos ? [...pet.photos] : pet.cover ? [pet.cover] : [];
 }
 
 function handleEdit(pet: PetCard) {
@@ -509,6 +607,71 @@ function cancelEdit() {
   successModal.visible = true;
 }
 
+function triggerPhotoUpload() {
+  photoInputRef.value?.click();
+}
+
+async function onPhotoSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  try {
+    isUploading.value = true;
+    const res = await uploadImage(file);
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      editPhotos.value.push(res.data);
+    } else {
+      successModal.title = '上传失败';
+      successModal.message = res.message || '宠物照片上传失败，请稍后重试。';
+      successModal.visible = true;
+    }
+  } catch (error) {
+    console.error('上传宠物照片失败', error);
+    successModal.title = '上传失败';
+    successModal.message = '宠物照片上传失败，请稍后重试。';
+    successModal.visible = true;
+  } finally {
+    isUploading.value = false;
+    if (photoInputRef.value) photoInputRef.value.value = '';
+  }
+}
+
+async function removePhoto(url: string) {
+  // 从 URL 中提取对象名（最后一段路径），如果失败则直接使用原字符串
+  const parts = url.split('/');
+  const object = parts[parts.length - 1] || url;
+
+  try {
+    isUploading.value = true;
+    const res = await deleteImage(object);
+    if (res.code === 0 || res.code === 200) {
+      editPhotos.value = editPhotos.value.filter(item => item !== url);
+    } else {
+      successModal.title = '删除失败';
+      successModal.message = res.message || '删除宠物照片失败，请稍后重试。';
+      successModal.visible = true;
+    }
+  } catch (error) {
+    console.error('删除宠物照片失败', error);
+    successModal.title = '删除失败';
+    successModal.message = '删除宠物照片失败，请稍后重试。';
+    successModal.visible = true;
+  } finally {
+    isUploading.value = false;
+  }
+}
+
+function openImagePreview(url: string) {
+  previewImageUrl.value = url;
+  showImagePreview.value = true;
+}
+
+function closeImagePreview() {
+  showImagePreview.value = false;
+  previewImageUrl.value = null;
+}
+
 async function submitEdit() {
   if (!editingPet.value) return;
 
@@ -527,6 +690,7 @@ async function submitEdit() {
       shortDescription: editForm.story,
       contactPhone: editForm.phone,
       contactEmail: editForm.email,
+      photoUrls: editPhotos.value.length ? editPhotos.value : undefined,
     };
 
     const res = await updateAnimal(id, reqBody);
