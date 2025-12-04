@@ -101,12 +101,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { getPostDetail, type Post } from '@/api/postApi';
+import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
   getPostComments,
   submitComment as submitCommentApi,
   likePost as likePostApi,
-  incrementPostViews,
   type Comment
 } from '@/api/commentapi';
 
@@ -240,34 +239,34 @@ const loadPost = async (id: number) => {
   try {
     const res = await getPostDetail(id);
     if (res.data) {
-      const p = res.data;
+      const p = res.data as 帖子详情DTO;
+      const createdAt = p.createTime ? String(p.createTime) : '';
       post.value = {
-        id: p.id,
+        id: p.postId ?? id,
         title: p.title || '无标题',
-        author: p.authorName || '未知用户',
-        avatarInitial: (p.authorName || '用')[0],
-        timeAgo: p.date || '刚刚',
-        publishDate: p.date,
-        content: p.content || p.summary || '',
-        fullContent: p.content ? p.content.split('。').filter((para: string) => para.trim()).map((para: string) => para.trim() + '。') : [],
-        images: p.images || [],
-        likes: p.likes || 0,
-        comments: p.comments || 0,
-        views: p.views || 0
+        // 接口目前只返回 userId/userAvatar，不返回昵称，这里先用占位
+        author: '用户 ' + (p.userId ?? ''),
+        avatarInitial: '用',
+        timeAgo: createdAt || '刚刚',
+        publishDate: createdAt,
+        content: p.content || '',
+        fullContent: p.content
+          ? p.content
+              .split('。')
+              .filter((para: string) => para.trim())
+              .map((para: string) => para.trim() + '。')
+          : [],
+        images: p.mediaUrls || [],
+        likes: p.likeCount ?? 0,
+        comments: p.commentCount ?? 0,
+        views: p.viewCount ?? 0
       };
     } else {
       // 接口返回空数据，使用示例数据
       post.value = getExamplePost(id);
     }
-    // 增加浏览数
-    try {
-      await incrementPostViews(id);
-      if (post.value && typeof post.value.views === 'number') {
-        post.value.views = post.value.views + 1;
-      }
-    } catch (error) {
-      console.warn('增加浏览数失败:', error);
-    }
+    // 这里原本会调用 incrementPostViews(id) 增加浏览数。
+    // 由于后端暂未提供 /post/{id}/view 接口，暂时不再调用，避免 404。
     await loadComments(id);
   } catch (error) {
     console.error('加载帖子失败，使用示例数据:', error);

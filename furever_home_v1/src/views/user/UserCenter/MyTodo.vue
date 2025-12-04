@@ -41,9 +41,19 @@
           </div>
         </div>
 
-        <div class="flex justify-end gap-2.5">
+        <div class="flex justify-end items-center gap-2.5">
+          <!-- 已处理结果提示 -->
+          <span
+            v-if="todo.resultText"
+            class="px-4 py-2 rounded-md text-sm font-medium"
+            style="background-color: #F3F4F6; color: #4B5563;"
+          >
+            {{ todo.resultText }}
+          </span>
+
+          <!-- 操作按钮：仅在未处理时显示 -->
           <button 
-            v-if="todo.showConfirm"
+            v-if="!todo.resultText && todo.showConfirm"
             class="px-5 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors hover:opacity-90"
             style="background-color: #FF8C00; color: white;"
             @click="handleConfirm(todo)"
@@ -51,6 +61,7 @@
             同意领养
           </button>
           <button 
+            v-if="!todo.resultText"
             class="px-5 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors border border-gray-300 hover:border-[#FF8C00] hover:text-[#FF8C00]"
             style="background-color: white; color: #333;"
             @click="handleContact(todo)"
@@ -58,7 +69,7 @@
             联系申请人
           </button>
           <button 
-            v-if="todo.showReject"
+            v-if="!todo.resultText && todo.showReject"
             class="px-5 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors hover:bg-red-100"
             style="background-color: #FEF2F2; color: #EF4444;"
             @click="handleReject(todo)"
@@ -145,7 +156,14 @@ import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import ApplicationDetailModal from '../../../components/common/ApplicationDetailModal.vue';
-import { getMyAdoptTodoList } from '@/api/adoptApi';
+import { 
+  getMyAdoptTodoList, 
+  getAdoptDetail, 
+  reviewAdopt,
+  ApplicationStatus,
+  type AdoptDetail, 
+  type AdoptTodoItem 
+} from '@/api/adoptApi';
 
 const router = useRouter();
 
@@ -160,6 +178,8 @@ interface Todo {
   reason: string;
   showConfirm: boolean;
   showReject: boolean;
+  // 处理结果（同意 / 婉拒），用于在本页面上展示状态变化
+  resultText?: string;
   // 申请详情相关字段
   phone?: string;
   email?: string;
@@ -178,6 +198,7 @@ const successMessage = ref('');
 const errorMessage = ref('');
 const currentTodo = ref<Todo | null>(null);
 const confirmMessage = ref('');
+const loadingDetail = ref(false);
 
 function handleConfirm(todo: Todo) {
   currentTodo.value = todo;
@@ -185,9 +206,37 @@ function handleConfirm(todo: Todo) {
   showConfirmModal.value = true;
 }
 
-function handleViewDetail(todo: Todo) {
-  currentTodo.value = todo;
-  showApplicationDetailModal.value = true;
+async function handleViewDetail(todo: Todo) {
+  // 点击时调用 /adopt/{id} 获取最新的申请详情
+  loadingDetail.value = true;
+  try {
+    const res = await getAdoptDetail(todo.id);
+    if (res.code === 200 && res.data) {
+      const detail: AdoptDetail = res.data;
+
+      currentTodo.value = {
+        ...todo,
+        requester: detail.userName || todo.requester,
+        date: (detail.createTime as string) || todo.date,
+        phone: detail.phone || todo.phone,
+        email: detail.email || todo.email,
+        address: detail.livingLocation || todo.address,
+        petName: (detail as any).animalName || todo.petName,
+        reason: detail.adoptReason || todo.reason,
+      };
+      showApplicationDetailModal.value = true;
+    } else {
+      errorMessage.value = '获取申请详情失败，请稍后重试';
+      showErrorModal.value = true;
+      console.error('获取申请详情失败', res);
+    }
+  } catch (err) {
+    errorMessage.value = '获取申请详情接口异常，请稍后重试';
+    showErrorModal.value = true;
+    console.error('获取申请详情接口异常', err);
+  } finally {
+    loadingDetail.value = false;
+  }
 }
 
 function handleContact(todo: Todo) {
@@ -209,22 +258,68 @@ function handleReject(todo: Todo) {
   showRejectModal.value = true;
 }
 
-function onConfirmConfirm() {
-  if (currentTodo.value) {
-    successMessage.value = '已同意领养申请';
-    showSuccessModal.value = true;
-    // 这里可以调用API更新状态
+async function onConfirmConfirm() {
+  if (!currentTodo.value) {
+    showConfirmModal.value = false;
+    return;
   }
+
+  try {
+    const res = await reviewAdopt(currentTodo.value.id, {
+      applicationStatus: ApplicationStatus.申请成功
+    });
+    if (res.code === 200 || res.code === 0) {
+      successMessage.value = '已同意领养申请';
+      showSuccessModal.value = true;
+      // 本地更新当前待办项的显示状态
+      todos.value = todos.value.map(todo =>
+        todo.id === currentTodo.value?.id
+          ? { ...todo, resultText: '已同意领养申请', showConfirm: false, showReject: false }
+          : todo
+      );
+    } else {
+      errorMessage.value = res.message || '同意领养申请失败，请稍后重试';
+      showErrorModal.value = true;
+    }
+  } catch (err: any) {
+    console.error('同意领养申请失败', err);
+    errorMessage.value = err?.message || '同意领养申请失败，请稍后重试';
+    showErrorModal.value = true;
+  }
+
   showConfirmModal.value = false;
   currentTodo.value = null;
 }
 
-function onRejectConfirm() {
-  if (currentTodo.value) {
-    successMessage.value = '已婉拒申请';
-    showSuccessModal.value = true;
-    // 这里可以调用API更新状态
+async function onRejectConfirm() {
+  if (!currentTodo.value) {
+    showRejectModal.value = false;
+    return;
   }
+
+  try {
+    const res = await reviewAdopt(currentTodo.value.id, {
+      applicationStatus: ApplicationStatus.申请失败
+    });
+    if (res.code === 200 || res.code === 0) {
+      successMessage.value = '已婉拒申请';
+      showSuccessModal.value = true;
+      // 本地更新当前待办项的显示状态
+      todos.value = todos.value.map(todo =>
+        todo.id === currentTodo.value?.id
+          ? { ...todo, resultText: '已婉拒申请', showConfirm: false, showReject: false }
+          : todo
+      );
+    } else {
+      errorMessage.value = res.message || '婉拒申请失败，请稍后重试';
+      showErrorModal.value = true;
+    }
+  } catch (err: any) {
+    console.error('婉拒申请失败', err);
+    errorMessage.value = err?.message || '婉拒申请失败，请稍后重试';
+    showErrorModal.value = true;
+  }
+
   showRejectModal.value = false;
   currentTodo.value = null;
 }
@@ -241,12 +336,12 @@ async function loadTodos() {
   try {
     const res = await getMyAdoptTodoList();
     if (res.code === 200 && Array.isArray(res.data)) {
-      todos.value = res.data.map((item: any, index: number) => {
-        const id = item.id ?? index + 1;
-        const requester = item.requesterName || item.applicantName || item.userName || '未知申请人';
-        const petName = item.petName || item.animalName || '';
-        const createdAt = item.createTime || item.createdAt || item.applyTime || '';
-        const reason = item.reason || item.applyReason || item.remark || '';
+      todos.value = res.data.map((item: AdoptTodoItem, index: number) => {
+        const id = item.adoptId ?? index + 1;
+        const requester = item.applicantName || '未知申请人';
+        const petName = item.animalName || '';
+        const createdAt = item.createTime ? String(item.createTime) : '';
+        const reason = item.reason || '';
         return {
           id,
           type: '领养申请',
@@ -254,13 +349,15 @@ async function loadTodos() {
           date: createdAt,
           title: petName ? `对"${petName}"的领养申请` : '领养申请',
           requester,
-          requesterId: item.applicantId || item.userId || undefined,
+          requesterId: item.applicantId || undefined,
           reason,
           showConfirm: true,
           showReject: true,
-          phone: item.phone || item.contactPhone,
-          email: item.email || item.contactEmail,
-          address: item.address || item.location,
+          resultText: undefined,
+          // 列表接口目前不返回电话/邮箱/地址等，这些在详情接口中获取
+          phone: undefined,
+          email: undefined,
+          address: undefined,
           petName
         } as Todo;
       });

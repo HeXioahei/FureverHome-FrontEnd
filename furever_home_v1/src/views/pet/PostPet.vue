@@ -361,7 +361,7 @@ const closeErrorModal = () => {
                 id="fileInput"
                 type="file"
                 multiple
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp"
                 class="hidden"
                 @change="handleFileUpload"
               />
@@ -369,7 +369,7 @@ const closeErrorModal = () => {
                 <i class="fa-solid fa-cloud-arrow-up"></i>
               </div>
               <div class="text-[#666666] mb-2.5">点击上传或拖拽文件到这里</div>
-              <div class="text-sm text-[#9CA3AF]">支持 JPG, PNG 格式，最多5张照片</div>
+              <div class="text-sm text-[#9CA3AF]">支持 JPG、JPEG、PNG、WEBP 格式，最多5张照片</div>
             </div>
             <div v-if="uploadedFiles.length > 0" class="mt-4 flex flex-wrap gap-3">
               <div

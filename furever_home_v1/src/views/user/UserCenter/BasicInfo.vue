@@ -29,7 +29,7 @@
           <input
             ref="avatarInputRef"
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             class="hidden"
             @change="onAvatarSelected"
           />
@@ -164,12 +164,12 @@
           >
             <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1 block"></i>
             <div>点击上传文件或图片（最多3张）</div>
-            <div class="text-xs mt-1" style="color: #999;">支持 JPG, PNG 格式</div>
+            <div class="text-xs mt-1" style="color: #999;">支持 JPG、JPEG、PNG、WEBP 格式</div>
           </div>
           <input
             ref="proofInputRef"
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp"
             class="hidden"
             @change="onProofSelected"
           />
