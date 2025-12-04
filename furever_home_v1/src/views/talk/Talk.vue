@@ -96,7 +96,7 @@
               'flex flex-col max-w-[70%]',
               message.isSent ? 'self-end items-end' : 'self-start'
             ]"
-            >
+          >
             <div
               v-if="isImageBubble(message)"
               :class="[
