@@ -114,15 +114,15 @@
           <!-- 他人评价 -->
           <div class="flex justify-between items-center my-6 pb-2.5 border-b-2" style="border-color: #FFF9F0;">
             <h2 class="text-xl m-0" style="color: #FF8C42;">他人评价</h2>
-            <!-- 添加评价按钮（仅在他人主页显示） -->
+            <!-- 添加/修改评价按钮（仅在他人主页显示） -->
             <button 
               v-if="!isOwnProfile"
               type="button" 
               class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
               style="background-color: #FF8C42;"
-              @click="showReviewModal = true"
+              @click="openReviewModal"
             >
-              添加评价
+              {{ myRating ? '修改评价' : '添加评价' }}
             </button>
           </div>
 
@@ -166,7 +166,7 @@
             <h3 class="font-semibold text-gray-700">短期领养</h3>
             <button 
               type="button" 
-              class="px-4 py-1.5 text-sm text-white font-semibold rounded-xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
+              class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
               style="background-color: #FF8C42;"
               @click="openShortTermPetsModal"
             >
@@ -200,7 +200,7 @@
             <h3 class="font-semibold text-gray-700">长期领养</h3>
             <button 
               type="button" 
-              class="px-4 py-1.5 text-sm text-white font-semibold rounded-xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
+              class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
               style="background-color: #FF8C42;"
               @click="openLongTermPetsModal"
             >
@@ -706,7 +706,7 @@ import ErrorModal from '../../components/common/ErrorModal.vue';
 import { getCurrentUser, getUserById, type CurrentUserInfo } from '../../api/userApi';
 import { getUserPosts, type 帖子公开信息 } from '../../api/postApi';
 import { getUserShortAnimals, getUserLongAnimals, type 动物公开信息 } from '../../api/animalApi';
-import { getOthersRatings, getReceivedRatings, addMyRating, type ReceivedRatingItemDTO } from '../../api/ratingApi';
+import { getOthersRatings, getReceivedRatings, addMyRating, updateMyRating, type ReceivedRatingItemDTO } from '../../api/ratingApi';
 
 const router = useRouter();
 const route = useRoute();
@@ -779,6 +779,8 @@ const proofIntro = ref<string>('');
 
 // 他人评价列表（从接口获取）
 const evaluations = ref<Evaluation[]>([]);
+// 当前登录用户对该用户的评价（如果有，用于判断是新增还是修改）
+const myRating = ref<Evaluation | null>(null);
 // 信誉积分（平均分 & 评价总数），默认值先占位，实际加载后按接口更新
 const rating = ref({ score: 0, total: 0 });
 
@@ -819,6 +821,8 @@ async function loadUserRatings() {
         } as Evaluation;
       });
       evaluations.value = mapped;
+
+      // 计算当前查看用户的综合评分
       if (mapped.length > 0) {
         const totalScore = mapped.reduce((sum, ev) => sum + ev.stars, 0);
         rating.value.score = totalScore / mapped.length;
@@ -826,6 +830,13 @@ async function loadUserRatings() {
       } else {
         rating.value.score = 0;
         rating.value.total = 0;
+      }
+
+      // 找到“当前登录用户对 TA 的评价”（用于判断是新增还是修改）
+      if (currentUserId.value != null) {
+        myRating.value = mapped.find(ev => ev.authorId === currentUserId.value) ?? null;
+      } else {
+        myRating.value = null;
       }
     } else {
       console.error('获取他人评价列表失败(Profile)', res);
@@ -1021,6 +1032,18 @@ function closeProofPreview() {
   previewProofUrl.value = null;
 }
 
+function openReviewModal() {
+  // 如果当前登录用户已经对 TA 有评价，则进入“修改模式”，预填内容
+  if (myRating.value) {
+    currentRating.value = myRating.value.stars;
+    reviewText.value = myRating.value.content;
+  } else {
+    currentRating.value = 0;
+    reviewText.value = '';
+  }
+  showReviewModal.value = true;
+}
+
 async function submitReview() {
   if (currentRating.value === 0) {
     reviewErrorMessage.value = '请选择评分';
@@ -1041,10 +1064,20 @@ async function submitReview() {
   }
 
   try {
-    await addMyRating(targetUserId, {
-      content: reviewText.value.trim(),
-      score: currentRating.value,
-    });
+    if (myRating.value) {
+      // 已经评价过：调用“修改评价”接口（PUT /api/rating/mine/{targetUserId}）
+      await updateMyRating(targetUserId, {
+        ratingId: myRating.value.id,
+        content: reviewText.value.trim(),
+        score: currentRating.value,
+      });
+    } else {
+      // 第一次评价：调用“添加评价”接口（POST /api/rating/mine/{targetUserId}）
+      await addMyRating(targetUserId, {
+        content: reviewText.value.trim(),
+        score: currentRating.value,
+      });
+    }
     // 提交成功后刷新评价列表和评分
     await loadUserRatings();
     showReviewSuccessModal.value = true;

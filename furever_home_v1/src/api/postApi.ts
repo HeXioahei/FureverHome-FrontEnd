@@ -3,7 +3,7 @@
  */
 import httpClient, { type ApiResponse } from './request'
 
-// 帖子接口（用于论坛列表与详情）
+// 帖子接口（用于论坛列表与详情内部展示结构）
 export interface Post {
   id: number
   title: string
@@ -98,6 +98,25 @@ export interface PageResult帖子公开信息 {
 export type UserPostListResponse = ApiResponse<PageResult帖子公开信息>
 
 /**
+ * 帖子详情 DTO（对应接口：GET /api/post/{id} 返回的 data）
+ * 与你文档中的「帖子信息」结构保持一致
+ */
+export interface 帖子详情DTO {
+  commentCount?: number
+  content?: string
+  createTime?: string | Date
+  likeCount?: number
+  mediaUrls?: string[]
+  postId?: number
+  reviewStatus?: string
+  title?: string
+  userAvatar?: string
+  userId?: number
+  viewCount?: number
+  [property: string]: any
+}
+
+/**
  * 获取当前登录用户发布的帖子列表（我的帖子）
  * @param params 分页参数
  */
@@ -142,8 +161,10 @@ export function getUserPosts(
  * 获取帖子详情
  * @param postId 帖子ID
  */
-export function getPostDetail(postId: number): Promise<ApiResponse<Post>> {
-  return httpClient.get<Post>(`/post/${postId}`)
+export function getPostDetail(postId: number): Promise<ApiResponse<帖子详情DTO>> {
+  // /api 前缀由 request.ts 的 BASE_URL 和 Vite 代理处理
+  // 这里的路径 /post/{id} 对应 Apifox 文档中的 GET /api/post/{id}
+  return httpClient.get<帖子详情DTO>(`/post/${postId}`)
 }
 
 /**
