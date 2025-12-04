@@ -712,9 +712,9 @@ async function handleViewDetail(pet: Pet) {
     }
   } catch (error) {
     console.error('获取宠物详情异常', error);
-    selectedPet.value = pet;
+  selectedPet.value = pet;
     selectedPetDetail.value = null;
-    showPetDetailModal.value = true;
+  showPetDetailModal.value = true;
   }
 }
 
@@ -743,11 +743,11 @@ async function executeAction(reason: string = '') {
   if (!selectedPet.value || !confirmAction.value) return;
   
   try {
-    if (confirmAction.value === 'approve') {
+  if (confirmAction.value === 'approve') {
       // 审核通过
       const res = await approveAnimal(selectedPet.value.id, { animalId: selectedPet.value.id });
       if (res.code === 0 || res.code === 200) {
-        showApproveModal.value = true;
+    showApproveModal.value = true;
         if (activeTab.value === 'pending') {
           await loadPendingPets();
           await loadStats();
@@ -756,24 +756,24 @@ async function executeAction(reason: string = '') {
         errorMessage.value = res.message || '审核通过失败';
         showErrorModal.value = true;
       }
-    } else if (confirmAction.value === 'reject') {
+  } else if (confirmAction.value === 'reject') {
       // 审核拒绝
       const res = await rejectAnimal(selectedPet.value.id, { animalId: selectedPet.value.id, reason });
       if (res.code === 0 || res.code === 200) {
-        showRejectModal.value = true;
-        if (activeTab.value === 'pending') {
+    showRejectModal.value = true;
+    if (activeTab.value === 'pending') {
           await loadPendingPets();
           await loadStats();
         }
-      } else {
+    } else {
         errorMessage.value = res.message || '审核拒绝失败';
         showErrorModal.value = true;
-      }
+    }
     } else if (confirmAction.value === 'delete') {
       // 删除宠物
       const res = await deleteAnimalApi(selectedPet.value.id);
       if (res.code === 0 || res.code === 200) {
-        showDeleteSuccessModal.value = true;
+    showDeleteSuccessModal.value = true;
         if (activeTab.value === 'shortTerm') {
           await loadShortTermPets();
         } else if (activeTab.value === 'longTerm') {

@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ImageViewer from '../../components/common/ImageViewer.vue'
 import { getAnimalDetail } from '@/api/animalApi'
+import ErrorModal from '../../components/common/ErrorModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,10 +35,22 @@ interface PetDetail {
 }
 
 const currentPet = ref<PetDetail | null>(null)
+const currentUserId = ref<number | null>(null)
+const showSelfContactModal = ref(false)
+const showSelfAdoptModal = ref(false)
 
 const mainImage = ref(0)
 const showImageViewer = ref(false)
 const imageViewerIndex = ref(0)
+
+const publisherUserId = computed(() => {
+  const id = Number(currentPet.value?.publisher.user_id)
+  return Number.isNaN(id) ? null : id
+})
+
+const isSelfPublisher = computed(() => {
+  return currentUserId.value != null && publisherUserId.value != null && currentUserId.value === publisherUserId.value
+})
 
 const goToFostererProfile = () => {
   // 跳转到临时收养者的个人主页
@@ -46,12 +59,27 @@ const goToFostererProfile = () => {
 }
 
 const contactFosterer = () => {
-  // 跳转到沟通对接页面，并传递用户ID
-  const userId = Number(currentPet.value?.publisher.user_id) || 1
-  router.push({ name: 'Communication', query: { userId } })
+  if (isSelfPublisher.value) {
+    showSelfContactModal.value = true
+    return
+  }
+  // 跳转到沟通对接页面，并传递临时收养者的用户信息
+  const userId = publisherUserId.value
+  if (!userId) return
+  router.push({
+    name: 'Communication',
+    query: {
+      userId,
+      userName: currentPet.value?.publisher.username || ''
+    }
+  })
 }
 
 const requestAdoption = () => {
+  if (isSelfPublisher.value) {
+    showSelfAdoptModal.value = true
+    return
+  }
   // 跳转到申请领养页面
   router.push({ name: 'ApplyAdoption', params: { id: petId.value } })
 }
@@ -102,6 +130,17 @@ const loadPetDetail = async () => {
 }
 
 onMounted(() => {
+  try {
+    const cached = localStorage.getItem('currentUser')
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (parsed && typeof parsed.userId === 'number') {
+        currentUserId.value = parsed.userId
+      }
+    }
+  } catch (error) {
+    console.warn('解析 currentUser 失败', error)
+  }
   loadPetDetail()
 })
 </script>
@@ -224,6 +263,19 @@ onMounted(() => {
         </div>
       </div>
     </main>
+
+    <ErrorModal
+      :visible="showSelfContactModal"
+      title="无法联系自己"
+      message="您正在查看的是自己发布的宠物，无法与自己发起沟通。"
+      @close="showSelfContactModal = false"
+    />
+    <ErrorModal
+      :visible="showSelfAdoptModal"
+      title="无法向自己领养"
+      message="您无法向自己发布的宠物发起领养申请。"
+      @close="showSelfAdoptModal = false"
+    />
 
     <!-- 图片查看器 -->
     <ImageViewer
