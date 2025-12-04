@@ -26,6 +26,7 @@ import PostNew from '../views/forum/PostNew.vue'
 
 // 登录流程相关页面
 import LoginEntry from '../views/user/LoginEntry.vue'
+import LoginEmailEnter from '../views/user/LoginEmailEnter.vue'
 import LoginEmail from '../views/user/LoginEmail.vue'
 import LoginSuccess from '../views/user/LoginSuccess.vue';
 
@@ -144,6 +145,12 @@ const routes: RouteRecordRaw[] = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound
+  },
+  {
+    // 输入邮箱，准备发送登录验证码
+    path: '/login/email-enter',
+    name: 'LoginEmailEnter',
+    component: LoginEmailEnter
   },
   {
     // 输入验证码页面

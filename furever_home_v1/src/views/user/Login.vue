@@ -140,7 +140,10 @@ const route = useRoute();
 const router = useRouter();
 
 // 账号（可以是用户名或邮箱），尝试从 query 中预填
-const account = ref<string>((route.query.email as string) || '');
+// 优先使用 account，其次回退到 email
+const account = ref<string>(
+  ((route.query.account as string) || (route.query.email as string) || '') as string
+);
 const password = ref('');
 const showPassword = ref(false);
 const loading = ref(false);

@@ -247,6 +247,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
 import {
@@ -273,6 +274,8 @@ const formData = ref<FormData>({
   location: '',
   petProofIntro: ''
 });
+
+const router = useRouter();
 
 const showSuccessModal = ref(false);
 const isLoading = ref(false);
@@ -351,7 +354,11 @@ async function removeProof(url: string) {
 }
 
 function handleModifyPassword() {
-  alert('修改密码功能待实现');
+  // 跳转到重置密码页面，带上当前邮箱（如果有的话）
+  router.push({
+    name: 'ResetPasswordRequest',
+    query: { email: formData.value.email || '' }
+  });
 }
 
 function triggerAvatarSelect() {
