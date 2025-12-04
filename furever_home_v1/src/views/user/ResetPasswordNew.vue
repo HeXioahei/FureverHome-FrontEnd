@@ -15,6 +15,18 @@
         </div>
 
         <div class="w-full space-y-6">
+          <!-- 验证码 -->
+          <div class="space-y-1">
+            <label class="text-sm font-bold text-stone-700 dark:text-stone-300 ml-1">邮箱验证码</label>
+            <input
+              v-model="code"
+              type="text"
+              maxlength="6"
+              class="form-input w-full border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT text-stone-900 dark:text-white placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-all text-sm"
+              placeholder="请输入 6 位验证码"
+            />
+          </div>
+          
           <!-- 新密码 -->
           <div class="space-y-1">
             <label class="text-sm font-bold text-stone-700 dark:text-stone-300 ml-1">新密码</label>
@@ -93,18 +105,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { confirmResetPassword } from '@/api/authApi'
 
 const router = useRouter()
 const route = useRoute()
 
 const email = ref<string>((route.query.email as string) || '')
+const code = ref('')
 const password = ref('')
 const password2 = ref('')
 const showPassword1 = ref(false)
 const showPassword2 = ref(false)
 const submitting = ref(false)
 
-// 简单校验：至少 8 位，且包含数字和字母
 const isStrongPassword = (value: string) => {
   if (value.length < 8) return false
   const hasLetter = /[A-Za-z]/.test(value)
@@ -113,6 +126,14 @@ const isStrongPassword = (value: string) => {
 }
 
 const handleConfirmReset = async () => {
+  if (!email.value || !email.value.includes('@')) {
+    alert('邮箱信息缺失，请重新提交重置请求')
+    return
+  }
+  if (!code.value || code.value.length < 4) {
+    alert('请输入正确的邮箱验证码')
+    return
+  }
   if (!password.value || !password2.value) {
     alert('请输入并确认新密码')
     return
@@ -128,11 +149,11 @@ const handleConfirmReset = async () => {
 
   submitting.value = true
   try {
-    // TODO: 接入后端接口：提交重置密码（通常需要 token / code + email + 新密码）
-    // await confirmResetPassword({ email: email.value, password: password.value, token: route.query.token })
-
-    await new Promise(resolve => setTimeout(resolve, 800))
-
+    await confirmResetPassword({
+      email: email.value,
+      code: code.value,
+      newPassword: password.value
+    })
     router.push({ name: 'ResetPasswordSuccess' })
   } catch (e: any) {
     console.error('重置密码失败', e)

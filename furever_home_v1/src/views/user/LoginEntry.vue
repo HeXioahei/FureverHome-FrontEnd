@@ -86,18 +86,28 @@ const router = useRouter();
 const email = ref('');
 
 // 跳转到邮箱验证码页面
+function ensureEmail(): boolean {
+  if (!email.value || !email.value.includes('@')) {
+    alert('请输入正确的邮箱地址');
+    return false;
+  }
+  return true;
+}
+
 function goEmailCodeLogin() {
+  if (!ensureEmail()) return;
   router.push({
     name: 'LoginEmail',
-    query: { email: email.value || '' }
+    query: { email: email.value }
   });
 }
 
 // 跳转到密码登录页面（继续复用现有密码登录逻辑）
 function goPasswordLogin() {
+  if (!ensureEmail()) return;
   router.push({
     path: '/login/password',
-    query: { email: email.value || '' }
+    query: { email: email.value }
   });
 }
 

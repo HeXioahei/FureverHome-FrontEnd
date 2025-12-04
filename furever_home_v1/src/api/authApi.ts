@@ -32,6 +32,37 @@ export function userLogin(data: UserLoginRequest) {
   return httpClient.post<SaTokenInfo>('/auth/login', data)
 }
 
+// ===================== 验证码登录 =====================
+
+export interface LoginSendCodeRequest {
+  email: string
+}
+
+export type LoginSendCodeResponse = ApiResponse<string>
+
+/**
+ * 发送登录验证码
+ * POST /api/auth/login/send-code
+ */
+export function sendLoginCode(data: LoginSendCodeRequest) {
+  return httpClient.post<string>('/auth/login/send-code', data)
+}
+
+export interface LoginByCodeRequest {
+  email: string
+  code: string
+}
+
+export type LoginByCodeResponse = ApiResponse<SaTokenInfo>
+
+/**
+ * 验证验证码并登录
+ * POST /api/auth/login/confirm
+ */
+export function loginByCode(data: LoginByCodeRequest) {
+  return httpClient.post<SaTokenInfo>('/auth/login/confirm', data)
+}
+
 // ===================== 注册 =====================
 
 // 1. 发送注册验证码
@@ -82,5 +113,37 @@ export type ConfirmRegisterResponse = ApiResponse<number>
  */
 export function confirmRegister(data: ConfirmRegisterRequest) {
   return httpClient.post<number>('/auth/register/confirm', data)
+}
+
+// ===================== 重置密码 =====================
+
+export interface ResetPasswordSendCodeRequest {
+  email: string
+}
+
+export type ResetPasswordSendCodeResponse = ApiResponse<string>
+
+/**
+ * 发送重置密码验证码
+ * POST /api/auth/password/send-code
+ */
+export function sendResetPasswordCode(data: ResetPasswordSendCodeRequest) {
+  return httpClient.post<string>('/auth/password/send-code', data)
+}
+
+export interface ResetPasswordConfirmRequest {
+  email: string
+  code: string
+  newPassword: string
+}
+
+export type ResetPasswordConfirmResponse = ApiResponse<boolean>
+
+/**
+ * 确认重置密码
+ * POST /api/auth/password/reset
+ */
+export function confirmResetPassword(data: ResetPasswordConfirmRequest) {
+  return httpClient.post<boolean>('/auth/password/reset', data)
 }
 
