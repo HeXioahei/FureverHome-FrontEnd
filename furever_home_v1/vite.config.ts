@@ -19,6 +19,7 @@ export default defineConfig({
         target: 'http://p92df5b2.natappfree.cc',
         changeOrigin: true,
         secure: false,
+        ws: true,
         // 前台接口路径：/api/xxx，后端也是 /api/xxx，所以不需要 rewrite
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
@@ -34,6 +35,7 @@ export default defineConfig({
         target: 'http://p92df5b2.natappfree.cc',
         changeOrigin: true,
         secure: false,
+        ws: true,
         // 后台接口路径：/admin/xxx，后端也是 /admin/xxx，所以不需要 rewrite
         // 确保代理所有 /admin 开头的请求
         configure: (proxy, _options) => {

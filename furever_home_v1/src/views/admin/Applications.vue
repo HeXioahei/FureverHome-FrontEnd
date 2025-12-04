@@ -363,9 +363,9 @@ async function handleViewDetail(app: Application) {
     }
   } catch (error) {
     console.error('获取领养申请详情异常', error);
-    selectedApplication.value = app;
+  selectedApplication.value = app;
     selectedApplicationDetail.value = null;
-    showApplicationDetailModal.value = true;
+  showApplicationDetailModal.value = true;
   }
 }
 
@@ -388,22 +388,22 @@ async function executeAction(reason: string = '') {
   if (!selectedApplication.value || !confirmAction.value) return;
   
   try {
-    if (confirmAction.value === 'approve') {
+  if (confirmAction.value === 'approve') {
       // 审核通过
       const res = await approveAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id });
       if (res.code === 0 || res.code === 200) {
-        showApproveModal.value = true;
+    showApproveModal.value = true;
         // 重新加载列表
         await loadApplications();
       } else {
         errorMessage.value = res.message || '审核通过失败';
         showErrorModal.value = true;
       }
-    } else if (confirmAction.value === 'reject') {
+  } else if (confirmAction.value === 'reject') {
       // 审核拒绝
       const res = await rejectAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id, reason });
       if (res.code === 0 || res.code === 200) {
-        showRejectModal.value = true;
+    showRejectModal.value = true;
         // 重新加载列表
         await loadApplications();
         await loadProcessedStats();

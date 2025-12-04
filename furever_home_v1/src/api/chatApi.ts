@@ -25,15 +25,17 @@ export interface MessageDto {
 
 // 通用分页结果
 export interface PageResult<T> {
-  list: T[]
-  page: number
-  pageSize: number
-  total: number
-  totalPages: number
+  list?: T[]
+  records?: T[]
+  page?: number
+  pageSize?: number
+  total?: number
+  totalPages?: number
 }
 
 export type ConversationPageResult = ApiResponse<PageResult<ConversationDto>>
 export type MessagePageResult = ApiResponse<PageResult<MessageDto>>
+export type WsInfoResult = ApiResponse<Record<string, string>>
 
 export interface ChatPageParams {
   page?: number
@@ -76,10 +78,10 @@ export function getMessages(
 
 /**
  * 发送消息
- * POST /api/messages/send
+ * POST /api/messages
  */
 export function sendMessage(data: SendMessageRequest) {
-  return httpClient.post<void>('/messages/send', data)
+  return httpClient.post<MessageDto>('/messages', data)
 }
 
 /**
@@ -88,6 +90,14 @@ export function sendMessage(data: SendMessageRequest) {
  */
 export function markConversationRead(conversationId: number) {
   return httpClient.put<void>(`/conversations/${conversationId}/read`)
+}
+
+/**
+ * 获取聊天 WebSocket 连接信息
+ * GET /api/ws/chat/info
+ */
+export function getChatWsInfo() {
+  return httpClient.get<Record<string, string>>('/ws/chat/info')
 }
 
 
