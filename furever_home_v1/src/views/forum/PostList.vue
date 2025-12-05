@@ -92,6 +92,7 @@
                 :src="media"
                 :alt="`帖子图片 ${index + 1}`"
                 @error="handleImageError"
+                @load="console.log('图片加载成功:', media)"
               />
               <video
                 v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
@@ -99,6 +100,8 @@
                 controls
                 preload="metadata"
                 class="post-video"
+                @loadedmetadata="console.log('视频加载成功:', media)"
+                @error="console.error('视频加载失败:', media, $event)"
               ></video>
               <span v-else>{{ media }}</span>
             </div>
@@ -190,8 +193,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, nextTick } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
 import { likePost as likePostApi } from '@/api/commentapi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
@@ -212,6 +215,7 @@ interface Post {
 }
 
 const router = useRouter();
+const route = useRoute();
 const posts = ref<Post[]>([]);
 const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
@@ -325,7 +329,7 @@ const loadCurrentUser = async () => {
 // 将后端返回的帖子列表（可能是数组或分页结果）转换为前端展示结构
 const mapPosts = (list: any[]): Post[] => {
   return list.map((p: any) => {
-    // 解析图片：优先 images，其次 mediaUrls（可能是字符串或 JSON 字符串）
+    // 解析图片和视频：优先 images，其次 mediaUrls（可能是字符串或 JSON 字符串）
     let images: string[] = [];
     if (Array.isArray(p.images)) {
       images = p.images;
@@ -342,6 +346,15 @@ const mapPosts = (list: any[]): Post[] => {
       } catch {
         images = [p.mediaUrls];
       }
+    }
+
+    // 调试日志：检查媒体URL
+    if (images.length > 0) {
+      console.log(`帖子 ${p.id || p.postId} (${p.title}) 的媒体URL:`, images);
+      images.forEach((url, idx) => {
+        const isVideo = isVideoUrl(url);
+        console.log(`  媒体 ${idx + 1}: ${url} - ${isVideo ? '视频' : '图片'}`);
+      });
     }
 
     // 判断是否是当前用户发布的帖子
@@ -614,7 +627,11 @@ const goToPostDetail = (postId: number) => {
 
 // 跳转到发布帖子页面
 const goToPostCreation = () => {
-  router.push({ name: 'PostNew' });
+  // 保存当前页码，以便发布成功后返回
+  router.push({
+    name: 'PostNew',
+    query: { fromPage: currentPage.value.toString() }
+  });
 };
 
 // 跳转到用户主页
@@ -764,6 +781,23 @@ const toggleLike = async (post: Post, event?: Event) => {
 onMounted(async () => {
   // 先加载当前用户信息
   await loadCurrentUser();
+
+  // 检查URL参数中是否有页码，如果有则跳转到那一页
+  const pageParam = route.query.page;
+  if (pageParam && typeof pageParam === 'string') {
+    const pageNum = parseInt(pageParam, 10);
+    if (!isNaN(pageNum) && pageNum > 0) {
+      // 先加载帖子
+      await loadPosts();
+      // 使用 nextTick 确保帖子已加载完成后再设置页码
+      await nextTick();
+      if (pageNum <= totalPages.value && pageNum >= 1) {
+        currentPage.value = pageNum;
+      }
+      return;
+    }
+  }
+
   loadPosts();
 });
 </script>

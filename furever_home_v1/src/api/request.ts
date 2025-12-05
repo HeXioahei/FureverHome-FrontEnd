@@ -95,15 +95,39 @@ class HttpClient {
     
     let data: any
     if (isJson) {
-      data = await response.json()
+      try {
+        data = await response.json()
+      } catch (e) {
+        // JSON 解析失败，尝试作为文本读取
+        const text = await response.text()
+        console.error('JSON解析失败，原始响应:', text)
+        throw new Error(`响应解析失败: ${text}`)
+      }
     } else {
       data = await response.text()
     }
 
+    // 如果 HTTP 状态码不是 2xx，抛出错误
     if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`)
+      // 记录详细的错误信息用于调试
+      console.error('HTTP错误响应:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        data: data
+      })
+      
+      // 如果响应体是 JSON 且有 message 字段，使用它作为错误消息
+      if (isJson && data && typeof data === 'object') {
+        const errorMsg = data.message || data.msg || `HTTP error! status: ${response.status}`
+        throw new Error(errorMsg)
+      }
+      throw new Error(data.message || data || `HTTP error! status: ${response.status}`)
     }
 
+    // HTTP 状态码是 2xx，但检查响应体中的 code 字段
+    // 如果 code 不是 0 或 200，且不是成功状态，可能需要特殊处理
+    // 但这里先返回数据，让调用方根据 code 判断
     return data
   }
 
