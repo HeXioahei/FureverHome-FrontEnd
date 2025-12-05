@@ -563,11 +563,11 @@ async function executeAction(reason: string = '') {
   }
   
   try {
-    if (confirmAction.value === 'approve') {
+  if (confirmAction.value === 'approve') {
       // 审核通过
       const res = await approvePost(selectedPost.value.id);
       if (res.code === 0 || res.code === 200) {
-        showApproveModal.value = true;
+    showApproveModal.value = true;
         // 从待审核列表中移除
         if (activeTab.value === 'pending') {
           await loadPendingPosts();
@@ -576,13 +576,13 @@ async function executeAction(reason: string = '') {
         errorMessage.value = res.message || '审核通过失败';
         showErrorModal.value = true;
       }
-    } else if (confirmAction.value === 'reject') {
+  } else if (confirmAction.value === 'reject') {
       // 审核拒绝
       console.log('准备发送审核拒绝请求', { postId: selectedPost.value.id, reason });
       const res = await rejectPost(selectedPost.value.id, { reason });
       console.log('审核拒绝请求响应', res);
       if (res.code === 0 || res.code === 200) {
-        showRejectModal.value = true;
+    showRejectModal.value = true;
         // 从待审核列表中移除
         if (activeTab.value === 'pending') {
           await loadPendingPosts();
@@ -591,18 +591,18 @@ async function executeAction(reason: string = '') {
         errorMessage.value = res.message || '审核拒绝失败';
         showErrorModal.value = true;
       }
-    } else if (confirmAction.value === 'delete') {
+  } else if (confirmAction.value === 'delete') {
       // 删除帖子
       const res = await deletePostApi(selectedPost.value.id);
       if (res.code === 0 || res.code === 200) {
         showDeleteSuccessModal.value = true;
-        // 从列表中移除
-        if (activeTab.value === 'pending') {
+    // 从列表中移除
+    if (activeTab.value === 'pending') {
           await loadPendingPosts();
         } else {
           await loadPublishedPosts();
         }
-      } else {
+    } else {
         errorMessage.value = res.message || '删除失败';
         showErrorModal.value = true;
       }

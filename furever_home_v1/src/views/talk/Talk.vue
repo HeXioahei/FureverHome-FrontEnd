@@ -212,7 +212,6 @@ import {
   getConversations,
   getMessages,
   sendMessage as sendChatMessage,
-  getChatWsInfo,
   markConversationRead,
   uploadImage,
   type ConversationDto,
@@ -436,8 +435,25 @@ const handleFileChange = async (event: Event) => {
 
   try {
     const uploadRes = await uploadImage(file)
-    const imageUrl = uploadRes.data
-    if (!imageUrl) {
+    const rawUrl = (uploadRes as any)?.data
+    const uploadCode = (uploadRes as any)?.code ?? 200
+    if (uploadCode !== 0 && uploadCode !== 200) {
+      showSendError((uploadRes as any)?.message || '图片上传失败，请稍后重试')
+      return
+    }
+    const imageUrl =
+      (rawUrl && typeof rawUrl === 'object' && (rawUrl.url || rawUrl.path || rawUrl.imageUrl || rawUrl.fileUrl)) ||
+      (typeof rawUrl === 'string' ? rawUrl : '')
+
+    const finalUrl = imageUrl
+      ? imageUrl.startsWith('http')
+        ? imageUrl
+        : imageUrl.startsWith('/api')
+          ? imageUrl
+          : `/api/storage/image/${imageUrl.replace(/^\/+/, '')}`
+      : ''
+
+    if (!finalUrl) {
       showSendError('图片上传失败，请稍后重试')
       return
     }
@@ -446,8 +462,8 @@ const handleFileChange = async (event: Event) => {
     const optimisticId = Date.now()
     const optimistic: Message = {
       id: optimisticId,
-      content: imageUrl,
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      content: finalUrl,
+      time: formatDateTime(new Date()),
       isSent: true,
       conversationId: activeConversationId.value,
       senderId: currentUserId.value,
@@ -459,7 +475,7 @@ const handleFileChange = async (event: Event) => {
 
     const payload: SendMessageRequest = {
       receiverId,
-      content: imageUrl,
+      content: finalUrl,
       messageType: 'IMAGE',
     }
     if (activeConversationId.value) {
@@ -510,7 +526,11 @@ const handleFileChange = async (event: Event) => {
     }
   } catch (e) {
     console.error('发送图片失败', e)
-    showSendError('发送图片失败，请稍后再试')
+    const errMsg =
+      (e as any)?.message ||
+      (e as any)?.response?.data?.message ||
+      '发送图片失败，请稍后再试'
+    showSendError(errMsg)
     // 回滚乐观消息
     messages.value = messages.value.filter(item => item.content !== (event.target as any)?.result)
   }
@@ -546,20 +566,26 @@ const markConversationAsRead = async (conversationId: number) => {
   }
 }
 
-const getAvatarColor = (name: string) => {
+const getAvatarColor = (name: string): string => {
   const colors = ['bg-[#FBBF24]', 'bg-[#34D399]', 'bg-[#60A5FA]', 'bg-[#A78BFA]', 'bg-[#F87171]']
-  if (!name) return colors[0]
+  if (!name) return colors[0] ?? 'bg-[#FBBF24]'
   const code = name.charCodeAt(0)
-  return colors[code % colors.length]
+  const color = colors[code % colors.length] ?? colors[0] ?? 'bg-[#FBBF24]'
+  return color
+}
+
+const normalizeTokenValue = (value?: string | null) => {
+  if (!value) return ''
+  return value.startsWith('Bearer ') ? value.slice(7) : value
 }
 
 const getStoredToken = () => {
-  return (
+  const raw =
     localStorage.getItem('saTokenValue') ||
     localStorage.getItem('bearerToken') ||
     localStorage.getItem('token') ||
     ''
-  )
+  return normalizeTokenValue(raw)
 }
 
 const formatTime = (value?: string | number | Date) => {
@@ -571,6 +597,18 @@ const formatTime = (value?: string | number | Date) => {
   return sameDay
     ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+}
+
+const formatDateTime = (value?: string | number | Date) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const Y = date.getFullYear()
+  const M = String(date.getMonth() + 1).padStart(2, '0')
+  const D = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+  return `${Y}-${M}-${D} ${h}:${m}`
 }
 
 const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
@@ -628,7 +666,7 @@ const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
       targetUserId: targetUserId ?? null,
       name,
       avatar: name.charAt(0),
-      avatarColor: getAvatarColor(name),
+      avatarColor: getAvatarColor(name) ?? '',
       avatarUrl,
       lastMessage: lastMessageDisplay,
       time: formatTime(lastMessageTime),
@@ -689,12 +727,7 @@ const loadMessages = async (conversationId: number, options?: { preserve?: boole
       .map(m => ({
         id: m.messageId || 0,
         content: m.content || '',
-        time: m.createdAt
-          ? new Date(m.createdAt).toLocaleTimeString('zh-CN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : '',
+        time: formatDateTime(m.createdAt),
         isSent: currentUserId.value != null && m.senderId === currentUserId.value,
         conversationId: m.conversationId ?? conversationId,
         senderId: m.senderId ?? null,
@@ -733,9 +766,7 @@ const mapDtoToMessage = (
   return {
     id: messageId,
     content,
-    time: createdAt
-      ? new Date(createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      : '',
+    time: formatDateTime(createdAt),
     isSent: currentUserId.value != null && senderId === currentUserId.value,
     conversationId,
     senderId: senderId ?? null,
@@ -775,7 +806,7 @@ const displayContacts = computed(() => {
       targetUserId: pendingTargetUserId.value,
       name,
       avatar: name.charAt(0),
-      avatarColor: getAvatarColor(name),
+      avatarColor: getAvatarColor(name) ?? '',
       avatarUrl: pendingTargetUserAvatar.value || undefined,
       lastMessage: '开始新的对话',
       time: '',
@@ -808,7 +839,7 @@ const activeContact = computed<Contact | undefined>(() => {
       targetUserId: pendingTargetUserId.value,
       name,
       avatar: name.charAt(0),
-      avatarColor: getAvatarColor(name),
+      avatarColor: getAvatarColor(name) ?? '',
       avatarUrl: pendingTargetUserAvatar.value || undefined,
       lastMessage: '',
       time: '',
@@ -860,7 +891,7 @@ const sendMessage = async () => {
   const optimistic: Message = {
     id: Date.now(),
     content,
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    time: formatDateTime(new Date()),
     isSent: true,
     conversationId: activeConversationId.value,
     senderId: currentUserId.value,
@@ -1105,24 +1136,31 @@ const resolveWsUrl = (rawUrl: string, token?: string) => {
   return url
 }
 
+const getFallbackWsUrl = () => {
+  const envUrl =
+    (import.meta as any).env?.VITE_CHAT_WS_URL ||
+    (import.meta as any).env?.VITE_WS_URL ||
+    (import.meta as any).env?.VITE_WS_BASE_URL ||
+    '/api/ws/common'
+  return resolveWsUrl(envUrl)
+}
+
 const initChatWebsocket = async () => {
   try {
     cleanupWebsocket()
-    const res = await getChatWsInfo()
-    const data = unwrapDataContainer(res) || {}
-    let wsUrl = extractWsUrlCandidate(data)
-    const tokenFromApi = data.token || data.wsToken || ''
-    const token = tokenFromApi || getStoredToken()
 
-    if (!wsUrl) {
-      console.warn('未获取到聊天 WebSocket 地址', data)
-      scheduleReconnect()
-      return
+    // 新接口不再提供 /ws/chat/info；直接使用固定路径 /api/ws/common，支持环境覆盖
+    const token = getStoredToken()
+    let wsUrl = getFallbackWsUrl()
+
+    // 兼容旧返回 /ws/chat 的情况
+    if (typeof wsUrl === 'string' && wsUrl.includes('/ws/chat')) {
+      wsUrl = wsUrl.replace('/ws/chat', '/ws/common')
     }
 
     let connector = resolveWsUrl(wsUrl, token)
     if (!connector) {
-      console.warn('聊天 WebSocket 地址解析失败', data)
+      console.warn('聊天 WebSocket 地址解析失败', wsUrl)
       return
     }
 
