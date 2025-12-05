@@ -335,8 +335,8 @@ const closeErrorModal = () => {
     <!-- 成功模态框 -->
     <SuccessModal
       :visible="showSuccessModal"
-      title="申请成功！"
-      message="您的领养申请已提交成功!请等待短期领养者同意。"
+      title="提交申请成功！"
+      message="您的领养申请已提交成功！请等待管理员审核通过后，再由被申请者确认是否同意领养。"
       @close="closeSuccessModal"
     />
 
