@@ -208,6 +208,18 @@ export function deleteMyPost(postId: number): Promise<ApiResponse<void>> {
 }
 
 /**
+ * 更新自己的帖子（用于个人中心）
+ * @param postId 帖子ID
+ * @param data 更新数据
+ */
+export function updateMyPost(
+  postId: number,
+  data: Partial<Post>
+): Promise<ApiResponse<Post>> {
+  return httpClient.put<Post>(`/post/mine/${postId}`, data)
+}
+
+/**
  * 获取用户帖子统计
  * @param userId 用户ID
  */
