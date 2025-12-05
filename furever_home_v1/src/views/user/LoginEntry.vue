@@ -9,29 +9,12 @@
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
             欢迎使用 FUREVER<br />HOME!
           </h1>
+          <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
+            请选择登录方式
+          </p>
         </div>
 
         <div class="w-full space-y-5">
-          <!-- 可编辑邮箱输入行 -->
-          <div
-            class="flex w-full items-center justify-between border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 h-12 px-4 rounded-DEFAULT"
-          >
-            <input
-              v-model="email"
-              type="email"
-              autocomplete="email"
-              class="flex-1 bg-transparent outline-none text-sm text-stone-900 dark:text-white placeholder:text-stone-400"
-              placeholder="请输入邮箱地址"
-            />
-            <!-- “更改”文案仅作样式呈现 -->
-            <button
-              type="button"
-              class="ml-2 text-sm font-bold text-primary hover:text-primary-hover whitespace-nowrap"
-            >
-              更改
-            </button>
-          </div>
-
           <!-- 两种登录方式按钮 -->
           <div class="space-y-3 pt-2">
             <button
@@ -47,7 +30,7 @@
               class="flex h-12 w-full items-center justify-center rounded-DEFAULT border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 px-6 text-base font-bold text-stone-900 dark:text-white shadow-sm transition-all hover:bg-stone-50 dark:hover:bg-stone-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-500"
               @click="goPasswordLogin"
             >
-              密码登录
+              密码登录（昵称或邮箱）
             </button>
           </div>
 
@@ -79,44 +62,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const email = ref('');
 
-// 跳转到邮箱验证码页面
-function ensureEmail(): boolean {
-  if (!email.value || !email.value.includes('@')) {
-    alert('请输入正确的邮箱地址');
-    return false;
-  }
-  return true;
-}
-
+// 选择：邮箱验证码登录 => 先进入“输入邮箱”页面
 function goEmailCodeLogin() {
-  if (!ensureEmail()) return;
-  router.push({
-    name: 'LoginEmail',
-    query: { email: email.value }
-  });
+  router.push({ name: 'LoginEmailEnter' });
 }
 
-// 跳转到密码登录页面（继续复用现有密码登录逻辑）
+// 选择：密码登录 => 直接进入密码登录页，在那里输入昵称或邮箱
 function goPasswordLogin() {
-  if (!ensureEmail()) return;
-  router.push({
-    path: '/login/password',
-    query: { email: email.value }
-  });
+  router.push({ name: 'LoginPassword' });
 }
 
 // 跳转到注册页
 function goRegister() {
-  router.push({
-    name: 'Register',
-    query: { email: email.value || '' }
-  });
+  router.push({ name: 'Register' });
 }
 </script>
 

@@ -8,17 +8,23 @@
         :key="post.id" 
         class="bg-white rounded-xl p-6 shadow-sm flex flex-col border cursor-pointer transition-transform hover:-translate-y-1"
         style="border-color: #F3F4F6;"
-        @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
+        @click="goToDetail(post)"
       >
         <!-- 头部用户信息 & 帖子状态 -->
         <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center">
-            <div
-              class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-2.5"
-              style="background-color: #FBBF24;"
-            >
-              {{ userName.charAt(0) }}
-            </div>
+        <div class="flex items-center">
+          <div
+            class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white mr-2.5 overflow-hidden"
+            style="background-color: #FBBF24;"
+          >
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt="用户头像"
+              class="w-full h-full object-cover"
+            />
+            <span v-else>{{ userName.charAt(0) }}</span>
+          </div>
             <div class="flex items-center gap-2.5 text-sm">
               <span class="font-bold" style="color: #333;">{{ userName }}</span>
               <span class="text-xs" style="color: #9CA3AF;">{{ post.time }}</span>
@@ -152,6 +158,7 @@ import { useRouter } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import { getMyPostList, deletePost } from '@/api/postApi';
+import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
 
 const router = useRouter();
 
@@ -168,7 +175,8 @@ interface Post {
   reviewStatus?: string;
 }
 
-const userName = ref('李同学');
+const userName = ref('用户');
+const avatarUrl = ref<string | null>(null);
 
 const posts = ref<Post[]>([]);
 
@@ -241,6 +249,22 @@ function closeDeleteSuccess() {
   showDeleteSuccessModal.value = false;
 }
 
+// 从「我的帖子」跳转到帖子详情，同时把基础信息通过 query 传过去，便于在详情页回显（例如待审核时后端不返回详情）
+function goToDetail(post: Post) {
+  router.push({
+    name: 'PostDetail',
+    params: { id: post.id.toString() },
+    query: {
+      from: 'myPosts',
+      title: post.title,
+      content: post.content,
+      time: post.time,
+      images: JSON.stringify(post.images || []),
+      reviewStatus: post.reviewStatus || ''
+    }
+  });
+}
+
 async function loadPosts(page = 1) {
   try {
     const res = await getMyPostList({ page, pageSize });
@@ -285,6 +309,35 @@ async function loadPosts(page = 1) {
   }
 }
 
+// 加载当前登录用户信息（昵称和头像），用于展示“我”的帖子列表头部信息
+function loadUserFromCache() {
+  try {
+    const cached = localStorage.getItem('currentUser');
+    if (cached) {
+      const data = JSON.parse(cached) as CurrentUserInfo;
+      if (data.userName) userName.value = data.userName;
+      if (data.avatarUrl) avatarUrl.value = data.avatarUrl;
+    }
+  } catch (e) {
+    console.error('解析本地缓存用户信息失败(MyPosts)', e);
+  }
+}
+
+async function loadUserFromApi() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data = res.data;
+      if (data.userName) userName.value = data.userName;
+      if (data.avatarUrl) avatarUrl.value = data.avatarUrl;
+      // 更新本地缓存，供其他页面复用
+      localStorage.setItem('currentUser', JSON.stringify(data));
+    }
+  } catch (e) {
+    console.error('获取当前用户信息失败(MyPosts)', e);
+  }
+}
+
 function goPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
@@ -304,6 +357,8 @@ function goNext() {
 }
 
 onMounted(() => {
+  loadUserFromCache();
+  loadUserFromApi();
   loadPosts(currentPage.value);
 });
 

@@ -49,8 +49,17 @@
 
             <div class="preview-container mt-4">
               <div v-for="(file, index) in uploadedFiles" :key="index" class="preview-item">
-                <img v-if="file.type.startsWith('image')" :src="file.preview" :alt="file.name" />
-                <video v-else-if="file.type.startsWith('video')" :src="file.preview" controls></video>
+                <img
+                  v-if="file.type.startsWith('image')"
+                  :src="file.preview"
+                  :alt="file.name"
+                  @click="openImagePreview(file.remoteUrl || file.preview)"
+                />
+                <video
+                  v-else-if="file.type.startsWith('video')"
+                  :src="file.preview"
+                  controls
+                ></video>
                 <div class="remove-btn" @click="removeFile(index)">&times;</div>
               </div>
             </div>
@@ -108,13 +117,25 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片大图预览 -->
+    <div v-if="showImagePreview && previewImageUrl" class="modal" @click.self="closeImagePreview">
+      <div class="modal-content">
+        <div class="modal-icon">🖼️</div>
+        <img :src="previewImageUrl" alt="预览图片" style="max-width: 100%; max-height: 60vh; object-fit: contain;" />
+        <div class="modal-buttons">
+          <button class="btn btn-primary" @click="closeImagePreview">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 后端接口调用
+import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 帖子相关接口
+import { uploadImage } from '@/api/storageApi'; // 图片上传接口，返回后端真实 URL
 
 const route = useRoute();
 const router = useRouter();
@@ -122,17 +143,28 @@ const router = useRouter();
 const MAX_CHARS = 500;
 const MAX_FILES = 5;
 
+interface UploadedMedia {
+  name: string;
+  preview: string;
+  type: string;
+  file: File;
+  remoteUrl?: string;
+}
+
 const postTitle = ref('');
 const postContent = ref('');
-const uploadedFiles = ref<{ name: string; preview: string; type: string; file: File }[]>([]);
+const uploadedFiles = ref<UploadedMedia[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const isDragOver = ref(false);
+const isSubmitting = ref(false);
 
 const showSuccessModal = ref(false);
 const showCancelModal = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
 const submittedPostId = ref<number | null>(null);
+const showImagePreview = ref(false);
+const previewImageUrl = ref<string | null>(null);
 
 // 是否为编辑模式（从个人中心或其他地方带着帖子 ID 进入）
 const editingPostId = ref<number | null>(null);
@@ -152,7 +184,12 @@ const processFiles = (files: FileList) => {
     const file = files[i];
     if(file && (file.type.startsWith('image/')||file.type.startsWith('video/'))){
       const reader = new FileReader();
-      reader.onload = (e)=>uploadedFiles.value.push({name:file.name, preview:e.target?.result as string, type:file.type, file});
+      reader.onload = (e)=>uploadedFiles.value.push({
+        name:file.name,
+        preview:e.target?.result as string,
+        type:file.type,
+        file
+      });
       reader.readAsDataURL(file);
     } else {
       alert('只支持图片和视频文件');
@@ -164,6 +201,41 @@ const processFiles = (files: FileList) => {
 const handleFileSelect = (e: Event)=>{ const t = e.target as HTMLInputElement; if(t.files) processFiles(t.files); t.value=''; };
 const handleFileDrop = (e: DragEvent)=>{ isDragOver.value=false; if(e.dataTransfer?.files) processFiles(e.dataTransfer.files); };
 const removeFile = (i:number)=>uploadedFiles.value.splice(i,1);
+
+const openImagePreview = (url: string) => {
+  if (!url) return;
+  previewImageUrl.value = url;
+  showImagePreview.value = true;
+};
+
+const closeImagePreview = () => {
+  showImagePreview.value = false;
+  previewImageUrl.value = null;
+};
+
+const uploadAllImages = async (): Promise<string[]> => {
+  const urls: string[] = [];
+  for (const item of uploadedFiles.value) {
+    if (!item.type.startsWith('image/')) continue;
+    try {
+      // 如果已经有远程地址，避免重复上传
+      if (!item.remoteUrl) {
+        const res = await uploadImage(item.file);
+        if ((res.code === 0 || res.code === 200) && res.data) {
+          item.remoteUrl = res.data;
+        } else {
+          throw new Error(res.message || '图片上传失败，请稍后重试');
+        }
+      }
+      if (item.remoteUrl) {
+        urls.push(item.remoteUrl);
+      }
+    } catch (error: any) {
+      throw new Error(error?.message || '图片上传失败，请稍后重试');
+    }
+  }
+  return urls;
+};
 
 // ----------------------------------------
 // 表单提交调用接口
@@ -181,7 +253,10 @@ const submitPost = async () => {
     return;
   }
 
+  if (isSubmitting.value) return;
+
   try{
+    isSubmitting.value = true;
     let res;
 
     if (isEditMode.value && editingPostId.value !== null) {
@@ -193,9 +268,21 @@ const submitPost = async () => {
       });
     } else {
       console.log('开始调用 createPost 接口...');
-      const mediaUrls = uploadedFiles.value
-        .map(file => file.preview)
-        .filter((url): url is string => Boolean(url));
+
+      // 先把本地选择的文件上传到后端存储，获得真实的在线 URL
+      const mediaUrls: string[] = [];
+      for (const item of uploadedFiles.value) {
+        try {
+          const uploadRes = await uploadImage(item.file);
+          if ((uploadRes.code === 0 || uploadRes.code === 200) && uploadRes.data) {
+            mediaUrls.push(uploadRes.data);
+          } else {
+            console.warn('上传图片失败，跳过该文件:', item.name, uploadRes.message);
+          }
+        } catch (e) {
+          console.error('上传图片出错，跳过该文件:', item.name, e);
+        }
+      }
 
       res = await createPost({
         title: postTitle.value,
@@ -220,6 +307,8 @@ const submitPost = async () => {
     console.error('提交接口失败:', err);
     errorMessage.value = err?.message || err?.toString() || '发布失败，请检查网络连接或稍后重试';
     showErrorModal.value = true;
+  } finally {
+    isSubmitting.value = false;
   }
 };
 

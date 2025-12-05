@@ -36,7 +36,11 @@
         </div>
 
         <div class="post-stats">
-          <div class="stat-item" @click="toggleLike">
+          <div
+            class="stat-item"
+            :class="{ liked: isLiked }"
+            @click="toggleLike"
+          >
             <i class="fa-solid fa-thumbs-up"></i> {{ post.likes || 0 }}
           </div>
           <div class="stat-item">
@@ -71,7 +75,7 @@
           <div v-for="c in comments" :key="c.id" class="comment-item">
             <div class="comment-header">
               <div class="comment-avatar">
-                {{ c.authorName?.[0] || '用' }}
+                {{ (c.authorName === '我' ? '我' : c.authorName)?.[0] || '用' }}
               </div>
               <div class="comment-author">{{ c.authorName }}</div>
               <div class="comment-time">{{ c.date || c.timeAgo || '刚刚' }}</div>
@@ -108,6 +112,7 @@ import {
   likePost as likePostApi,
   type Comment
 } from '@/api/commentapi';
+import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
 
 const route = useRoute();
 const router = useRouter();
@@ -128,14 +133,20 @@ interface PostDetailData {
 }
 
 const post = ref<PostDetailData | undefined>(undefined);
+// 是否为前端示例帖子（如"李同学""王医生"），示例帖子在后端并不存在
+const isMockPost = ref(false);
 const comments = ref<Comment[]>([]);
 const newComment = ref('');
 const isLiked = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
+// 审核提示（例如：尚未通过审核，仅自己可见）
+const reviewNotice = ref('');
+// 当前登录用户信息
+const currentUser = ref<CurrentUserInfo | null>(null);
 
-// 示例帖子数据
-const getExamplePost = (id: number): PostDetailData => {
+// 示例帖子数据（仅用于演示 id 为 1 和 2 的情况）
+const getExamplePost = (id: number): PostDetailData | undefined => {
   if (id === 1) {
     return {
       id: 1,
@@ -156,7 +167,8 @@ const getExamplePost = (id: number): PostDetailData => {
       comments: 42,
       views: 568
     };
-  } else {
+  }
+  if (id === 2) {
     return {
       id: 2,
       title: '秋季宠物常见疾病预防指南',
@@ -175,6 +187,8 @@ const getExamplePost = (id: number): PostDetailData => {
       views: 432
     };
   }
+  // 其它 id 不再返回示例帖子
+  return undefined;
 };
 
 // 示例评论数据
@@ -234,6 +248,72 @@ const postContentParagraphs = computed(() => {
   return post.value.content.split('。').filter(p => p.trim()).map(p => p.trim() + '。');
 });
 
+// 如果是从「我的帖子」过来，并且后端不返回详情时，尝试用路由 query 构建一个可预览的数据
+const buildPostFromRouteIfAvailable = (id: number): boolean => {
+  if (route.query.from !== 'myPosts') return false;
+
+  const title = (route.query.title as string) || '未命名帖子';
+  const content = (route.query.content as string) || '';
+  const time = (route.query.time as string) || '刚刚';
+  let images: string[] = [];
+  if (typeof route.query.images === 'string') {
+    try {
+      const parsed = JSON.parse(route.query.images);
+      if (Array.isArray(parsed)) {
+        images = parsed;
+      }
+    } catch (e) {
+      console.error('解析路由中的图片列表失败', e);
+    }
+  }
+
+  post.value = {
+    id,
+    title,
+    author: '我',
+    avatarInitial: '我',
+    timeAgo: time,
+    publishDate: time,
+    content,
+    fullContent: content
+      ? content
+          .split('。')
+          .filter(p => p.trim())
+          .map(p => p.trim() + '。')
+      : [],
+    images,
+    likes: 0,
+    comments: 0,
+    views: 0
+  };
+  isMockPost.value = false;
+  reviewNotice.value = '当前帖子尚未通过审核，仅自己可见预览。';
+  return true;
+};
+
+// 获取当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    // 先从缓存获取
+    const cached = localStorage.getItem('currentUser');
+    if (cached) {
+      try {
+        currentUser.value = JSON.parse(cached) as CurrentUserInfo;
+      } catch (e) {
+        console.error('解析缓存用户信息失败', e);
+      }
+    }
+    // 再从接口获取最新信息
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      currentUser.value = res.data;
+      localStorage.setItem('currentUser', JSON.stringify(res.data));
+    }
+  } catch (error) {
+    console.error('获取当前用户信息失败', error);
+  }
+};
+
 // 加载帖子详情
 const loadPost = async (id: number) => {
   try {
@@ -241,12 +321,28 @@ const loadPost = async (id: number) => {
     if (res.data) {
       const p = res.data as 帖子详情DTO;
       const createdAt = p.createTime ? String(p.createTime) : '';
+      
+      // 判断是否是当前用户发布的帖子
+      let authorName = '用户 ' + (p.userId ?? '');
+      let avatarInitial = '用';
+      
+      // 如果接口返回了 userName，使用它
+      if ((p as any).userName) {
+        authorName = (p as any).userName;
+        avatarInitial = authorName[0] || '用';
+      }
+      
+      // 判断是否是当前用户
+      if (currentUser.value && p.userId === currentUser.value.userId) {
+        authorName = '我';
+        avatarInitial = '我';
+      }
+      
       post.value = {
         id: p.postId ?? id,
         title: p.title || '无标题',
-        // 接口目前只返回 userId/userAvatar，不返回昵称，这里先用占位
-        author: '用户 ' + (p.userId ?? ''),
-        avatarInitial: '用',
+        author: authorName,
+        avatarInitial: avatarInitial,
         timeAgo: createdAt || '刚刚',
         publishDate: createdAt,
         content: p.content || '',
@@ -261,18 +357,53 @@ const loadPost = async (id: number) => {
         comments: p.commentCount ?? 0,
         views: p.viewCount ?? 0
       };
+      isMockPost.value = false;
+      
+      // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
+      if (typeof (p as any).isLiked === 'boolean') {
+        isLiked.value = (p as any).isLiked;
+      } else if (typeof (p as any).liked === 'boolean') {
+        isLiked.value = (p as any).liked;
+      } else {
+        // 如果接口没有返回点赞状态，从本地存储读取
+        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+        isLiked.value = likedPosts.includes(p.postId ?? id);
+      }
     } else {
-      // 接口返回空数据，使用示例数据
-      post.value = getExamplePost(id);
+      // 接口返回空数据，如果是示例 id（1 或 2），使用示例数据
+      const example = getExamplePost(id);
+      if (example) {
+        post.value = example;
+        isMockPost.value = true;
+        reviewNotice.value = '';
+      } else if (!buildPostFromRouteIfAvailable(id)) {
+        // 既不是示例帖子，也没有从「我的帖子」带过来的数据，才提示不可查看
+        post.value = undefined;
+        isMockPost.value = false;
+        reviewNotice.value = '';
+        errorMessage.value = '帖子不存在或尚未通过审核，暂时无法查看详情。';
+        showErrorModal.value = true;
+      }
     }
     // 这里原本会调用 incrementPostViews(id) 增加浏览数。
     // 由于后端暂未提供 /post/{id}/view 接口，暂时不再调用，避免 404。
     await loadComments(id);
   } catch (error) {
-    console.error('加载帖子失败，使用示例数据:', error);
-    // 接口失败，使用示例数据
-    post.value = getExamplePost(id);
-    await loadComments(id);
+    console.error('加载帖子失败:', error);
+    // 接口失败，如果是示例 id（1 或 2），使用示例数据
+    const example = getExamplePost(id);
+    if (example) {
+      post.value = example;
+      isMockPost.value = true;
+      reviewNotice.value = '';
+      await loadComments(id);
+    } else if (!buildPostFromRouteIfAvailable(id)) {
+      post.value = undefined;
+      isMockPost.value = false;
+      reviewNotice.value = '';
+      errorMessage.value = '帖子详情加载失败，可能不存在或尚未通过审核。';
+      showErrorModal.value = true;
+    }
   }
 };
 
@@ -280,45 +411,106 @@ const loadPost = async (id: number) => {
 const loadComments = async (postId: number) => {
   try {
     const res = await getPostComments(postId);
-    // 处理响应数据，可能是 res.data 或 res.data.data
-    if (Array.isArray(res.data)) {
-      comments.value = res.data;
-    } else if (res.data && Array.isArray(res.data.data)) {
-      comments.value = res.data.data;
-    } else {
-      comments.value = [];
+
+    // 后端返回格式可能是：
+    // 1) data: Comment[]
+    // 2) data: { data: Comment[] }
+    // 3) data: { list: Comment[] } / { records: Comment[] }
+    let rawList: any[] = [];
+    const d: any = res.data;
+    if (Array.isArray(d)) {
+      rawList = d;
+    } else if (d && Array.isArray(d.data)) {
+      rawList = d.data;
+    } else if (d && Array.isArray(d.list)) {
+      rawList = d.list;
+    } else if (d && Array.isArray(d.records)) {
+      rawList = d.records;
     }
-    // 如果接口返回空数据，使用示例数据
-    if (comments.value.length === 0) {
+
+    // 统一映射为 Comment 结构
+    comments.value = rawList.map((item: any, index: number) => {
+      let authorName = item.authorName ?? item.userName ?? '用户';
+      // 判断评论者是否是当前用户
+      if (currentUser.value && (item.userId === currentUser.value.userId || item.authorId === currentUser.value.userId)) {
+        authorName = '我';
+      }
+      return {
+        id: item.id ?? item.commentId ?? index + 1,
+        content: item.content ?? item.commentContent ?? item.text ?? '',
+        authorName: authorName,
+        authorAvatar: item.authorAvatar ?? '',
+        date: item.date ?? item.createTime ?? item.timeAgo ?? '刚刚'
+      };
+    });
+
+    // 如果接口返回空数据，仅对内置示例帖子使用示例评论
+    if (comments.value.length === 0 && isMockPost.value) {
       comments.value = getExampleComments(postId);
     }
   } catch (error) {
-    console.error('加载评论失败，使用示例数据:', error);
-    // 接口失败，使用示例数据
-    comments.value = getExampleComments(postId);
+    console.error('加载评论失败:', error);
+    // 接口失败，仅在示例帖子时使用示例评论
+    comments.value = isMockPost.value ? getExampleComments(postId) : [];
+  }
+};
+
+// 更新本地存储的点赞状态
+const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+  try {
+    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    if (liked) {
+      if (!likedPosts.includes(postId)) {
+        likedPosts.push(postId);
+      }
+    } else {
+      const index = likedPosts.indexOf(postId);
+      if (index > -1) {
+        likedPosts.splice(index, 1);
+      }
+    }
+    localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+  } catch (error) {
+    console.error('更新点赞状态到本地存储失败', error);
   }
 };
 
 // 点赞
 const toggleLike = async () => {
   if (!post.value) return;
+
+  // 示例帖子并不存在于后端，直接提示用户，不调用接口
+  if (isMockPost.value) {
+    errorMessage.value = '当前帖子是示例内容，用于展示效果，暂不支持实际点赞操作。';
+    showErrorModal.value = true;
+    return;
+  }
+  
   const previousLiked = isLiked.value;
   const previousLikes = post.value.likes || 0;
+  const postId = post.value.id;
 
   // 乐观更新UI
   isLiked.value = !isLiked.value;
   if (isLiked.value) {
+    // 如果之前未点赞，现在点赞，数量+1
     post.value.likes = (post.value.likes || 0) + 1;
   } else {
+    // 如果之前已点赞，现在取消点赞，数量-1
     post.value.likes = Math.max(0, (post.value.likes || 0) - 1);
   }
+  
+  // 更新本地存储
+  updateLikedPostsStorage(postId, isLiked.value);
 
   try {
-    await likePostApi(post.value.id);
+    await likePostApi(postId);
   } catch (error: any) {
     // 回滚UI状态
     isLiked.value = previousLiked;
     post.value.likes = previousLikes;
+    // 回滚本地存储
+    updateLikedPostsStorage(postId, previousLiked);
     errorMessage.value = error?.message || '点赞失败，请稍后重试';
     showErrorModal.value = true;
     console.error('点赞失败:', error);
@@ -329,35 +521,41 @@ const toggleLike = async () => {
 const submitComment = async () => {
   if (!post.value || !newComment.value.trim()) return;
   const commentContent = newComment.value.trim();
-  newComment.value = ''; // 先清空输入框，提供即时反馈
+
+  // 先在前端本地添加一条“我的评论”，保证立刻能看到
+  const localComment: Comment = {
+    id: comments.value.length + 1,
+    content: commentContent,
+    authorName: '我',
+    date: '刚刚'
+  };
+  comments.value.push(localComment);
+  if (post.value.comments !== undefined) {
+    post.value.comments = (post.value.comments || 0) + 1;
+  }
+  newComment.value = ''; // 清空输入框
 
   try {
     const res = await submitCommentApi(post.value.id, { content: commentContent });
-    // 处理响应数据
-    const newCommentData = res.data;
-    if (newCommentData) {
-      comments.value.push(newCommentData);
-    }
-    // 更新评论数
-    if (post.value.comments !== undefined) {
-      post.value.comments = (post.value.comments || 0) + 1;
+    // 如果后端返回了带真实 id 的评论，用后端数据替换刚才那条本地评论
+    if (res && res.data) {
+      const serverComment = res.data as Comment;
+      // 确保评论者显示为"我"（如果是当前用户）
+      if (currentUser.value && (serverComment as any).userId === currentUser.value.userId) {
+        serverComment.authorName = '我';
+      }
+      const idx = comments.value.indexOf(localComment);
+      if (idx > -1) {
+        comments.value[idx] = serverComment;
+      } else {
+        comments.value.push(serverComment);
+      }
     }
   } catch (error: any) {
-    // 恢复输入框内容
-    newComment.value = commentContent;
-    errorMessage.value = error?.message || '评论失败，请稍后重试';
+    // 接口失败只提示一下，不删除刚才添加的本地评论
+    errorMessage.value = error?.message || '评论提交失败（仅本地可见），请稍后重试';
     showErrorModal.value = true;
     console.error('评论失败:', error);
-    // 即使接口失败，也在前端添加评论（用于展示）
-    comments.value.push({
-      id: comments.value.length + 1,
-      content: commentContent,
-      authorName: '我',
-      date: '刚刚'
-    });
-    if (post.value.comments !== undefined) {
-      post.value.comments = (post.value.comments || 0) + 1;
-    }
   }
 };
 
@@ -369,15 +567,23 @@ const goBack = () => {
 // 监听路由参数
 watch(
   () => route.params.id,
-  (newVal) => {
+  async (newVal) => {
     if (!newVal) return;
     const idNum = Number(newVal);
-    if (!isNaN(idNum)) loadPost(idNum);
+    if (!isNaN(idNum)) {
+      // 确保用户信息已加载
+      if (!currentUser.value) {
+        await loadCurrentUser();
+      }
+      loadPost(idNum);
+    }
   },
   { immediate: true }
 );
 
-onMounted(() => {
+onMounted(async () => {
+  // 先加载当前用户信息
+  await loadCurrentUser();
   const postId = route.params.id;
   if (postId) loadPost(Number(postId));
 });
@@ -529,6 +735,11 @@ onMounted(() => {
 }
 
 .stat-item:hover {
+  color: #FF8C00 !important;
+}
+
+/* 点过赞后的高亮状态，使用主色橙色并强制覆盖 */
+.stat-item.liked {
   color: #FF8C00 !important;
 }
 
