@@ -111,6 +111,7 @@
       {{ activeTab === 'short' ? '当前没有发布的短期宠物' : '当前没有发布的长期宠物' }}
     </div>
 
+    <!-- 统一分页样式，列表为空时也展示，至少一页 -->
     <div class="flex justify-center mt-10 mb-4">
       <div class="flex items-center gap-2.5">
         <button
@@ -378,7 +379,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import RegionCascader from '../../../components/common/RegionCascader.vue';
@@ -411,20 +412,25 @@ interface PetCard {
 }
 
 const router = useRouter();
+const route = useRoute();
 
 const shortPets = ref<PetCard[]>([]);
-
 const longPets = ref<PetCard[]>([]);
+const shortTotal = ref(0);
+const longTotal = ref(0);
 
 const activeTab = ref<'short' | 'long'>('short');
-const pageSize = 6;
+// 每页展示 3 条宠物卡片
+const pageSize = 3;
 const currentPage = ref(1);
 
 const currentList = computed(() => (activeTab.value === 'short' ? shortPets.value : longPets.value));
-const totalPages = computed(() => Math.max(1, Math.ceil(currentList.value.length / pageSize)));
+const currentTotal = computed(() => (activeTab.value === 'short' ? shortTotal.value : longTotal.value));
+// 根据 total 计算页数，至少 1 页；空列表也展示 1 页
+const totalPages = computed(() => Math.max(1, Math.ceil((currentTotal.value || 0) / pageSize)));
 
 const currentPets = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
+  const start = 0; // 列表来自接口当前页，无需再次 slice
   return currentList.value.slice(start, start + pageSize).map(pet => ({
     ...pet,
     photoText: `${pet.name}的照片`,
@@ -434,6 +440,14 @@ const currentPets = computed(() => {
 
 watch(activeTab, () => {
   currentPage.value = 1;
+});
+
+watch(currentPage, () => {
+  if (activeTab.value === 'short') {
+    loadMyShortPets();
+  } else {
+    loadMyLongPets();
+  }
 });
 
 function switchTab(tab: 'short' | 'long') {
@@ -478,6 +492,7 @@ async function loadMyShortPets() {
   try {
     const res = await getMyShortAnimals({ page: currentPage.value, pageSize });
     if (res.code === 200 && res.data) {
+      shortTotal.value = res.data.total ?? res.data.records?.length ?? 0;
       const records = res.data.records ?? [];
       shortPets.value = records.map((item: any) => {
         const sterilizedLabel =
@@ -532,6 +547,66 @@ async function loadMyShortPets() {
     }
   } catch (err) {
     console.error('获取我的短期宠物列表接口异常', err);
+  }
+}
+
+async function loadMyLongPets() {
+  try {
+    const res = await getMyLongAnimals({ page: currentPage.value, pageSize });
+    if (res.code === 200 && res.data) {
+      longTotal.value = res.data.total ?? res.data.records?.length ?? 0;
+      const records = res.data.records ?? [];
+      longPets.value = records.map((item: any) => {
+        const sterilizedLabel =
+          item.isSterilized === '是' || item.isSterilized === '已绝育'
+            ? '已绝育'
+            : item.isSterilized === '否'
+              ? '未绝育'
+              : item.isSterilized || '未知';
+        const ageLabel = item.animalAge != null ? `${item.animalAge}个月` : '';
+        const species = item.species || '';
+        let photos: string[] = [];
+        if (Array.isArray(item.photoUrls)) {
+          photos = item.photoUrls;
+        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+          try {
+            const parsed = JSON.parse(item.photoUrls);
+            if (Array.isArray(parsed)) {
+              photos = parsed;
+            }
+          } catch (e) {
+            // ignore parse error
+          }
+        }
+        return {
+          id: item.animalId ?? 0,
+          name: item.animalName || '',
+          meta: `${species || '未知'} · ${ageLabel || '未知'} · ${sterilizedLabel}`,
+          type: 'long',
+          days: 0,
+          cover:
+            (item.animalPhoto as string | undefined) ||
+            (photos.length > 0 ? photos[0] : ''),
+          story: item.shortDescription || '',
+          phone: '',
+          email: '',
+          gender: item.gender || '',
+          age: ageLabel,
+          species,
+          breed: item.breed || '',
+          sterilized: sterilizedLabel,
+          province: item.province || '',
+          city: item.city || '',
+          location: item.currentLocation || '',
+          reviewStatus: item.reviewStatus as ReviewStatus | undefined,
+          photos,
+        } as PetCard;
+      });
+    } else {
+      console.error('获取我的长期宠物列表失败', res);
+    }
+  } catch (err) {
+    console.error('获取我的长期宠物列表接口异常', err);
   }
 }
 
@@ -679,17 +754,17 @@ async function submitEdit() {
     const id = editingPet.value.id;
     const reqBody = {
       animalName: editForm.name,
-      animalAge: parseInt(editForm.age) || undefined,
+      animalAge: editForm.age ? Number(editForm.age) : 0,
       gender: editForm.gender as any,
       species: editForm.species as any,
       breed: editForm.breed,
       isSterilized: editForm.sterilized as any,
-      province: editForm.province || undefined,
-      city: editForm.city || undefined,
-      currentLocation: editForm.location,
+      province: editForm.province || '',
+      city: editForm.city || '',
+      currentLocation: editForm.location || '',
       shortDescription: editForm.story,
-      contactPhone: editForm.phone,
-      contactEmail: editForm.email,
+      contactPhone: editForm.phone || '',
+      contactEmail: editForm.email || '',
       photoUrls: editPhotos.value.length ? editPhotos.value : undefined,
     };
 
@@ -765,9 +840,23 @@ function closeSuccessModal() {
   successModal.visible = false;
 }
 
+// 监听路由变化，当有 refresh 参数时重新加载数据
+watch(() => route.query.refresh, (refresh) => {
+  if (refresh === 'true') {
+    // 重新加载当前标签页的数据
+    if (activeTab.value === 'short') {
+      loadMyShortPets();
+    } else {
+      loadMyLongPets();
+    }
+    // 移除 refresh 参数，避免重复刷新
+    router.replace({ path: route.path, query: { menu: route.query.menu } });
+  }
+}, { immediate: true });
+
 onMounted(() => {
   loadMyShortPets();
-  // 长期宠物列表在用户切换到“长期宠物”标签时按需加载
+  // 长期宠物列表在用户切换到"长期宠物"标签时按需加载
 });
 
 </script>

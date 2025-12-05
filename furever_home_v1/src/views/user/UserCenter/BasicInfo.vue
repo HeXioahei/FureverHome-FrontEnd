@@ -41,7 +41,7 @@
           <input 
             type="text" 
             class="w-full px-4 py-2.5 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500 cursor-not-allowed outline-none"
-            value="20742" 
+            :value="userId ?? ''" 
             disabled
           />
         </div>
@@ -282,12 +282,14 @@ const isLoading = ref(false);
 const avatarUrl = ref<string>('');
 const avatarInputRef = ref<HTMLInputElement | null>(null);
 const userName = ref<string>('');
+const userId = ref<number | null>(null);
 const proofPhotos = ref<string[]>([]);
 const proofInputRef = ref<HTMLInputElement | null>(null);
 const showErrorModal = ref(false);
 const errorMessage = ref('最多只能上传 3 张爱宠证明照片');
 const showPreview = ref(false);
 const previewUrl = ref<string | null>(null);
+const removedProofs = ref<string[]>([]); // 记录待删除但未提交的证明图片
 
 function mapSexToGender(sex?: Sex): 'male' | 'female' | 'secret' {
   if (sex === Sex.男) return 'male';
@@ -307,6 +309,7 @@ async function loadCurrentUser() {
     if ((res.code === 0 || res.code === 200) && res.data) {
       const data: CurrentUserInfo = res.data;
       userName.value = data.userName || '';
+      userId.value = data.userId ?? null;
       formData.value.age = data.userAge ?? 0;
       formData.value.email = data.email || '';
       formData.value.gender = mapSexToGender(data.sex);
@@ -330,26 +333,11 @@ function closePreview() {
   previewUrl.value = null
 }
 
-async function removeProof(url: string) {
-  // 从 URL 中提取对象名（最后一段路径），如果失败则直接使用原字符串
-  const parts = url.split('/')
-  const object = parts[parts.length - 1] || url
-
-  try {
-    isLoading.value = true
-    const res = await deleteImage(object)
-    if (res.code === 0 || res.code === 200) {
-      proofPhotos.value = proofPhotos.value.filter(item => item !== url)
-    } else {
-      errorMessage.value = res.message || '删除爱宠证明失败，请稍后重试'
-      showErrorModal.value = true
-    }
-  } catch (error) {
-    console.error('删除爱宠证明失败', error)
-    errorMessage.value = '删除爱宠证明失败，请稍后重试'
-    showErrorModal.value = true
-  } finally {
-    isLoading.value = false
+function removeProof(url: string) {
+  // 仅做本地移除，真正删除文件延迟到保存时执行
+  proofPhotos.value = proofPhotos.value.filter(item => item !== url)
+  if (!removedProofs.value.includes(url)) {
+    removedProofs.value.push(url)
   }
 }
 
@@ -435,6 +423,24 @@ async function handleSave() {
   try {
     const res = await updateCurrentUser(payload);
     if (res.code === 0 || res.code === 200) {
+      // 用户信息更新成功后，再删除已标记的文件
+      const urlsToDelete = [...removedProofs.value];
+      if (urlsToDelete.length) {
+        const tasks = urlsToDelete.map(url => {
+          const parts = url.split('/');
+          const object = parts[parts.length - 1] || url;
+          return deleteImage(object);
+        });
+        const results = await Promise.allSettled(tasks);
+        const hasError = results.some(r => r.status === 'rejected' || (r.status === 'fulfilled' && (r.value as any)?.code !== 0 && (r.value as any)?.code !== 200));
+        if (hasError) {
+          errorMessage.value = '部分图片删除失败，请稍后重试';
+          showErrorModal.value = true;
+        } else {
+          // 删除成功后清空列表
+          removedProofs.value = [];
+        }
+      }
       showSuccessModal.value = true;
     } else {
       alert(res.message || '保存失败，请稍后重试');

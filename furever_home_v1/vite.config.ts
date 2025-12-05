@@ -20,13 +20,31 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
+        timeout: 30000,
         // 前台接口路径：/api/xxx，后端也是 /api/xxx，所以不需要 rewrite
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('前台接口代理错误:', err)
+          proxy.on('error', (err, req, res) => {
+            console.log('前台接口代理错误:', err.message)
+            // 如果响应还没有发送，发送错误响应
+            if (!res.headersSent) {
+              res.writeHead(502, {
+                'Content-Type': 'application/json'
+              })
+              res.end(JSON.stringify({
+                code: 502,
+                message: '网关错误：无法连接到后端服务器',
+                error: err.message
+              }))
+            }
           })
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             console.log('前台接口代理请求:', req.method, req.url, '->', proxyReq.path)
+          })
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            // 记录响应状态，帮助调试
+            if (proxyRes.statusCode >= 400) {
+              console.log('前台接口代理响应错误:', req.url, '状态码:', proxyRes.statusCode)
+            }
           })
         }
       },
@@ -36,17 +54,32 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
+        timeout: 30000,
         // 后台接口路径：/admin/xxx，后端也是 /admin/xxx，所以不需要 rewrite
         // 确保代理所有 /admin 开头的请求
         configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('后台接口代理错误:', err)
+          proxy.on('error', (err, req, res) => {
+            console.log('后台接口代理错误:', err.message)
+            // 如果响应还没有发送，发送错误响应
+            if (!res.headersSent) {
+              res.writeHead(502, {
+                'Content-Type': 'application/json'
+              })
+              res.end(JSON.stringify({
+                code: 502,
+                message: '网关错误：无法连接到后端服务器',
+                error: err.message
+              }))
+            }
           })
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             console.log('后台接口代理请求:', req.method, req.url, '->', proxyReq.path, '目标:', proxyReq.getHeader('host'))
           })
           proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('后台接口代理响应:', req.url, '状态码:', proxyRes.statusCode)
+            // 记录响应状态，帮助调试
+            if (proxyRes.statusCode >= 400) {
+              console.log('后台接口代理响应错误:', req.url, '状态码:', proxyRes.statusCode)
+            }
           })
         }
       }

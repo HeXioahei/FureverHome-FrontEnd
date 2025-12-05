@@ -68,9 +68,10 @@
           <div v-if="activeContact" class="flex items-center gap-3">
             <div
               :class="[
-                'w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base overflow-hidden',
+                'w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base overflow-hidden cursor-pointer',
                 activeContact.avatarColor
               ]"
+              @click="goToUserProfile(activeContact.targetUserId)"
             >
               <img
                 v-if="activeContact.avatarUrl"
@@ -80,7 +81,12 @@
               />
               <span v-else>{{ activeContact.avatar }}</span>
             </div>
-            <div class="font-bold">{{ activeContact.name }}</div>
+            <div 
+              class="font-bold cursor-pointer transition-colors hover:text-[#FF8C00]"
+              @click="goToUserProfile(activeContact.targetUserId)"
+            >
+              {{ activeContact.name }}
+            </div>
           </div>
         </div>
 
@@ -207,7 +213,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   getConversations,
   getMessages,
@@ -245,6 +251,13 @@ interface Message {
 }
 
 const route = useRoute()
+const router = useRouter()
+
+const goToUserProfile = (userId: number | null | undefined) => {
+  if (userId) {
+    router.push({ name: 'UserProfile', params: { userId } })
+  }
+}
 
 const rawConversations = ref<ConversationDto[]>([])
 const contacts = ref<Contact[]>([])

@@ -14,7 +14,6 @@ interface Publisher {
   user_id: string
   username: string
   avatar_url: string
-  credit_score: string
 }
 
 interface PetDetail {
@@ -93,6 +92,30 @@ const closeImageViewer = () => {
   showImageViewer.value = false
 }
 
+// 处理头像加载错误
+const handleAvatarError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  // 如果图片加载失败，隐藏图片，显示占位符
+  if (img && img.parentElement) {
+    img.style.display = 'none'
+  }
+}
+
+// 规范化图片URL，确保相对路径正确添加前缀
+const normalizeImageUrl = (url: string | undefined | null): string => {
+  if (!url) return ''
+  // 如果已经是完整的URL，直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  // 如果已经以/api开头，直接返回
+  if (url.startsWith('/api/')) {
+    return url
+  }
+  // 否则添加/api/storage/image/前缀
+  return `/api/storage/image/${url.replace(/^\/+/, '')}`
+}
+
 const loadPetDetail = async () => {
   try {
     if (!petId.value) return
@@ -102,17 +125,18 @@ const loadPetDetail = async () => {
       // 处理 photoUrls 既可能是数组，也可能是 JSON 字符串的情况
       let photos: string[] = []
       if (Array.isArray(item.photoUrls)) {
-        photos = item.photoUrls
+        photos = item.photoUrls.map((url: string) => normalizeImageUrl(url))
       } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
         try {
           const parsed = JSON.parse(item.photoUrls)
           if (Array.isArray(parsed)) {
-            photos = parsed
+            photos = parsed.map((url: string) => normalizeImageUrl(url))
           }
         } catch (e) {
           // ignore parse error
         }
       }
+      
       currentPet.value = {
         id: item.animalId ?? petId.value,
         animal_name: item.animalName || '',
@@ -131,9 +155,8 @@ const loadPetDetail = async () => {
           user_id: String(item.userId ?? ''),
           // 使用后端返回的 userName 显示领养人昵称
           username: item.userName || '',
-          // 使用后端返回的 userAvatar 作为头像地址，例如 "/api/storage/image/xxx.jpg"
-          avatar_url: item.userAvatar || '',
-          credit_score: item.creditScore != null ? String(item.creditScore) : ''
+          // 使用后端返回的 userAvatar 作为头像地址，规范化处理
+          avatar_url: normalizeImageUrl(item.userAvatar)
         }
       }
     } else {
@@ -185,7 +208,7 @@ onMounted(() => {
         <!-- 右侧信息区域 -->
         <div class="flex-1 lg:min-w-[380px] p-8">
           <h1 class="text-[28px] text-[#FF8C00] mb-1.5 font-bold">{{ currentPet.animal_name }}</h1>
-          <p class="text-[#666666] mb-5">{{ currentPet.breed }} · {{ currentPet.species }}</p>
+          <p class="text-[#666666] mb-5">{{ currentPet.species }} · {{ currentPet.breed }}</p>
 
           <!-- 信息网格 -->
           <div class="grid grid-cols-2 gap-4 mb-6">
@@ -222,16 +245,14 @@ onMounted(() => {
                   :src="currentPet.publisher.avatar_url"
                   alt="用户头像"
                   class="w-full h-full object-cover rounded-full"
+                  @error="handleAvatarError"
                 />
-                <span v-else>
+                <span v-else class="w-full h-full flex items-center justify-center">
                   {{ currentPet.publisher.username.charAt(0) }}
                 </span>
               </div>
               <div class="flex-1">
                 <div class="font-semibold text-[#333333]">{{ currentPet.publisher.username }}</div>
-                <div class="text-[#f5a623] text-[13px]">
-                  评分: {{ currentPet.publisher.credit_score }} ★★★★☆
-                </div>
               </div>
               <button
                 type="button"
@@ -251,6 +272,7 @@ onMounted(() => {
           </div>
 
           <button
+            v-if="!isSelfPublisher && currentPet.adoption_status !== '长期领养'"
             type="button"
             class="inline-block px-6 py-2.5 bg-[#FF8C00] text-white rounded-xl font-semibold transition-all hover:bg-[#e6722a] hover:-translate-y-0.5 hover:shadow-lg"
             @click="requestAdoption"

@@ -158,6 +158,14 @@ const validateForm = (): boolean => {
     return false
   }
 
+  // 验证年龄是否为阿拉伯数字
+  const ageValue = form.value.age.trim()
+  if (ageValue && !/^\d+$/.test(ageValue)) {
+    errorMessage.value = '年龄必须为阿拉伯数字，请输入正确的年龄（以月为单位）'
+    showErrorModal.value = true
+    return false
+  }
+
   return true
 }
 
@@ -205,24 +213,8 @@ const submitForm = async () => {
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false
-  // 重置表单
-  form.value = {
-    name: '',
-    age: '',
-    gender: '',
-    species: '',
-    breed: '',
-    sterilized: '',
-    province: '',
-    city: '',
-    detailAddress: '',
-    location: '',
-    healthStatus: '',
-    story: '',
-    phone: '',
-    email: ''
-  }
-  uploadedFiles.value = []
+  // 跳转到用户中心我的宠物页面，并添加刷新参数
+  router.push({ path: '/user-center', query: { menu: 'pets', refresh: 'true' } })
 }
 
 const closeErrorModal = () => {
@@ -485,8 +477,8 @@ const closeErrorModal = () => {
     <!-- 成功模态框 -->
     <SuccessModal
       :visible="showSuccessModal"
-      title="发布成功！"
-      message="您发布的宠物信息将展示在平台上。"
+      title="提交成功！"
+      message="您发布的宠物信息将送往管理员审核，审核通过后将展示在平台上。"
       @close="closeSuccessModal"
     />
 

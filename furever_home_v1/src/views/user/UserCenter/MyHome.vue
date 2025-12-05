@@ -2,21 +2,21 @@
   <div>
     <div class="mb-8">
       <h1 class="text-3xl font-bold mb-2" style="color: #333333;">欢迎回来，{{ userName }}！</h1>
-      <p class="text-sm" style="color: #666666;">这是您的活动简报。</p>
+      <p class="text-sm" style="color: #666666;">这是您的个人简报。</p>
     </div>
 
     <!-- 统计卡片 -->
     <div class="grid grid-cols-3 gap-5 mb-10">
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
-        <span class="text-sm font-medium" style="color: #6B7280;">我的帖子</span>
+        <span class="text-sm font-medium" style="color: #6B7280;">我的帖子（已通过审核）</span>
         <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.postCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
-        <span class="text-sm font-medium" style="color: #6B7280;">我的短期宠物</span>
+        <span class="text-sm font-medium" style="color: #6B7280;">我的短期宠物（已通过审核）</span>
         <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.shortTermPetCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
-        <span class="text-sm font-medium" style="color: #6B7280;">我的长期宠物</span>
+        <span class="text-sm font-medium" style="color: #6B7280;">我的长期宠物（已通过审核）</span>
         <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.longTermPetCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
@@ -73,12 +73,14 @@
         下一页
       </button>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { getCurrentUser, getCurrentUserStats, type CurrentUserInfo, type CurrentUserStats } from '../../../api/userApi';
+import { getMyNotifications } from '../../../api/notifyApi';
 
 const userName = ref('用户');
 const stats = ref<Required<CurrentUserStats>>({
@@ -105,11 +107,9 @@ interface NotificationItem {
 const notifications = ref<NotificationItem[]>([]);
 const pageSize = 3;
 const currentPage = ref(1);
-const totalPages = computed(() => Math.max(1, Math.ceil(notifications.value.length / pageSize)));
-const pagedNotifications = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return notifications.value.slice(start, start + pageSize);
-});
+const total = ref(0);
+const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pageSize)));
+const pagedNotifications = computed(() => notifications.value);
 
 async function loadCurrentUser() {
   try {
@@ -165,6 +165,39 @@ const getStoredToken = () => {
 
 const wsRef = ref<WebSocket | null>(null);
 
+// 根据通知数据生成消息内容
+function generateNotificationContent(item: any): string {
+  const targetType = item.targetType || '';
+  const event = item.event || '';
+  
+  if (targetType === 'animal') {
+    const animalName = item.animalName || '未知宠物';
+    return `您的名为"${animalName}"的宠物的发布或修改已被管理员${event}`;
+  } else if (targetType === 'post') {
+    const postTitle = item.postTitle || '未知标题';
+    return `您的标题为"${postTitle}"的帖子的发布或修改已被管理员${event}`;
+  } else if (targetType === 'adopt') {
+    const animalName = item.animalName || '未知宠物';
+    if (event === '通过') {
+      return `您对名为"${animalName}"的宠物的申请已被管理员通过，已成功发送至被申请者处`;
+    } else if (event === '拒绝') {
+      return `您对名为"${animalName}"的宠物的申请已被管理员拒绝，请重新申请`;
+    } else if (event === '申请成功') {
+      return `您对名为"${animalName}"的宠物的申请已被对方同意`;
+    } else if (event === '申请失败') {
+      return `您对名为"${animalName}"的宠物的申请已被对方拒绝，请重新申请`;
+    }
+  } else if (targetType === 'review') {
+    const animalName = item.animalName || '未知宠物';
+    if (event === '新的待办事项') {
+      return `您的名为"${animalName}"的宠物正在被用户"${item.applicantUserName}"申请，请及时处理`;
+    }
+  }
+  
+  // 默认情况：使用原有的content或event
+  return item.content || item.extraInfo || event || '您有新的通知';
+}
+
 const resolveWsUrl = (base?: string) => {
   if (!base) return '';
   if (base.startsWith('ws://') || base.startsWith('wss://')) return base;
@@ -176,22 +209,24 @@ const handleWsMessage = (event: MessageEvent) => {
   try {
     const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     const data = payload?.data || payload;
-    const title = data?.title || data?.message || '系统通知';
-    const content = data?.content || data?.detail || data?.message || JSON.stringify(data);
-    const time = data?.time || new Date().toLocaleString();
-    notifications.value = [
-      {
-        id: data?.id || Date.now(),
-        title,
-        content,
-        time,
-        icon: 'fa-solid fa-bell',
-        iconBg: '#E5F3FF',
-        iconColor: '#2563EB'
-      },
-      ...notifications.value
-    ];
+    const title = data?.title || '系统通知';
+    const content = generateNotificationContent(data);
+    const time = formatTime(data?.createTime || data?.time || new Date().toISOString());
+    const newItem: NotificationItem = {
+      id: data?.activityId ?? data?.id ?? Date.now(),
+      title,
+      content,
+      time,
+      icon: 'fa-solid fa-bell',
+      iconBg: '#E5F3FF',
+      iconColor: '#2563EB'
+    };
+
+    // 刷新第一页数据，让最新通知可见
+    notifications.value = [newItem, ...notifications.value].slice(0, pageSize);
+    total.value += 1;
     currentPage.value = 1;
+    // 通知弹窗已移至全局，这里不再显示
   } catch (err) {
     console.error('解析通知消息失败', err, event.data);
   }
@@ -216,17 +251,56 @@ const initWs = () => {
   }
 };
 
+const formatTime = (val?: string | Date) => {
+  if (!val) return '';
+  const date = typeof val === 'string' ? new Date(val) : val;
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
+};
+
+
+async function loadNotifications(page = 1) {
+  try {
+    const res = await getMyNotifications({ page, pageSize, onlyUnread: false });
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const records = res.data.records || [];
+      total.value = res.data.total ?? records.length ?? 0;
+      notifications.value = records.map(item => ({
+        id: item.activityId ?? item.targetId ?? Date.now(),
+        title: item.title || '系统通知',
+        content: generateNotificationContent(item),
+        time: formatTime(item.createTime || new Date().toISOString()),
+        icon: 'fa-solid fa-bell',
+        iconBg: '#E5F3FF',
+        iconColor: '#2563EB'
+      }));
+      currentPage.value = page;
+    }
+  } catch (error) {
+    console.error('获取通知列表失败', error);
+  }
+}
+
 function prevPage() {
-  if (currentPage.value > 1) currentPage.value -= 1;
+  if (currentPage.value > 1) {
+    loadNotifications(currentPage.value - 1);
+  }
 }
 
 function nextPage() {
-  if (currentPage.value < totalPages.value) currentPage.value += 1;
+  if (currentPage.value < totalPages.value) {
+    loadNotifications(currentPage.value + 1);
+  }
 }
 
 onMounted(() => {
   loadCurrentUser();
   loadStats();
+  loadNotifications();
   initWs();
 });
 

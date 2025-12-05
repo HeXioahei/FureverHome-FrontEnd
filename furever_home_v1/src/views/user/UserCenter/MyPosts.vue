@@ -103,12 +103,14 @@
       当前还没有发布帖子
     </div>
 
-    <!-- 分页 -->
-    <div class="flex justify-center mt-10 mb-5" v-if="total > pageSize">
-      <div class="flex gap-2.5">
+    <!-- 分页：统一样式，列表为空也显示，至少一页 -->
+    <div class="flex justify-center mt-10 mb-5">
+      <div class="flex items-center gap-2.5">
         <button 
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
+          :disabled="currentPage === 1"
+          :class="currentPage === 1 ? 'cursor-not-allowed opacity-50' : ''"
           @click="goPrev"
         >
           <i class="fa-solid fa-chevron-left"></i>
@@ -126,6 +128,8 @@
         <button 
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
+          :disabled="currentPage === totalPages"
+          :class="currentPage === totalPages ? 'cursor-not-allowed opacity-50' : ''"
           @click="goNext"
         >
           <i class="fa-solid fa-chevron-right"></i>
@@ -181,7 +185,8 @@ const avatarUrl = ref<string | null>(null);
 const posts = ref<Post[]>([]);
 
 const currentPage = ref(1);
-const pageSize = 10;
+// 每页 3 条帖子卡片
+const pageSize = 3;
 const total = ref(0);
 const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pageSize)));
 

@@ -11,13 +11,35 @@
       >
         <!-- 左侧：图片和基本信息 -->
         <div class="flex gap-5 flex-1">
-          <div class="w-20 h-20 rounded-lg flex items-center justify-center text-xs text-gray-400 flex-shrink-0" style="background-color: #FFF3E0;">
-            {{ application.petName }}的照片
+          <div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0" style="background-color: #FFF3E0;">
+            <img
+              v-if="application.animalPhoto"
+              :src="normalizeImageUrl(application.animalPhoto)"
+              :alt="application.animalName"
+              class="w-full h-full object-cover"
+            />
+            <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400">
+              {{ application.animalName }}的照片
+            </div>
           </div>
           <div class="flex flex-col justify-center">
-            <div class="text-base font-bold mb-1" style="color: #1F2937;">申请领养：{{ application.petBreed }}"{{ application.petName }}"</div>
-            <div class="text-xs mb-0.5" style="color: #6B7280;">{{ application.ownerLabel }}：{{ application.ownerName }}</div>
-            <div class="text-xs" style="color: #9CA3AF;">申请日期：{{ application.date }}</div>
+            <div class="text-base font-bold mb-1" style="color: #1F2937;">申请领养："{{ application.animalName }}"</div>
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-xs" style="color: #6B7280;">被申请人：</span>
+              <div class="w-5 h-5 rounded-full overflow-hidden flex-shrink-0" style="background-color: #F3C697;">
+                <img
+                  v-if="application.targetUserAvatar"
+                  :src="normalizeImageUrl(application.targetUserAvatar)"
+                  :alt="application.targetUserName"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else class="w-full h-full flex items-center justify-center text-xs text-white">
+                  {{ application.targetUserName?.charAt(0) || '?' }}
+                </span>
+              </div>
+              <span class="text-xs" style="color: #6B7280;">{{ application.targetUserName || '未知' }}</span>
+            </div>
+            <div class="text-xs" style="color: #9CA3AF;">申请日期：{{ formatDate(application.createTime) }}</div>
           </div>
         </div>
 
@@ -26,20 +48,28 @@
           <span 
             class="text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1"
             :style="{ 
-              backgroundColor: getStatusBg(application.status), 
-              color: getStatusColor(application.status) 
+              backgroundColor: getStatusBg(application.comprehensiveStatus), 
+              color: getStatusColor(application.comprehensiveStatus) 
             }"
           >
-            <i :class="getStatusIcon(application.status)"></i>
-            {{ getStatusLabel(application.status) }}
+            <i :class="getStatusIcon(application.comprehensiveStatus)"></i>
+            {{ application.comprehensiveStatus }}
           </span>
           <button 
-            v-if="application.status === 'pending'"
+            v-if="application.comprehensiveStatus === '等待管理员审核' || application.comprehensiveStatus === '等待被申请人确认'"
             class="border border-gray-300 bg-white px-4 py-1.5 rounded-md text-xs cursor-pointer transition-colors hover:border-[#FF8C00] hover:text-[#FF8C00]"
             style="color: #4B5563;"
             @click.stop="handleCancel(application)"
           >
             撤销申请
+          </button>
+          <button 
+            v-if="application.comprehensiveStatus === '被管理员拒绝' || application.comprehensiveStatus === '被申请人拒绝' || application.comprehensiveStatus === '已自己撤销'"
+            class="border border-gray-300 bg-white px-4 py-1.5 rounded-md text-xs cursor-pointer transition-colors hover:border-[#FF8C00] hover:text-[#FF8C00]"
+            style="color: #4B5563;"
+            @click.stop="handleReapply(application)"
+          >
+            重新申请
           </button>
         </div>
       </div>
@@ -49,26 +79,36 @@
       当前没有领养申请记录
     </div>
 
-    <!-- 分页 -->
+    <!-- 分页：统一样式，列表为空也显示，至少一页 -->
     <div class="flex justify-center mt-10 mb-5">
-      <div class="flex gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <button 
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          style="color: #6B7280;"
+          :disabled="currentPage === 1"
+          :class="currentPage === 1 ? 'cursor-not-allowed opacity-50' : ''"
+          @click="prevPage"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
         <button 
           v-for="page in totalPages" 
           :key="page"
           class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
-          @click="currentPage = page"
+          @click="currentPage = page; loadApplications()"
         >
           {{ page }}
         </button>
         <button 
-          v-if="currentPage < totalPages"
-          class="px-5 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
-          @click="currentPage++"
+          :disabled="currentPage === totalPages"
+          :class="currentPage === totalPages ? 'cursor-not-allowed opacity-50' : ''"
+          @click="nextPage"
         >
-          下一页
+          <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
     </div>
@@ -109,7 +149,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
@@ -121,87 +162,125 @@ import {
   ApplicationStatus,
   ReviewStatus,
   type AdoptDetail,
-  type AdoptTodoItem
+  type MyAdoptItemDTO
 } from '@/api/adoptApi';
 
-interface Application {
+interface Application extends MyAdoptItemDTO {
   id: number;
-  petName: string;
-  petBreed: string;
-  ownerName: string;
-  ownerLabel: string;
-  date: string;
-  // 业务状态：
-  // - pending        : 申请中（含管理员待审核、管理员已通过但对方还未处理）
-  // - approved       : 管理员通过 + 对方同意 -> 「申请成功」
-  // - rejected       : 管理员通过 + 对方婉拒 -> 「申请失败」
-  // - adminRejected  : 管理员初审拒绝
-  // - cancelled      : 当前用户主动撤销
-  status: 'approved' | 'pending' | 'rejected' | 'adminRejected' | 'cancelled';
-  // 是否由当前用户主动撤销
-  cancelledByUser?: boolean;
-  // 详情相关字段
+  comprehensiveStatus: '等待管理员审核' | '被管理员拒绝' | '等待被申请人确认' | '被申请人同意' | '被申请人拒绝' | '已自己撤销';
+  // 详情相关字段（用于详情弹窗）
   avatar?: string;
   requester?: string;
   phone?: string;
   email?: string;
   address?: string;
-  reason?: string;
 }
 
+const router = useRouter();
+const route = useRoute();
 const applications = ref<Application[]>([]);
 
 const currentPage = ref(1);
-const pageSize = 10;
-const totalPages = computed(() => Math.ceil(applications.value.length / pageSize));
+// 每页最多 3 条申请记录
+const pageSize = 3;
+const total = ref(0);
+const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pageSize)));
 
-function getStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    // 管理员已通过 + 对方同意
-    approved: '对方已同意',
-    // 包含两种场景：
-    // 1）管理员待审核
-    // 2）管理员已通过，但对方还未选择「同意 / 婉拒」
-    pending: '申请中',
-    // 管理员已通过 + 对方婉拒
-    rejected: '对方已拒绝',
-    // 管理员初次审核不通过
-    adminRejected: '管理员已拒绝',
-    // 当前用户主动撤销
-    cancelled: '我已撤销',
-  };
-  return labels[status] || '未知';
+// 规范化图片URL
+function normalizeImageUrl(url: string | undefined | null): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  if (url.startsWith('/api/')) {
+    return url;
+  }
+  return `/api/storage/image/${url.replace(/^\/+/, '')}`;
+}
+
+// 格式化日期
+function formatDate(date: Date | string | undefined | null): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  } catch (e) {
+    return String(date);
+  }
+}
+
+// 根据三个状态字段判断综合状态
+function determineComprehensiveStatus(
+  reviewStatus: string | undefined,
+  applicationStatus: string | undefined,
+  isCanceled: string | undefined
+): Application['comprehensiveStatus'] {
+  // 1. 已自己撤销（最高优先级）
+  if (isCanceled === '是' || isCanceled === 'true') {
+    return '已自己撤销';
+  }
+  
+  // 2. 被管理员拒绝
+  if (reviewStatus === 'REJECTED') {
+    return '被管理员拒绝';
+  }
+  
+  // 3. 管理员通过 + 被申请人同意
+  if (reviewStatus === 'APPROVED' && applicationStatus === '已同意') {
+    return '被申请人同意';
+  }
+  
+  // 4. 管理员通过 + 被申请人拒绝
+  if (reviewStatus === 'APPROVED' && applicationStatus === '已拒绝') {
+    return '被申请人拒绝';
+  }
+  
+  // 5. 管理员通过 + 等待被申请人确认
+  if (reviewStatus === 'APPROVED' && applicationStatus === '待审核') {
+    return '等待被申请人确认';
+  }
+  
+  // 6. 默认：等待管理员审核
+  return '等待管理员审核';
 }
 
 function getStatusIcon(status: string) {
   const icons: Record<string, string> = {
-    approved: 'fa-solid fa-check',
-    pending: 'fa-regular fa-clock',
-    rejected: 'fa-solid fa-xmark',
-    adminRejected: 'fa-solid fa-xmark',
-    cancelled: 'fa-regular fa-circle-xmark',
+    '被申请人同意': 'fa-solid fa-check',
+    '等待管理员审核': 'fa-regular fa-clock',
+    '等待被申请人确认': 'fa-regular fa-clock',
+    '被管理员拒绝': 'fa-solid fa-xmark',
+    '被申请人拒绝': 'fa-solid fa-xmark',
+    '已自己撤销': 'fa-regular fa-circle-xmark',
   };
   return icons[status] || '';
 }
 
 function getStatusBg(status: string) {
   const colors: Record<string, string> = {
-    approved: '#D1FAE5',
-    pending: '#DBEAFE',
-    rejected: '#F3F4F6',
-    adminRejected: '#F3F4F6',
-    cancelled: '#F3F4F6',
+    '被申请人同意': '#D1FAE5',
+    '等待管理员审核': '#DBEAFE',
+    '等待被申请人确认': '#DBEAFE',
+    '被管理员拒绝': '#F3F4F6',
+    '被申请人拒绝': '#F3F4F6',
+    '已自己撤销': '#F3F4F6',
   };
   return colors[status] || '#F3F4F6';
 }
 
 function getStatusColor(status: string) {
   const colors: Record<string, string> = {
-    approved: '#059669',
-    pending: '#2563EB',
-    rejected: '#6B7280',
-    adminRejected: '#6B7280',
-    cancelled: '#6B7280',
+    '被申请人同意': '#059669',
+    '等待管理员审核': '#2563EB',
+    '等待被申请人确认': '#2563EB',
+    '被管理员拒绝': '#6B7280',
+    '被申请人拒绝': '#6B7280',
+    '已自己撤销': '#6B7280',
   };
   return colors[status] || '#6B7280';
 }
@@ -219,7 +298,7 @@ const currentApplication = ref<Application | null>(null);
 
 function handleCancel(application: Application) {
   applicationToCancel.value = application;
-  cancelMessage.value = `确定要撤销对"${application.petName}"的申请吗？`;
+  cancelMessage.value = `确定要撤销对"${application.animalName}"的申请吗？`;
   showCancelConfirmModal.value = true;
 }
 
@@ -233,12 +312,8 @@ async function confirmCancel() {
     const id = applicationToCancel.value.id;
     const res = await cancelMyAdopt(id);
     if (res.code === 200) {
-      // 将该记录标记为“我已撤销”，保留在列表中作为历史记录
-      applications.value = applications.value.map(app =>
-        app.id === id
-          ? { ...app, status: 'cancelled', cancelledByUser: true }
-          : app
-      );
+      // 刷新列表以更新状态
+      loadApplications();
       showCancelSuccessModal.value = true;
     } else {
       errorMessage.value = res.message || '撤销申请失败，请稍后重试';
@@ -281,13 +356,12 @@ async function handleViewDetail(application: Application) {
       const detail: AdoptDetail = res.data;
       currentApplication.value = {
         ...application,
-        avatar: (detail as any).applicantAvatar || application.avatar,
+        avatar: detail.applicantAvatar || application.avatar,
         requester: detail.userName || application.requester,
-        date: (detail.createTime as string) || application.date,
         phone: detail.phone || application.phone,
         email: detail.email || application.email,
         address: detail.livingLocation || application.address,
-        petName: (detail as any).animalName || application.petName,
+        animalName: (detail as any).animalName || application.animalName,
         reason: detail.adoptReason || application.reason,
       };
       showApplicationDetailModal.value = true;
@@ -306,68 +380,25 @@ async function handleViewDetail(application: Application) {
 async function loadApplications() {
   try {
     const res = await getMyAdoptMineList();
-    if (res.code === 200 && Array.isArray(res.data)) {
-      applications.value = res.data.map((item: AdoptTodoItem & { status?: string; applyStatus?: string; applicationStatus?: ApplicationStatus | string; reviewStatus?: ReviewStatus | string; confirmStatus?: string }, index: number) => {
-        const id = item.adoptId ?? index + 1;
-        const petName = item.animalName || '';
-        const petBreed = ''; // 当前接口未提供品种，可后端补充
-        const ownerName = ''; // 我的申请列表暂未返回发布人信息
-        const ownerLabel = '发布人';
-        const date = item.createTime ? String(item.createTime) : '';
-
-        // 统一把后端返回的状态转成普通字符串
-        const reviewStatusStr = String(
-          (item as any).reviewStatus ?? ''
-        ).trim() as ReviewStatus | string;
-        const confirmStatusStr = String(
-          (item as any).confirmStatus ?? ''
-        ).trim();
-
-        let status: Application['status'];
-
-        // 1）用户主动撤销（最高优先级）
-        if (item.cancelledByUser) {
-          status = 'cancelled';
-        }
-        // 2）管理员拒绝：reviewStatus = 拒绝
-        else if (reviewStatusStr === ReviewStatus.拒绝 || reviewStatusStr === '拒绝') {
-          status = 'adminRejected';
-        }
-        // 3）管理员通过 + confirmStatus = 已同意 -> 对方已同意
-        else if (
-          (reviewStatusStr === ReviewStatus.通过 || reviewStatusStr === '通过') &&
-          confirmStatusStr === '已同意'
-        ) {
-          status = 'approved';
-        }
-        // 4）管理员通过 + confirmStatus = 已拒绝 -> 对方已拒绝
-        else if (
-          (reviewStatusStr === ReviewStatus.通过 || reviewStatusStr === '通过') &&
-          confirmStatusStr === '已拒绝'
-        ) {
-          status = 'rejected';
-        }
-        // 5）其它所有情况 -> 申请中
-        else {
-          status = 'pending';
-        }
+    if (res.code === 200 && res.data) {
+      const records = res.data || [];
+      total.value = records.length; // 如果后端返回分页信息，使用 res.data.total
+      const allApplications = records.map((item: MyAdoptItemDTO, index: number) => {
+        const comprehensiveStatus = determineComprehensiveStatus(
+          item.reviewStatus,
+          item.applicationStatus,
+          item.isCanceled
+        );
         return {
-          id,
-          petName,
-          petBreed,
-          ownerName,
-          ownerLabel,
-          date,
-          status,
-          cancelledByUser: !!item.cancelledByUser,
-          avatar: (item as any).applicantAvatar || undefined,
-          requester: undefined,
-          phone: undefined,
-          email: undefined,
-          address: undefined,
-          reason: undefined,
+          ...item,
+          id: item.adoptId ?? index + 1,
+          comprehensiveStatus,
         } as Application;
       });
+      // 应用分页
+      const start = (currentPage.value - 1) * pageSize;
+      const end = start + pageSize;
+      applications.value = allApplications.slice(start, end);
     } else {
       console.error('获取我的申请列表失败', res);
     }
@@ -375,6 +406,64 @@ async function loadApplications() {
     console.error('获取我的申请列表接口异常', err);
   }
 }
+
+// 重新申请：跳转到申请页面并自动填充信息
+function handleReapply(application: Application) {
+  if (!application.animalId) {
+    errorMessage.value = '无法获取宠物信息，请稍后重试';
+    showErrorModal.value = true;
+    return;
+  }
+  
+  // 获取申请详情以填充表单
+  getAdoptDetail(application.id).then(res => {
+    if (res.code === 200 && res.data) {
+      const detail = res.data;
+      // 将申请信息存储到 sessionStorage，供申请页面读取
+      sessionStorage.setItem('reapplyData', JSON.stringify({
+        animalId: application.animalId,
+        fullName: detail.userName || '',
+        address: detail.livingLocation || '',
+        reason: detail.adoptReason || '',
+        contactPhone: detail.phone || '',
+        contactEmail: detail.email || '',
+        province: detail.province || '',
+        city: detail.city || '',
+      }));
+      // 跳转到申请页面
+      router.push({ name: 'ApplyAdoption', params: { id: application.animalId } });
+    } else {
+      // 如果获取详情失败，仍然跳转，但不填充数据
+      router.push({ name: 'ApplyAdoption', params: { id: application.animalId } });
+    }
+  }).catch(() => {
+    // 如果获取详情失败，仍然跳转，但不填充数据
+    router.push({ name: 'ApplyAdoption', params: { id: application.animalId } });
+  });
+}
+
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+    loadApplications();
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+    loadApplications();
+  }
+}
+
+// 监听路由变化，当有 refresh 参数时重新加载数据
+watch(() => route.query.refresh, (refresh) => {
+  if (refresh === 'true') {
+    loadApplications();
+    // 移除 refresh 参数，避免重复刷新
+    router.replace({ path: route.path, query: { menu: route.query.menu } });
+  }
+}, { immediate: true });
 
 onMounted(() => {
   loadApplications();

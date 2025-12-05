@@ -62,26 +62,36 @@
       当前还没有收到评价
     </div>
 
-    <!-- 分页 -->
-    <div class="flex justify-center mt-10 mb-5" v-if="total > pageSize">
-      <div class="flex gap-2.5">
+    <!-- 分页：统一样式，列表为空也显示，至少一页 -->
+    <div class="flex justify-center mt-10 mb-5">
+      <div class="flex items-center gap-2.5">
+        <button 
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          style="color: #6B7280;"
+          :disabled="currentPage === 1"
+          :class="currentPage === 1 ? 'cursor-not-allowed opacity-50' : ''"
+          @click="goPage(Math.max(1, currentPage - 1))"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
         <button 
           v-for="page in totalPages" 
           :key="page"
           class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-          :class="page === currentPage ? 'bg-[#E67E22] text-white border-[#E67E22]' : 'text-gray-600'"
+          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
           @click="goPage(page)"
         >
           {{ page }}
         </button>
         <button 
-          v-if="currentPage < totalPages"
-          class="px-5 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
-          @click="goPage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          :class="currentPage === totalPages ? 'cursor-not-allowed opacity-50' : ''"
+          @click="goPage(Math.min(totalPages, currentPage + 1))"
         >
-          下一页
+          <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
     </div>
@@ -110,7 +120,8 @@ interface Review {
 
 const reviews = ref<Review[]>([]);
 const currentPage = ref(1);
-const pageSize = 10;
+// 每页 3 条评价
+const pageSize = 3;
 const total = ref(0);
 const creditScore = ref(0); // 信誉积分
 const creditScoreCount = ref(0); // 评分人数

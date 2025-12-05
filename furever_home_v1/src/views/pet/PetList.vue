@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ImageViewer from '../../components/common/ImageViewer.vue'
-import { getAnimalList } from '@/api/animalApi'
+import { getAnimalList, type AdoptionStatus, type Gender, type Species } from '@/api/animalApi'
 import RegionCascader from '../../components/common/RegionCascader.vue'
 
 interface Pet {
@@ -38,41 +38,6 @@ const adoptionStatusFilter = ref('')
 const currentPage = ref(1)
 const pageSize = 6
 
-const filteredPets = computed(() => {
-  return pets.value.filter((pet) => {
-    if (speciesFilter.value && pet.species !== speciesFilter.value) return false
-    if (genderFilter.value && pet.gender !== genderFilter.value) return false
-    if (adoptionStatusFilter.value && pet.adoption_status !== adoptionStatusFilter.value) return false
-    
-    // 年龄筛选
-    if (ageFilter.value) {
-      const ageInMonths = pet.age // 接口返回的 animalAge 已是“月”为单位
-
-      // 这里的筛选区间统一按“月”处理：
-      // 0-6个月, 6-12个月, 1-3岁(12-36月), 3-7岁(36-84月), 7岁以上(84+月)
-      switch (ageFilter.value) {
-        case '0-6':
-          if (ageInMonths < 0 || ageInMonths > 6) return false
-          break
-        case '6-12':
-          if (ageInMonths < 6 || ageInMonths > 12) return false
-          break
-        case '12-36':
-          if (ageInMonths < 12 || ageInMonths > 36) return false
-          break
-        case '36-84':
-          if (ageInMonths < 36 || ageInMonths > 84) return false
-          break
-        case '84+':
-          if (ageInMonths < 84) return false
-          break
-      }
-    }
-    
-    return true
-  })
-})
-
 watch(
   () => provinceFilter.value,
   () => {
@@ -88,22 +53,50 @@ watch(
   }
 )
 
-const totalPages = computed(() => Math.max(1, Math.ceil((total.value || filteredPets.value.length) / pageSize)))
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
 
 const paginatedPets = computed(() => {
-  return filteredPets.value
+  return pets.value
 })
 
 const loadPets = async () => {
   try {
-    const res = await getAnimalList({
+    // 构建请求参数，未选择的条件不传递（undefined）
+    const params: {
+      page?: number
+      pageSize?: number
+      province?: string
+      city?: string
+      species?: Species
+      gender?: Gender
+      age?: string
+      adoptionStatus?: AdoptionStatus
+    } = {
       page: currentPage.value,
       pageSize,
-      province: provinceFilter.value || undefined,
-      city: cityFilter.value || undefined,
-      // 年龄筛选传给后端的也是“月”为单位的区间字符串
-      age: ageFilter.value || undefined,
-    })
+    }
+    
+    // 只传递有值的筛选条件
+    if (provinceFilter.value) {
+      params.province = provinceFilter.value
+    }
+    if (cityFilter.value) {
+      params.city = cityFilter.value
+    }
+    if (speciesFilter.value) {
+      params.species = speciesFilter.value as Species
+    }
+    if (genderFilter.value) {
+      params.gender = genderFilter.value as Gender
+    }
+    if (ageFilter.value) {
+      params.age = ageFilter.value
+    }
+    if (adoptionStatusFilter.value) {
+      params.adoptionStatus = adoptionStatusFilter.value as AdoptionStatus
+    }
+    
+    const res = await getAnimalList(params)
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0
       const records = res.data.records ?? []
@@ -225,6 +218,11 @@ onMounted(() => {
             <option value="">请选择</option>
             <option>猫</option>
             <option>狗</option>
+            <option>仓鼠</option>
+            <option>兔子</option>
+            <option>鱼类</option>
+            <option>鸟类</option>
+            <option>龟类</option>
             <option>其他</option>
           </select>
 
@@ -237,6 +235,7 @@ onMounted(() => {
             <option value="">请选择</option>
             <option>公</option>
             <option>母</option>
+            <option>未知</option>
           </select>
 
           <!-- 年龄 -->
@@ -289,6 +288,9 @@ onMounted(() => {
             <div class="text-sm text-[#666] mb-2.5">
               {{ pet.species }} · {{ Math.floor(pet.age / 12) }}岁{{ pet.age % 12 }}个月 · {{ pet.health_status }}
             </div>
+            <div class="text-xs text-[#666] mt-1.5">
+              {{ pet.adoption_status === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer }}
+            </div>
             <span
               :class="[
                 'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
@@ -299,9 +301,9 @@ onMounted(() => {
             >
               {{ pet.adoption_status }}
             </span>
-            <div class="text-xs text-[#666] mt-1.5">
+            <!-- <div class="text-xs text-[#666] mt-1.5">
               {{ pet.adoption_status === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer }}
-            </div>
+            </div> -->
             <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
               已{{ pet.adoption_status }} {{ pet.days_adopted }} 天
             </div>

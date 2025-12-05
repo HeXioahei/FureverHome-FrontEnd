@@ -62,6 +62,28 @@ const loadPetInfo = async () => {
 
 onMounted(() => {
   loadPetInfo()
+  // 检查是否有重新申请的数据
+  const reapplyDataStr = sessionStorage.getItem('reapplyData')
+  if (reapplyDataStr) {
+    try {
+      const reapplyData = JSON.parse(reapplyDataStr)
+      if (reapplyData.animalId === petId.value) {
+        // 自动填充表单
+        form.value.fullName = reapplyData.fullName || ''
+        form.value.address = reapplyData.address || ''
+        form.value.reason = reapplyData.reason || ''
+        form.value.contactPhone = reapplyData.contactPhone || ''
+        form.value.contactEmail = reapplyData.contactEmail || ''
+        form.value.province = reapplyData.province || ''
+        form.value.city = reapplyData.city || ''
+        // 清除 sessionStorage 中的数据
+        sessionStorage.removeItem('reapplyData')
+      }
+    } catch (e) {
+      console.error('解析重新申请数据失败', e)
+      sessionStorage.removeItem('reapplyData')
+    }
+  }
 })
 
 const goBack = () => {
@@ -141,8 +163,8 @@ const submitApplication = async () => {
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false
-  // 跳转到用户中心或宠物详情页
-  router.push({ name: 'UserCenter' })
+  // 跳转到用户中心我的申请页面，并添加刷新参数
+  router.push({ path: '/user-center', query: { menu: 'applications', refresh: 'true' } })
 }
 
 const closeErrorModal = () => {
