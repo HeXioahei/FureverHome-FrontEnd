@@ -53,13 +53,20 @@
         </div>
 
         <!-- 图片区域 -->
-        <div class="grid grid-cols-3 gap-2.5 mb-4">
+        <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 mb-4">
           <div 
             v-for="(img, index) in post.images" 
             :key="index"
             class="bg-gray-200 rounded-md aspect-[16/10] flex items-center justify-center text-xs text-gray-400 overflow-hidden"
           >
-            {{ img }}
+            <img 
+              v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))"
+              :src="img" 
+              :alt="`帖子图片 ${index + 1}`"
+              class="w-full h-full object-cover"
+              @error="handleImageError"
+            />
+            <span v-else>{{ img }}</span>
           </div>
         </div>
 
@@ -268,16 +275,26 @@ function goToDetail(post: Post) {
 async function loadPosts(page = 1) {
   try {
     const res = await getMyPostList({ page, pageSize });
+    console.log('我的帖子列表API返回:', res);
+    
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0;
       const records = res.data.records ?? [];
+      console.log('帖子记录:', records);
+      
       posts.value = records.map((item: any, index: number) => {
         const id = item.postId ?? item.id ?? index + 1;
         const title = item.title || '';
         const content = item.content || '';
         const time = item.createTime || '';
+        
+        // 解析图片：优先 images，其次 mediaUrls（可能是数组或字符串）
         let images: string[] = [];
-        if (typeof item.mediaUrls === 'string' && item.mediaUrls) {
+        if (Array.isArray(item.images)) {
+          images = item.images;
+        } else if (Array.isArray(item.mediaUrls)) {
+          images = item.mediaUrls;
+        } else if (typeof item.mediaUrls === 'string' && item.mediaUrls) {
           try {
             const parsed = JSON.parse(item.mediaUrls);
             if (Array.isArray(parsed)) {
@@ -289,6 +306,9 @@ async function loadPosts(page = 1) {
             images = [item.mediaUrls];
           }
         }
+        
+        console.log(`帖子 ${id} (${title}) 的图片:`, images);
+        
         return {
           id,
           title,
@@ -301,6 +321,8 @@ async function loadPosts(page = 1) {
           reviewStatus: item.reviewStatus || '',
         } as Post;
       });
+      
+      console.log('处理后的帖子列表:', posts.value);
     } else {
       console.error('获取我的帖子列表失败', res);
     }
@@ -308,6 +330,14 @@ async function loadPosts(page = 1) {
     console.error('获取我的帖子列表接口异常', err);
   }
 }
+
+// 处理图片加载错误
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+};
 
 // 加载当前登录用户信息（昵称和头像），用于展示“我”的帖子列表头部信息
 function loadUserFromCache() {

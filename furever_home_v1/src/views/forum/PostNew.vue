@@ -269,26 +269,40 @@ const submitPost = async () => {
     } else {
       console.log('开始调用 createPost 接口...');
 
-      // 先把本地选择的文件上传到后端存储，获得真实的在线 URL
+      // 先把本地选择的文件（图片或视频）上传到后端存储，获得真实的在线 URL
       const mediaUrls: string[] = [];
       for (const item of uploadedFiles.value) {
         try {
+          // 使用uploadImage接口上传，后端接口可能也支持视频上传
           const uploadRes = await uploadImage(item.file);
           if ((uploadRes.code === 0 || uploadRes.code === 200) && uploadRes.data) {
             mediaUrls.push(uploadRes.data);
           } else {
-            console.warn('上传图片失败，跳过该文件:', item.name, uploadRes.message);
+            console.warn('上传媒体文件失败，跳过该文件:', item.name, uploadRes.message);
           }
         } catch (e) {
-          console.error('上传图片出错，跳过该文件:', item.name, e);
+          console.error('上传媒体文件出错，跳过该文件:', item.name, e);
         }
       }
 
-      res = await createPost({
-        title: postTitle.value,
-        content: postContent.value,
-        mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
-      });
+      // 构建请求体，确保符合接口文档要求
+      const requestBody: {
+        title: string;
+        content: string;
+        mediaUrls?: string[];
+      } = {
+        title: postTitle.value.trim(),
+        content: postContent.value.trim()
+      };
+      
+      // 只有当有图片URL时才添加mediaUrls字段
+      if (mediaUrls.length > 0) {
+        requestBody.mediaUrls = mediaUrls;
+      }
+      
+      console.log('发布帖子请求体:', JSON.stringify(requestBody, null, 2));
+      
+      res = await createPost(requestBody);
     }
     
     console.log('接口返回:', res);
