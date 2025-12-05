@@ -3,9 +3,9 @@
     <h2 class="text-2xl font-bold mb-5" style="color: #111;">我发布的帖子</h2>
 
     <div v-if="posts.length" class="flex flex-col gap-5">
-      <div 
-        v-for="post in posts" 
-        :key="post.id" 
+      <div
+        v-for="post in posts"
+        :key="post.id"
         class="bg-white rounded-xl p-6 shadow-sm flex flex-col border cursor-pointer transition-transform hover:-translate-y-1"
         style="border-color: #F3F4F6;"
         @click="goToDetail(post)"
@@ -54,14 +54,14 @@
 
         <!-- 图片区域 -->
         <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 mb-4">
-          <div 
-            v-for="(img, index) in post.images" 
+          <div
+            v-for="(img, index) in post.images"
             :key="index"
             class="bg-gray-200 rounded-md aspect-[16/10] flex items-center justify-center text-xs text-gray-400 overflow-hidden"
           >
-            <img 
+            <img
               v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))"
-              :src="img" 
+              :src="img"
               :alt="`帖子图片 ${index + 1}`"
               class="w-full h-full object-cover"
               @error="handleImageError"
@@ -113,15 +113,15 @@
     <!-- 分页 -->
     <div class="flex justify-center mt-10 mb-5" v-if="total > pageSize">
       <div class="flex gap-2.5">
-        <button 
+        <button
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
           @click="goPrev"
         >
           <i class="fa-solid fa-chevron-left"></i>
         </button>
-        <button 
-          v-for="page in totalPages" 
+        <button
+          v-for="page in totalPages"
           :key="page"
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
@@ -130,7 +130,7 @@
         >
           {{ page }}
         </button>
-        <button 
+        <button
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
           @click="goNext"
@@ -201,10 +201,17 @@ const deleteResult = reactive({
 });
 
 function handleEdit(post: Post) {
-  // 跳转到发帖页面的编辑模式
+  // 跳转到发帖页面的编辑模式，同时传递基础信息作为备用（如果后端返回data为空）
   router.push({
     name: 'PostNew',
-    query: { id: post.id.toString(), mode: 'edit' }
+    query: {
+      id: post.id.toString(),
+      mode: 'edit',
+      from: 'myPosts',
+      title: post.title,
+      content: post.content,
+      images: JSON.stringify(post.images || [])
+    }
   });
 }
 
@@ -222,8 +229,9 @@ async function confirmDelete() {
   try {
     const id = postToDelete.value.id;
     console.log('开始删除帖子，ID:', id);
-    
-    // 直接使用后端提供的 /api/post/{id} 删除接口
+
+    // 使用删除帖子的接口 DELETE /api/post/{id}
+    // 后端需要允许帖子作者删除自己的帖子（不需要管理员权限）
     const res = await deletePost(id);
     console.log('删除帖子响应:', res);
 
@@ -248,18 +256,45 @@ async function confirmDelete() {
       deleteResult.message = res.message || '删除帖子失败，请稍后重试。';
     }
   } catch (err: any) {
-    console.error('删除帖子接口异常', err);
-    
-    // 检查是否是权限错误
+    console.error('========== 删除帖子错误详情 ==========');
+    console.error('错误消息:', err?.message);
+    console.error('HTTP状态码:', err?.status);
+    console.error('请求URL:', err?.url);
+    console.error('响应数据:', err?.responseData);
+    console.error('完整错误对象:', err);
+    console.error('=====================================');
+
+    // 尝试从错误对象中提取更详细的错误信息
     let errorMsg = err?.message || '删除帖子接口异常，请稍后重试。';
-    if (errorMsg.includes('权限') || errorMsg.includes('permission') || errorMsg.includes('无此权限')) {
-      errorMsg = '您没有删除此帖子的权限，请联系管理员。';
-    } else if (errorMsg.includes('401') || errorMsg.includes('未登录')) {
-      errorMsg = '请先登录后再试。';
-    } else if (errorMsg.includes('403') || errorMsg.includes('禁止')) {
-      errorMsg = '您没有权限删除此帖子。';
+
+    // 如果有响应数据，尝试提取更详细的错误信息
+    if (err?.responseData) {
+      const responseData = err.responseData;
+      if (typeof responseData === 'object') {
+        const backendMsg = responseData.message || responseData.msg || responseData.error || responseData.details;
+        if (backendMsg) {
+          errorMsg = backendMsg;
+        }
+      }
     }
-    
+
+    // 根据错误消息提供更友好的提示
+    if (errorMsg.includes('无此权限：post:delete') || errorMsg.includes('post:delete')) {
+      errorMsg = `权限错误：无此权限：post:delete\n\n问题说明：\n后端要求用户具有 'post:delete' 权限才能删除帖子，但这是不合理的。\n\n正确的逻辑应该是：\n✅ 帖子作者可以删除自己的帖子（不需要特殊权限）\n✅ 管理员可以删除任何帖子\n\n请后端开发人员修改权限检查逻辑：\n1. 检查当前用户是否是帖子作者\n2. 如果是作者，允许删除\n3. 如果是管理员，也允许删除\n4. 否则才返回权限错误`;
+    } else if (errorMsg.includes('权限') || errorMsg.includes('permission') || errorMsg.includes('无此权限')) {
+      errorMsg = `权限错误：${errorMsg}\n\n提示：后端需要修改权限逻辑，允许帖子作者删除自己的帖子。`;
+    } else if (errorMsg.includes('401') || errorMsg.includes('未登录')) {
+      errorMsg = '请先登录后再试（401）。';
+    } else if (errorMsg.includes('403') || errorMsg.includes('禁止')) {
+      errorMsg = '您没有权限删除此帖子（403）。';
+    }
+
+    // 根据HTTP状态码提供额外提示
+    const status = err?.status;
+    if (status === 500 && errorMsg.includes('权限')) {
+      errorMsg += '\n\n注意：后端返回500错误，但错误消息是权限问题。这可能是后端权限检查逻辑有问题。';
+    }
+
     deleteResult.title = '删除失败';
     deleteResult.message = errorMsg;
   } finally {
@@ -298,18 +333,18 @@ async function loadPosts(page = 1) {
   try {
     const res = await getMyPostList({ page, pageSize });
     console.log('我的帖子列表API返回:', res);
-    
+
     if (res.code === 200 && res.data) {
       total.value = res.data.total ?? 0;
       const records = res.data.records ?? [];
       console.log('帖子记录:', records);
-      
+
       posts.value = records.map((item: any, index: number) => {
         const id = item.postId ?? item.id ?? index + 1;
         const title = item.title || '';
         const content = item.content || '';
         const time = item.createTime || '';
-        
+
         // 解析图片：优先 images，其次 mediaUrls（可能是数组或字符串）
         let images: string[] = [];
         if (Array.isArray(item.images)) {
@@ -328,9 +363,9 @@ async function loadPosts(page = 1) {
             images = [item.mediaUrls];
           }
         }
-        
+
         console.log(`帖子 ${id} (${title}) 的图片:`, images);
-        
+
         return {
           id,
           title,
@@ -343,7 +378,7 @@ async function loadPosts(page = 1) {
           reviewStatus: item.reviewStatus || '',
         } as Post;
       });
-      
+
       console.log('处理后的帖子列表:', posts.value);
     } else {
       console.error('获取我的帖子列表失败', res);
