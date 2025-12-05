@@ -35,7 +35,7 @@
           <button class="search-btn" @click="handleSearch">搜索</button>
         </div>
       </div>
-      
+
       <!-- 用户搜索结果 -->
       <div v-if="searchType === 'user' && searchResults.users.length > 0" class="user-results">
         <h3 class="results-title">用户搜索结果</h3>
@@ -54,7 +54,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- 无搜索结果提示 -->
       <div v-if="searchQuery.trim() && searchType === 'user' && searchResults.users.length === 0 && !isSearching" class="no-results">
         未找到相关用户
@@ -63,7 +63,7 @@
       <!-- 帖子列表 -->
       <div v-if="searchType === 'post'" class="post-list">
         <div
-          v-for="post in posts"
+          v-for="post in pagedPosts"
           :key="post.id"
           class="post-card"
           @click="goToPostDetail(post.id)"
@@ -83,11 +83,24 @@
 
           <div v-if="post.images && post.images.length" class="post-images">
             <div
-              v-for="(image, index) in post.images.slice(0, 3)"
+              v-for="(media, index) in post.images.slice(0, 3)"
               :key="index"
-              class="post-image"
+              class="post-media"
             >
-              {{ image }}
+              <img
+                v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
+                :src="media"
+                :alt="`帖子图片 ${index + 1}`"
+                @error="handleImageError"
+              />
+              <video
+                v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
+                :src="media"
+                controls
+                preload="metadata"
+                class="post-video"
+              ></video>
+              <span v-else>{{ media }}</span>
             </div>
           </div>
 
@@ -109,6 +122,65 @@
         </div>
       </div>
 
+      <!-- 分页控件 -->
+      <div v-if="searchType === 'post' && posts.length > 0" class="pagination-container">
+        <div class="pagination-wrapper">
+          <button
+            class="pagination-btn"
+            :class="{ disabled: currentPage === 1 }"
+            :disabled="currentPage === 1"
+            @click="prevPage"
+          >
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+
+          <div class="pagination-pages">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              class="pagination-page-btn"
+              :class="{ active: page === currentPage }"
+              @click="handlePageClick(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+
+          <button
+            class="pagination-btn"
+            :class="{ disabled: currentPage >= totalPages }"
+            :disabled="currentPage >= totalPages"
+            @click="nextPage"
+          >
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+
+          <div class="pagination-info">
+            <span>共 {{ posts.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
+          </div>
+
+          <div class="pagination-jump">
+            <span class="jump-label">跳转到</span>
+            <input
+              type="number"
+              class="jump-input"
+              v-model.number="jumpPageInput"
+              :min="1"
+              :max="totalPages"
+              @keyup.enter="handleJumpPage"
+              @input="validateJumpPage"
+            />
+            <span class="jump-label">页</span>
+            <button class="jump-btn" @click="handleJumpPage">跳转</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 无帖子提示 -->
+      <div v-if="searchType === 'post' && posts.length === 0 && !isSearching" class="no-results">
+        暂无帖子
+      </div>
+
       <!-- 发布帖子按钮 -->
       <button class="new-post-btn" @click="goToPostCreation">
         <i class="fa-solid fa-pen"></i> 发布帖子
@@ -118,11 +190,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
 import { likePost as likePostApi } from '@/api/commentapi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { isVideoUrl } from '@/utils/mediaUtils';
 
 interface Post {
   id: number;
@@ -144,6 +217,47 @@ const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post' | 'user'>('post');
 const isSearching = ref(false);
+
+// 分页相关
+const pageSize = 4;
+const currentPage = ref(1);
+const jumpPageInput = ref<number | null>(null);
+const totalPages = computed(() => Math.max(1, Math.ceil(posts.value.length / pageSize)));
+
+// 当前页的帖子
+const pagedPosts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return posts.value.slice(start, start + pageSize);
+});
+
+// 显示的分页页码（只显示最多3个：前一页、当前页、后一页）
+const visiblePages = computed(() => {
+  const pages: number[] = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 1) {
+    // 只有1页，只显示1
+    pages.push(1);
+  } else if (total === 2) {
+    // 只有2页，显示1和2
+    pages.push(1, 2);
+  } else {
+    // 3页及以上，只显示前一页、当前页、后一页
+    if (current === 1) {
+      // 当前页是第一页，显示1和2
+      pages.push(1, 2);
+    } else if (current === total) {
+      // 当前页是最后一页，显示最后一页和前一页
+      pages.push(total - 1, total);
+    } else {
+      // 当前页在中间，显示前一页、当前页、后一页
+      pages.push(current - 1, current, current + 1);
+    }
+  }
+
+  return pages;
+});
 
 interface UserSearchResult {
   userId: number;
@@ -233,7 +347,7 @@ const mapPosts = (list: any[]): Post[] => {
     // 判断是否是当前用户发布的帖子
     let authorName = p.authorName || p.userName || '未知用户';
     let avatarInitial = authorName[0] || '用';
-    
+
     if (currentUser.value && p.userId === currentUser.value.userId) {
       authorName = '我';
       avatarInitial = '我';
@@ -289,10 +403,14 @@ const loadPosts = async () => {
       // 接口返回空数据，使用示例数据
       posts.value = getExamplePosts();
     }
+    // 重置到第一页
+    currentPage.value = 1;
   } catch (error) {
     console.error('加载接口失败，显示示例数据', error);
     // 接口失败，使用示例数据
     posts.value = getExamplePosts();
+    // 重置到第一页
+    currentPage.value = 1;
   }
 };
 
@@ -307,9 +425,9 @@ const handleSearch = async () => {
     }
     return;
   }
-  
+
   const keyword = searchQuery.value.trim().toLowerCase();
-  
+
   if (searchType.value === 'post') {
     // 搜索帖子
     isSearching.value = true;
@@ -319,26 +437,26 @@ const handleSearch = async () => {
         page: 1,
         pageSize: 100 // 获取更多结果以便前端过滤
       });
-      
+
       if (res.data && res.data.list && res.data.list.length > 0) {
         // 前端再次过滤，只匹配标题和内容
         const filtered = res.data.list.filter((p: any) => {
           const title = (p.title || '').toLowerCase();
           const content = (p.content || p.summary || '').toLowerCase();
-          
+
           return title.includes(keyword) || content.includes(keyword);
         });
-        
+
         posts.value = filtered.map((p: any) => {
           // 判断是否是当前用户发布的帖子
           let authorName = p.authorName || '未知用户';
           let avatarInitial = authorName[0] || '用';
-          
+
           if (currentUser.value && p.userId === currentUser.value.userId) {
             authorName = '我';
             avatarInitial = '我';
           }
-          
+
           // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
           let isLiked = false;
           if (typeof p.isLiked === 'boolean') {
@@ -350,7 +468,7 @@ const handleSearch = async () => {
             const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
             isLiked = likedPosts.includes(p.id || p.postId);
           }
-          
+
           return {
             id: p.id || p.postId,
             author: authorName,
@@ -371,12 +489,14 @@ const handleSearch = async () => {
       const filtered = allPosts.filter((p: any) => {
         const title = (p.title || '').toLowerCase();
         const content = (p.content || p.summary || '').toLowerCase();
-        
+
         return title.includes(keyword) || content.includes(keyword);
       });
-        
+
         posts.value = mapPosts(filtered);
       }
+      // 搜索后重置到第一页
+      currentPage.value = 1;
     } catch (error) {
       console.error('搜索帖子失败:', error);
       // 搜索失败，尝试从前端已加载的帖子中搜索
@@ -385,14 +505,17 @@ const handleSearch = async () => {
         const filtered = allPosts.filter((p: any) => {
           const title = (p.title || '').toLowerCase();
           const content = (p.content || p.summary || '').toLowerCase();
-          
+
           return title.includes(keyword) || content.includes(keyword);
         });
-        
+
         posts.value = mapPosts(filtered);
+        // 搜索后重置到第一页
+        currentPage.value = 1;
       } catch (e) {
         console.error('前端搜索也失败:', e);
         posts.value = [];
+        currentPage.value = 1;
       }
     } finally {
       isSearching.value = false;
@@ -407,16 +530,16 @@ const handleSearch = async () => {
         page: 1,
         pageSize: 100
       });
-      
+
       const userMap = new Map<number, UserSearchResult>();
-      
+
       if (res.data && res.data.list) {
         res.data.list.forEach((p: any) => {
           const userId = p.userId;
           const userName = p.authorName || p.userName || '未知用户';
           const userNameLower = userName.toLowerCase();
           const userIdStr = String(userId || '');
-          
+
           // 如果用户名或用户ID包含关键词
           if (userId && (userNameLower.includes(keyword) || userIdStr.includes(keyword))) {
             if (!userMap.has(userId)) {
@@ -429,7 +552,7 @@ const handleSearch = async () => {
           }
         });
       }
-      
+
       // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
       if (userMap.size === 0) {
         const allPosts = await getAllPostsForSearch();
@@ -438,7 +561,7 @@ const handleSearch = async () => {
           const userName = p.authorName || p.userName || '未知用户';
           const userNameLower = userName.toLowerCase();
           const userIdStr = String(userId || '');
-          
+
           if (userId && (userNameLower.includes(keyword) || userIdStr.includes(keyword))) {
             if (!userMap.has(userId)) {
               userMap.set(userId, {
@@ -450,7 +573,7 @@ const handleSearch = async () => {
           }
         });
       }
-      
+
       searchResults.value.users = Array.from(userMap.values());
     } catch (error) {
       console.error('搜索用户失败:', error);
@@ -466,7 +589,7 @@ const getAllPostsForSearch = async (): Promise<any[]> => {
   try {
     const res = await getPostList({ page: 1, pageSize: 1000 });
     let list: any[] = [];
-    
+
     if (res.data) {
       if (Array.isArray(res.data)) {
         list = res.data;
@@ -476,7 +599,7 @@ const getAllPostsForSearch = async (): Promise<any[]> => {
         list = (res.data as any).records;
       }
     }
-    
+
     return list;
   } catch (error) {
     console.error('获取帖子列表失败:', error);
@@ -499,11 +622,82 @@ const goToUserProfile = (userId: number) => {
   router.push({ name: 'Profile', params: { id: userId } });
 };
 
+// 分页导航函数
+const handlePageClick = (page: number) => {
+  goToPage(page);
+};
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
+    currentPage.value = page;
+    // 滚动到顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value -= 1;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value += 1;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+};
+
+// 验证跳转页码输入
+const validateJumpPage = () => {
+  if (jumpPageInput.value !== null) {
+    if (jumpPageInput.value < 1) {
+      jumpPageInput.value = 1;
+    } else if (jumpPageInput.value > totalPages.value) {
+      jumpPageInput.value = totalPages.value;
+    }
+  }
+};
+
+// 处理页码跳转
+const handleJumpPage = () => {
+  if (jumpPageInput.value === null || jumpPageInput.value === undefined) {
+    return;
+  }
+
+  let targetPage = jumpPageInput.value;
+
+  // 自动修正超出范围的值
+  if (targetPage < 1) {
+    targetPage = 1;
+  } else if (targetPage > totalPages.value) {
+    targetPage = totalPages.value;
+  }
+
+  // 执行跳转
+  if (targetPage >= 1 && targetPage <= totalPages.value) {
+    goToPage(targetPage);
+  }
+
+  // 跳转后清空输入框
+  jumpPageInput.value = null;
+};
+
+// 处理图片加载错误
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+};
+
 // 切换搜索类型
 const switchSearchType = (type: 'post' | 'user') => {
   searchType.value = type;
   searchQuery.value = '';
   searchResults.value.users = [];
+  currentPage.value = 1;
   if (type === 'post') {
     loadPosts();
   } else {
@@ -538,7 +732,7 @@ const toggleLike = async (post: Post, event?: Event) => {
   if (event) {
     event.stopPropagation();
   }
-  
+
   const previousLiked = post.isLiked ?? false;
   const previousLikes = post.likes || 0;
 
@@ -551,7 +745,7 @@ const toggleLike = async (post: Post, event?: Event) => {
     // 如果之前已点赞，现在取消点赞，数量-1
     post.likes = Math.max(0, (post.likes || 0) - 1);
   }
-  
+
   // 更新本地存储
   updateLikedPostsStorage(post.id, post.isLiked);
 
@@ -759,7 +953,7 @@ onMounted(async () => {
   line-clamp: 2;
 }
 
-/* 帖子图片 */
+/* 帖子图片和视频 */
 .post-images {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -767,7 +961,8 @@ onMounted(async () => {
   margin: 15px 0;
 }
 
-.post-image {
+.post-image,
+.post-media {
   width: 100%;
   height: 150px;
   border-radius: var(--radius);
@@ -778,6 +973,33 @@ onMounted(async () => {
   justify-content: center;
   color: #999;
   font-size: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.post-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-media .post-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.post-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-media .post-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-stats {
@@ -908,6 +1130,158 @@ onMounted(async () => {
   font-size: 16px;
 }
 
+/* 分页控件样式 */
+.pagination-container {
+  margin-top: 40px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #666;
+  font-size: 14px;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: #FF8C00;
+  border-color: #FF8C00;
+  color: white;
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-page-btn {
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pagination-page-btn:hover:not(.disabled):not(.active) {
+  background: #fff5e6;
+  border-color: #FF8C00;
+  color: #FF8C00;
+}
+
+.pagination-page-btn.active {
+  background: #FF8C00;
+  border-color: #FF8C00;
+  color: white;
+  font-weight: 600;
+}
+
+.pagination-info {
+  margin-left: 16px;
+  color: #666;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid #e0e0e0;
+}
+
+.jump-label {
+  color: #666;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.jump-input {
+  width: 60px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  color: #333;
+  transition: all 0.3s;
+}
+
+.jump-input:focus {
+  outline: none;
+  border-color: #FF8C00;
+  box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.1);
+}
+
+.jump-input::-webkit-inner-spin-button,
+.jump-input::-webkit-outer-spin-button {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.jump-btn {
+  padding: 8px 16px;
+  height: 40px;
+  border: 1px solid #FF8C00;
+  background: #FF8C00;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.jump-btn:hover {
+  background: #E67A2A;
+  border-color: #E67A2A;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(255, 140, 0, 0.3);
+}
+
+.jump-btn:active {
+  transform: translateY(0);
+}
+
 /* 响应式 */
 @media (max-width: 850px) {
   .new-post-btn {
@@ -916,13 +1290,57 @@ onMounted(async () => {
     bottom: 20px;
     right: 20px;
   }
-  
+
   .search-type-tabs {
     flex-wrap: wrap;
   }
-  
+
   .search-tab {
     padding: 6px 16px;
+    font-size: 13px;
+  }
+
+  .pagination-wrapper {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .pagination-info {
+    width: 100%;
+    text-align: center;
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .pagination-btn,
+  .pagination-page-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+    min-width: 36px;
+  }
+
+  .pagination-jump {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+    margin-top: 12px;
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: none;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .jump-input {
+    width: 50px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .jump-btn {
+    height: 36px;
+    padding: 6px 14px;
     font-size: 13px;
   }
 }

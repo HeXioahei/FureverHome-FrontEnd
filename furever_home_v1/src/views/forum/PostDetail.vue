@@ -27,11 +27,24 @@
 
         <div v-if="post.images && post.images.length" class="post-images">
           <div
-            v-for="(image, index) in post.images"
+            v-for="(media, index) in post.images"
             :key="index"
-            class="post-image"
+            class="post-media"
           >
-            {{ image }}
+            <img 
+              v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
+              :src="media" 
+              :alt="`帖子图片 ${index + 1}`"
+              @error="handleImageError"
+            />
+            <video
+              v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
+              :src="media"
+              controls
+              preload="metadata"
+              class="post-video"
+            ></video>
+            <span v-else>{{ media }}</span>
           </div>
         </div>
 
@@ -113,6 +126,7 @@ import {
   type Comment
 } from '@/api/commentapi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { isVideoUrl } from '@/utils/mediaUtils';
 
 const route = useRoute();
 const router = useRouter();
@@ -581,6 +595,14 @@ watch(
   { immediate: true }
 );
 
+// 处理图片加载错误
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+};
+
 onMounted(async () => {
   // 先加载当前用户信息
   await loadCurrentUser();
@@ -696,7 +718,7 @@ onMounted(async () => {
   margin-bottom: 15px;
 }
 
-/* 帖子图片 */
+/* 帖子图片和视频 */
 .post-images {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -704,7 +726,8 @@ onMounted(async () => {
   margin: 25px 0;
 }
 
-.post-image {
+.post-image,
+.post-media {
   width: 100%;
   height: 200px;
   border-radius: 12px;
@@ -715,6 +738,22 @@ onMounted(async () => {
   justify-content: center;
   color: var(--text-sub);
   font-size: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.post-image img,
+.post-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-media .post-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
 }
 
 .post-stats {
