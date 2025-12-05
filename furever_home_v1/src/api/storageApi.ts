@@ -2,11 +2,27 @@ import httpClient, { type ApiResponse } from './request'
 
 /**
  * 上传图片，返回图片 URL 字符串
+ * 添加超时保护（30秒）
  */
 export function uploadImage(file: File): Promise<ApiResponse<string>> {
   const formData = new FormData()
   formData.append('file', file)
-  return httpClient.upload<string>('/storage/upload/image', formData)
+  return httpClient.upload<string>('/storage/upload/image', formData, {
+    timeout: 30000 // 30秒超时
+  })
+}
+
+/**
+ * 上传视频，返回视频 URL 字符串
+ * 视频文件通常较大，设置更长的超时时间（5分钟）
+ */
+export function uploadVideo(file: File): Promise<ApiResponse<string>> {
+  const formData = new FormData()
+  formData.append('file', file)
+  // 视频文件较大，设置5分钟超时（300秒 = 300000毫秒）
+  return httpClient.upload<string>('/storage/upload/video', formData, {
+    timeout: 300000 // 5分钟超时
+  })
 }
 
 /**
@@ -20,14 +36,12 @@ export function uploadMedia(file: File): Promise<ApiResponse<string>> {
   // 判断文件类型
   const isVideo = file.type.startsWith('video/')
   
-  // 如果是视频，尝试使用视频上传接口，如果没有则使用通用上传接口
-  // 如果后端支持视频上传到 /storage/upload/image，也可以直接使用
+  // 根据文件类型选择对应的上传接口
   const uploadUrl = isVideo 
-    ? '/storage/upload/video'  // 如果有专门的视频上传接口
-    : '/storage/upload/image'  // 默认使用图片上传接口（可能也支持视频）
+    ? '/storage/upload/video'  // 视频上传接口
+    : '/storage/upload/image'  // 图片上传接口
   
-  // 如果后端接口实际支持视频上传到image接口，统一使用image接口
-  return httpClient.upload<string>('/storage/upload/image', formData)
+  return httpClient.upload<string>(uploadUrl, formData)
 }
 
 /**

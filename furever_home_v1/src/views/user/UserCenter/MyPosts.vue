@@ -221,13 +221,24 @@ async function confirmDelete() {
 
   try {
     const id = postToDelete.value.id;
+    console.log('开始删除帖子，ID:', id);
+    
+    // 直接使用后端提供的 /api/post/{id} 删除接口
     const res = await deletePost(id);
+    console.log('删除帖子响应:', res);
 
-    if (res.code === 200) {
+    if (res.code === 200 || res.code === 0) {
       // 本地列表中移除
       const index = posts.value.findIndex(p => p.id === id);
       if (index > -1) {
         posts.value.splice(index, 1);
+        // 如果删除后当前页没有数据了，且不是第一页，则跳转到上一页
+        if (posts.value.length === 0 && currentPage.value > 1) {
+          goPage(currentPage.value - 1);
+        } else if (posts.value.length === 0) {
+          // 如果第一页也没有数据了，重新加载
+          loadPosts(currentPage.value);
+        }
       }
       deleteResult.title = '删除成功';
       deleteResult.message = '帖子已成功删除。';
@@ -236,10 +247,21 @@ async function confirmDelete() {
       deleteResult.title = '删除失败';
       deleteResult.message = res.message || '删除帖子失败，请稍后重试。';
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('删除帖子接口异常', err);
+    
+    // 检查是否是权限错误
+    let errorMsg = err?.message || '删除帖子接口异常，请稍后重试。';
+    if (errorMsg.includes('权限') || errorMsg.includes('permission') || errorMsg.includes('无此权限')) {
+      errorMsg = '您没有删除此帖子的权限，请联系管理员。';
+    } else if (errorMsg.includes('401') || errorMsg.includes('未登录')) {
+      errorMsg = '请先登录后再试。';
+    } else if (errorMsg.includes('403') || errorMsg.includes('禁止')) {
+      errorMsg = '您没有权限删除此帖子。';
+    }
+    
     deleteResult.title = '删除失败';
-    deleteResult.message = '删除帖子接口异常，请稍后重试。';
+    deleteResult.message = errorMsg;
   } finally {
     showDeleteConfirmModal.value = false;
     showDeleteSuccessModal.value = true;

@@ -200,6 +200,14 @@ export function deletePost(postId: number): Promise<ApiResponse<void>> {
 }
 
 /**
+ * 删除自己的帖子（用于个人中心）
+ * @param postId 帖子ID
+ */
+export function deleteMyPost(postId: number): Promise<ApiResponse<void>> {
+  return httpClient.delete<void>(`/post/mine/${postId}`)
+}
+
+/**
  * 获取用户帖子统计
  * @param userId 用户ID
  */
