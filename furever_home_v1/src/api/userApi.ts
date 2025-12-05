@@ -120,6 +120,18 @@ export interface CreditScore {
   }
 }
 
+// 当前用户中心统计数据接口
+export interface CurrentUserStats {
+  postCount?: number
+  shortTermPetCount?: number
+  longTermPetCount?: number
+  myApplicationsCount?: number
+  myTodosCount?: number
+  ratingAverage?: number
+  ratingCount?: number
+  [property: string]: any
+}
+
 /**
  * 获取用户基本信息
  * @param userId 用户ID
@@ -181,6 +193,13 @@ export function getUserCreditScore(userId: number): Promise<ApiResponse<CreditSc
  */
 export function getCurrentUser(): Promise<ApiResponse<CurrentUserInfo>> {
   return httpClient.get<CurrentUserInfo>('/user/me')
+}
+
+/**
+ * 获取当前用户中心统计数据 /user/me/stats
+ */
+export function getCurrentUserStats(): Promise<ApiResponse<CurrentUserStats>> {
+  return httpClient.get<CurrentUserStats>('/user/me/stats')
 }
 
 /**

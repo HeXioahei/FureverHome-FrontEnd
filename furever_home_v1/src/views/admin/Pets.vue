@@ -425,7 +425,7 @@
       :message="confirmAction === 'approve' ? '确定要通过该宠物的审核吗？' : confirmAction === 'reject' ? '确定要拒绝该宠物的审核吗？' : '确定要删除该宠物吗？此操作不可恢复。'"
       @confirm="onConfirmModalConfirm"
       @cancel="onConfirmModalCancel"
-      @close="onConfirmModalCancel"
+      @close="showConfirmModal = false"
     />
     <RejectReasonModal
       :visible="showRejectReasonModal"
@@ -725,12 +725,17 @@ function handleDelete(pet: Pet) {
 }
 
 async function onConfirmModalConfirm() {
-  if (!selectedPet.value || !confirmAction.value) return;
+  console.log('[Pets] onConfirmModalConfirm 被调用', { selectedPet: selectedPet.value?.id, confirmAction: confirmAction.value });
+  if (!selectedPet.value || !confirmAction.value) {
+    console.warn('[Pets] onConfirmModalConfirm 缺少必要参数', { selectedPet: selectedPet.value, confirmAction: confirmAction.value });
+    return;
+  }
   
   showConfirmModal.value = false;
   
   if (confirmAction.value === 'reject') {
     // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    console.log('[Pets] 准备显示拒绝理由弹窗');
     showRejectReasonModal.value = true;
     return;
   }
@@ -740,14 +745,18 @@ async function onConfirmModalConfirm() {
 }
 
 async function executeAction(reason: string = '') {
-  if (!selectedPet.value || !confirmAction.value) return;
+  console.log('executeAction 被调用', { reason, confirmAction: confirmAction.value, selectedPet: selectedPet.value?.id });
+  if (!selectedPet.value || !confirmAction.value) {
+    console.warn('executeAction 缺少必要参数', { selectedPet: selectedPet.value, confirmAction: confirmAction.value });
+    return;
+  }
   
   try {
-  if (confirmAction.value === 'approve') {
+    if (confirmAction.value === 'approve') {
       // 审核通过
       const res = await approveAnimal(selectedPet.value.id, { animalId: selectedPet.value.id });
       if (res.code === 0 || res.code === 200) {
-    showApproveModal.value = true;
+        showApproveModal.value = true;
         if (activeTab.value === 'pending') {
           await loadPendingPets();
           await loadStats();
@@ -756,24 +765,26 @@ async function executeAction(reason: string = '') {
         errorMessage.value = res.message || '审核通过失败';
         showErrorModal.value = true;
       }
-  } else if (confirmAction.value === 'reject') {
+    } else if (confirmAction.value === 'reject') {
       // 审核拒绝
+      console.log('准备发送审核拒绝请求', { petId: selectedPet.value.id, reason });
       const res = await rejectAnimal(selectedPet.value.id, { animalId: selectedPet.value.id, reason });
+      console.log('审核拒绝请求响应', res);
       if (res.code === 0 || res.code === 200) {
-    showRejectModal.value = true;
-    if (activeTab.value === 'pending') {
+        showRejectModal.value = true;
+        if (activeTab.value === 'pending') {
           await loadPendingPets();
           await loadStats();
         }
-    } else {
+      } else {
         errorMessage.value = res.message || '审核拒绝失败';
         showErrorModal.value = true;
-    }
+      }
     } else if (confirmAction.value === 'delete') {
       // 删除宠物
       const res = await deleteAnimalApi(selectedPet.value.id);
       if (res.code === 0 || res.code === 200) {
-    showDeleteSuccessModal.value = true;
+        showDeleteSuccessModal.value = true;
         if (activeTab.value === 'shortTerm') {
           await loadShortTermPets();
         } else if (activeTab.value === 'longTerm') {
@@ -784,7 +795,7 @@ async function executeAction(reason: string = '') {
         errorMessage.value = res.message || '删除失败';
         showErrorModal.value = true;
       }
-    }
+  }
   } catch (error: any) {
     console.error('操作失败', error);
     errorMessage.value = error?.message || '操作失败，请稍后重试';
@@ -793,11 +804,13 @@ async function executeAction(reason: string = '') {
 }
 
 function onRejectReasonConfirm(reason: string) {
+  console.log('[Pets] onRejectReasonConfirm 被调用', { reason, confirmAction: confirmAction.value, selectedPet: selectedPet.value?.id });
   showRejectReasonModal.value = false;
   executeAction(reason);
 }
 
 function onRejectReasonCancel() {
+  console.log('[Pets] onRejectReasonCancel 被调用');
   showRejectReasonModal.value = false;
   confirmAction.value = null;
   selectedPet.value = null;

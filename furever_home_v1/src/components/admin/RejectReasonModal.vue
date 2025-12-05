@@ -25,12 +25,14 @@
         ></textarea>
         <div class="flex gap-3 mt-6">
           <button
+            type="button"
             class="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1A1E26] text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             @click="handleCancel"
           >
             取消
           </button>
           <button
+            type="button"
             class="flex-1 px-4 py-2.5 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition"
             @click="handleConfirm"
           >
@@ -71,8 +73,15 @@ function handleCancel() {
 }
 
 function handleConfirm() {
-  emit('confirm', reason.value);
-  emit('close');
+  // 只触发 confirm，让父组件自行关闭弹窗，避免 confirm 和 close 同时触发导致状态被重置
+  console.log('[RejectReasonModal] handleConfirm 被调用', { reason: reason.value });
+  console.log('[RejectReasonModal] 准备触发 confirm 事件');
+  try {
+    emit('confirm', reason.value);
+    console.log('[RejectReasonModal] confirm 事件已触发');
+  } catch (error) {
+    console.error('[RejectReasonModal] 触发 confirm 事件时出错', error);
+  }
 }
 </script>
 

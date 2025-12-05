@@ -1,6 +1,7 @@
 /**
  * HTTP请求工具
  * 封装fetch请求，提供统一的请求接口
+ * 并通过 window 全局事件通知 UI 显示/隐藏“请求中”加载提示
  */
 
 // API基础URL - 默认走 /api，由 Vite 代理到测试环境
@@ -27,6 +28,8 @@ interface ApiResponse<T = any> {
 class HttpClient {
   private baseURL: string
   private timeout: number
+  // 静态全局计数：所有 HttpClient 实例共享，用于控制全局 loading
+  private static globalPendingCount = 0
 
   constructor(baseURL: string, timeout: number = 10000) {
     this.baseURL = baseURL
@@ -146,6 +149,14 @@ class HttpClient {
       headers['Authorization'] = `Bearer ${cleanBearerToken}`
     }
 
+    // 全局开始计数：通知 UI 有请求开始
+    HttpClient.globalPendingCount++
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('http-request-start', {
+        detail: { pending: HttpClient.globalPendingCount }
+      }))
+    }
+
     // 创建AbortController用于超时控制
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
@@ -165,6 +176,14 @@ class HttpClient {
         throw new Error('请求超时')
       }
       throw error
+    } finally {
+      // 无论成功/失败，都减少全局计数，并通知 UI
+      HttpClient.globalPendingCount = Math.max(0, HttpClient.globalPendingCount - 1)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('http-request-end', {
+          detail: { pending: HttpClient.globalPendingCount }
+        }))
+      }
     }
   }
 

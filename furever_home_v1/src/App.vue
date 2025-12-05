@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import NavBar from './components/common/NavBar.vue';
+import GlobalLoading from './components/common/GlobalLoading.vue';
 
 const route = useRoute();
 
@@ -20,5 +21,7 @@ const isAuthPage = computed(() => {
   <div>
     <NavBar v-if="!isAdminPage && !isAuthPage" />
     <RouterView />
+    <!-- 全局请求加载提示，覆盖前台 + 后台所有页面 -->
+    <GlobalLoading />
   </div>
 </template>

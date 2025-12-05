@@ -6,12 +6,13 @@
     <div class="bg-white rounded-xl p-6 shadow-sm mb-10">
       <div class="bg-gray-50 rounded-lg p-6 flex items-center gap-5">
         <span class="text-5xl font-extrabold leading-none" style="color: #E67E22;">
-          4.5<span class="text-2xl font-medium" style="color: #9CA3AF;">/5</span>
+          {{ creditScore.toFixed(1) }}<span class="text-2xl font-medium" style="color: #9CA3AF;">/5</span>
+          <span class="text-xs font-medium ml-2" style="color: #9CA3AF;">({{ creditScoreCount }}人评分)</span>
         </span>
-        <div class="flex flex-col gap-1">
+        <!-- <div class="flex flex-col gap-1">
           <div class="text-lg font-bold" style="color: #111;">信誉良好</div>
           <div class="text-sm" style="color: #6B7280;">您的信誉积分很高，有助于提高领养成功率。</div>
-        </div>
+        </div> -->
       </div>
     </div>
 
@@ -91,6 +92,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getReceivedRatings } from '@/api/ratingApi';
+import { getCurrentUser } from '@/api/userApi';
 
 const router = useRouter();
 
@@ -110,6 +112,8 @@ const reviews = ref<Review[]>([]);
 const currentPage = ref(1);
 const pageSize = 10;
 const total = ref(0);
+const creditScore = ref(0); // 信誉积分
+const creditScoreCount = ref(0); // 评分人数
 
 const totalPages = computed(() => {
   return Math.max(1, Math.ceil((total.value || 0) / pageSize));
@@ -149,6 +153,18 @@ async function loadReviews(page = 1) {
   }
 }
 
+async function loadCreditScore() {
+  try {
+    const res = await getCurrentUser();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      creditScore.value = res.data.creditScore ?? 0;
+      creditScoreCount.value = res.data.creditScoreCount ?? 0;
+    }
+  } catch (err) {
+    console.error('获取信誉积分失败', err);
+  }
+}
+
 function goPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
@@ -178,6 +194,7 @@ function getUserIdByName(name: string): number {
 
 onMounted(() => {
   loadReviews(currentPage.value);
+  loadCreditScore();
 });
 </script>
 

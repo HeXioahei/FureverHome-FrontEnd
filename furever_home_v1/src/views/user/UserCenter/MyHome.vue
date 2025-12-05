@@ -8,86 +8,108 @@
     <!-- 统计卡片 -->
     <div class="grid grid-cols-3 gap-5 mb-10">
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
-        <span class="text-sm font-medium" style="color: #6B7280;">已发布内容</span>
-        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ publishedPostCount }}</span>
+        <span class="text-sm font-medium" style="color: #6B7280;">我的帖子</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.postCount }}</span>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
+        <span class="text-sm font-medium" style="color: #6B7280;">我的短期宠物</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.shortTermPetCount }}</span>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
+        <span class="text-sm font-medium" style="color: #6B7280;">我的长期宠物</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.longTermPetCount }}</span>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-[120px]">
+        <span class="text-sm font-medium" style="color: #6B7280;">我的申请</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.myApplicationsCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-30">
         <span class="text-sm font-medium" style="color: #6B7280;">我的待办</span>
-        <span class="text-4xl font-bold mt-2.5" style="color: #111;">2</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.myTodosCount }}</span>
       </div>
       <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col justify-between h-30">
         <span class="text-sm font-medium" style="color: #6B7280;">信誉积分</span>
-        <span class="text-4xl font-bold mt-2.5" style="color: #111;">4.5/5</span>
+        <span class="text-4xl font-bold mt-2.5" style="color: #111;">{{ stats.ratingAverage }}/5</span>
+        <span class="text-xs font-medium ml-2" style="color: #9CA3AF;">({{ stats.ratingCount }}人评分)</span>
       </div>
     </div>
 
-    <!-- 近期动态 -->
-    <div class="text-xl font-bold mb-5" style="color: #333333;">近期动态</div>
+    <!-- 后台通知 -->
+    <div class="text-xl font-bold mb-5" style="color: #333333;">后台通知</div>
     <div class="flex flex-col gap-4">
-      <div 
-        v-for="activity in activities" 
-        :key="activity.id"
-        class="bg-white p-5 rounded-xl shadow-sm flex items-center gap-5 cursor-pointer transition-transform hover:-translate-y-0.5"
+      <div
+        v-for="item in pagedNotifications"
+        :key="item.id"
+        class="bg-white p-5 rounded-xl shadow-sm flex items-center gap-5"
       >
-        <div 
+        <div
           class="w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0"
-          :style="{ backgroundColor: activity.iconBg, color: activity.iconColor }"
+          :style="{ backgroundColor: item.iconBg, color: item.iconColor }"
         >
-          <i :class="activity.icon"></i>
+          <i :class="item.icon"></i>
         </div>
         <div class="flex-1">
-          <div class="text-base font-medium mb-1" style="color: #1F2937;">{{ activity.title }}</div>
-          <div class="text-xs" style="color: #9CA3AF;">{{ activity.time }}</div>
+          <div class="text-base font-medium mb-1" style="color: #1F2937;">{{ item.title }}</div>
+          <div class="text-sm" style="color: #4B5563;">{{ item.content }}</div>
+          <div class="text-xs mt-1" style="color: #9CA3AF;">{{ item.time }}</div>
         </div>
-        <i class="fa-solid fa-chevron-right text-sm" style="color: #D1D5DB;"></i>
       </div>
+      <div v-if="!pagedNotifications.length" class="text-center text-sm text-gray-400 py-4">暂无通知</div>
+    </div>
+    <div class="flex justify-center mt-6 gap-3 items-center">
+      <button
+        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm"
+        :disabled="currentPage === 1"
+        @click="prevPage"
+      >
+        上一页
+      </button>
+      <span class="text-sm text-gray-500">第 {{ currentPage }} / {{ totalPages }} 页</span>
+      <button
+        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm"
+        :disabled="currentPage >= totalPages"
+        @click="nextPage"
+      >
+        下一页
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { getCurrentUser, type CurrentUserInfo } from '../../../api/userApi';
-import { getMyPostList } from '../../../api/postApi';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { getCurrentUser, getCurrentUserStats, type CurrentUserInfo, type CurrentUserStats } from '../../../api/userApi';
 
 const userName = ref('用户');
-const publishedPostCount = ref(0);
+const stats = ref<Required<CurrentUserStats>>({
+  postCount: 0,
+  shortTermPetCount: 0,
+  longTermPetCount: 0,
+  myApplicationsCount: 0,
+  myTodosCount: 0,
+  ratingAverage: 0,
+  ratingCount: 0
+});
+const creditDisplay = ref('0/5');
 
-interface Activity {
-  id: number;
+interface NotificationItem {
+  id: number | string;
   title: string;
+  content: string;
   time: string;
   icon: string;
   iconBg: string;
   iconColor: string;
 }
 
-const activities = ref<Activity[]>([
-  {
-    id: 1,
-    title: '您对"巴迪"的领养申请已通过！',
-    time: '2小时前',
-    icon: 'fa-solid fa-paw',
-    iconBg: '#DBEAFE',
-    iconColor: '#2563EB'
-  },
-  {
-    id: 2,
-    title: '收到关于您帖子"猫咪米洛"的新消息',
-    time: '1天前',
-    icon: 'fa-regular fa-comment-dots',
-    iconBg: '#D1FAE5',
-    iconColor: '#059669'
-  },
-  {
-    id: 3,
-    title: '您发布了"金毛犬戈尔迪"的领养信息。',
-    time: '3天前',
-    icon: 'fa-solid fa-arrow-up-from-bracket',
-    iconBg: '#FEF3C7',
-    iconColor: '#D97706'
-  }
-]);
+const notifications = ref<NotificationItem[]>([]);
+const pageSize = 3;
+const currentPage = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(notifications.value.length / pageSize)));
+const pagedNotifications = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return notifications.value.slice(start, start + pageSize);
+});
 
 async function loadCurrentUser() {
   try {
@@ -106,28 +128,113 @@ async function loadCurrentUser() {
   }
 }
 
-// 加载已审核通过的帖子数量
-async function loadPublishedPostCount() {
+async function loadStats() {
   try {
-    const res = await getMyPostList({ page: 1, pageSize: 1000 }); // 获取足够多的数据以统计总数
-    if (res.code === 200 && res.data && res.data.records) {
-      // 统计审核状态为"通过"的帖子数量
-      const approvedPosts = res.data.records.filter((post: any) => {
-        const reviewStatus = post.reviewStatus || '';
-        return reviewStatus === '通过' || reviewStatus === 'approved';
-      });
-      publishedPostCount.value = approvedPosts.length;
-    } else {
-      console.error('获取我的帖子列表失败', res);
+    const res = await getCurrentUserStats();
+    if ((res.code === 0 || res.code === 200) && res.data) {
+      const data = res.data;
+      stats.value = {
+        postCount: data.postCount ?? 0,
+        shortTermPetCount: data.shortTermPetCount ?? 0,
+        longTermPetCount: data.longTermPetCount ?? 0,
+        myApplicationsCount: data.myApplicationsCount ?? 0,
+        myTodosCount: data.myTodosCount ?? 0,
+        ratingAverage: data.ratingAverage ?? 0,
+        ratingCount: data.ratingCount ?? 0
+      };
+      creditDisplay.value = `${stats.value.ratingAverage ?? 0}/5`;
     }
   } catch (error) {
-    console.error('获取已发布帖子数量失败（MyHome）', error);
+    console.error('获取用户统计数据失败（MyHome）', error);
   }
+}
+
+const normalizeTokenValue = (value?: string | null) => {
+  if (!value) return '';
+  return value.startsWith('Bearer ') ? value.slice(7) : value;
+};
+
+const getStoredToken = () => {
+  const raw =
+    localStorage.getItem('saTokenValue') ||
+    localStorage.getItem('bearerToken') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('Authorization');
+  return normalizeTokenValue(raw);
+};
+
+const wsRef = ref<WebSocket | null>(null);
+
+const resolveWsUrl = (base?: string) => {
+  if (!base) return '';
+  if (base.startsWith('ws://') || base.startsWith('wss://')) return base;
+  const origin = window.location.origin.replace(/^http/, 'ws');
+  return `${origin}${base}`;
+};
+
+const handleWsMessage = (event: MessageEvent) => {
+  try {
+    const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+    const data = payload?.data || payload;
+    const title = data?.title || data?.message || '系统通知';
+    const content = data?.content || data?.detail || data?.message || JSON.stringify(data);
+    const time = data?.time || new Date().toLocaleString();
+    notifications.value = [
+      {
+        id: data?.id || Date.now(),
+        title,
+        content,
+        time,
+        icon: 'fa-solid fa-bell',
+        iconBg: '#E5F3FF',
+        iconColor: '#2563EB'
+      },
+      ...notifications.value
+    ];
+    currentPage.value = 1;
+  } catch (err) {
+    console.error('解析通知消息失败', err, event.data);
+  }
+};
+
+const initWs = () => {
+  const base = import.meta.env.VITE_CHAT_WS_URL || '/api/ws/common';
+  const token = getStoredToken();
+  let url = resolveWsUrl(base);
+  if (token) {
+    url += url.includes('?') ? `&token=${encodeURIComponent(token)}` : `?token=${encodeURIComponent(token)}`;
+  }
+  try {
+    const ws = new WebSocket(url);
+    wsRef.value = ws;
+    ws.onmessage = handleWsMessage;
+    ws.onerror = err => {
+      console.error('通知WebSocket错误', err);
+    };
+  } catch (err) {
+    console.error('通知WebSocket连接失败', err);
+  }
+};
+
+function prevPage() {
+  if (currentPage.value > 1) currentPage.value -= 1;
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) currentPage.value += 1;
 }
 
 onMounted(() => {
   loadCurrentUser();
-  loadPublishedPostCount();
+  loadStats();
+  initWs();
+});
+
+onBeforeUnmount(() => {
+  if (wsRef.value) {
+    wsRef.value.close();
+    wsRef.value = null;
+  }
 });
 </script>
 

@@ -16,7 +16,7 @@ export default defineConfig({
     proxy: {
       // 代理前台的 /api 接口到后端测试环境
       '/api': {
-        target: 'http://p92df5b2.natappfree.cc',
+        target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
         ws: true,
@@ -32,7 +32,7 @@ export default defineConfig({
       },
       // 代理后台的 /admin 接口到后端测试环境
       '/admin': {
-        target: 'http://p92df5b2.natappfree.cc',
+        target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
         ws: true,

@@ -282,7 +282,7 @@
       :message="confirmAction === 'approve' ? '确定要通过该帖子的审核吗？' : confirmAction === 'reject' ? '确定要拒绝该帖子的审核吗？' : '确定要删除该帖子吗？此操作不可恢复。'"
       @confirm="onConfirmModalConfirm"
       @cancel="onConfirmModalCancel"
-      @close="onConfirmModalCancel"
+      @close="showConfirmModal = false"
     />
     <RejectReasonModal
       :visible="showRejectReasonModal"
@@ -536,12 +536,17 @@ function handleDelete(post: Post) {
 }
 
 async function onConfirmModalConfirm() {
-  if (!selectedPost.value || !confirmAction.value) return;
+  console.log('[Posts] onConfirmModalConfirm 被调用', { selectedPost: selectedPost.value?.id, confirmAction: confirmAction.value });
+  if (!selectedPost.value || !confirmAction.value) {
+    console.warn('[Posts] onConfirmModalConfirm 缺少必要参数', { selectedPost: selectedPost.value, confirmAction: confirmAction.value });
+    return;
+  }
   
   showConfirmModal.value = false;
   
   if (confirmAction.value === 'reject') {
     // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    console.log('[Posts] 准备显示拒绝理由弹窗');
     showRejectReasonModal.value = true;
     return;
   }
@@ -551,7 +556,11 @@ async function onConfirmModalConfirm() {
 }
 
 async function executeAction(reason: string = '') {
-  if (!selectedPost.value || !confirmAction.value) return;
+  console.log('executeAction 被调用', { reason, confirmAction: confirmAction.value, selectedPost: selectedPost.value?.id });
+  if (!selectedPost.value || !confirmAction.value) {
+    console.warn('executeAction 缺少必要参数', { selectedPost: selectedPost.value, confirmAction: confirmAction.value });
+    return;
+  }
   
   try {
   if (confirmAction.value === 'approve') {
@@ -569,7 +578,9 @@ async function executeAction(reason: string = '') {
       }
   } else if (confirmAction.value === 'reject') {
       // 审核拒绝
+      console.log('准备发送审核拒绝请求', { postId: selectedPost.value.id, reason });
       const res = await rejectPost(selectedPost.value.id, { reason });
+      console.log('审核拒绝请求响应', res);
       if (res.code === 0 || res.code === 200) {
     showRejectModal.value = true;
         // 从待审核列表中移除
@@ -604,11 +615,13 @@ async function executeAction(reason: string = '') {
 }
 
 function onRejectReasonConfirm(reason: string) {
+  console.log('[Posts] onRejectReasonConfirm 被调用', { reason, confirmAction: confirmAction.value, selectedPost: selectedPost.value?.id });
   showRejectReasonModal.value = false;
   executeAction(reason);
-    }
+}
 
 function onRejectReasonCancel() {
+  console.log('[Posts] onRejectReasonCancel 被调用');
   showRejectReasonModal.value = false;
   confirmAction.value = null;
   selectedPost.value = null;

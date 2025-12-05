@@ -172,7 +172,7 @@
       :message="confirmAction === 'approve' ? '确定要通过该申请的审核吗？' : '确定要拒绝该申请的审核吗？'"
       @confirm="onConfirmModalConfirm"
       @cancel="onConfirmModalCancel"
-      @close="onConfirmModalCancel"
+      @close="showConfirmModal = false"
     />
     <RejectReasonModal
       :visible="showRejectReasonModal"
@@ -370,44 +370,74 @@ async function handleViewDetail(app: Application) {
 }
 
 async function onConfirmModalConfirm() {
-  if (!selectedApplication.value || !confirmAction.value) return;
-  
+  if (!selectedApplication.value || !confirmAction.value) {
+    console.warn('确认弹窗回调时缺少选中申请或动作类型', {
+      selectedApplication: selectedApplication.value,
+      confirmAction: confirmAction.value
+    });
+    return;
+  }
+
+  console.log('ConfirmModal 确认操作', {
+    action: confirmAction.value,
+    applicationId: selectedApplication.value.id
+  });
+
   showConfirmModal.value = false;
-  
+
   if (confirmAction.value === 'reject') {
     // 如果是拒绝操作，先显示拒绝理由输入弹窗
+    console.log('准备显示拒绝理由弹窗');
     showRejectReasonModal.value = true;
     return;
   }
-  
+
   // 其他操作直接执行
   await executeAction();
 }
 
 async function executeAction(reason: string = '') {
-  if (!selectedApplication.value || !confirmAction.value) return;
-  
+  if (!selectedApplication.value || !confirmAction.value) {
+    console.warn('执行审核操作时缺少选中申请或动作类型', {
+      selectedApplication: selectedApplication.value,
+      confirmAction: confirmAction.value,
+      reason
+    });
+    return;
+  }
+
+  console.log('开始执行审核操作', {
+    action: confirmAction.value,
+    applicationId: selectedApplication.value.id,
+    reason
+  });
+
   try {
-  if (confirmAction.value === 'approve') {
+    if (confirmAction.value === 'approve') {
       // 审核通过
       const res = await approveAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id });
       if (res.code === 0 || res.code === 200) {
-    showApproveModal.value = true;
-        // 重新加载列表
-        await loadApplications();
-      } else {
-        errorMessage.value = res.message || '审核通过失败';
-        showErrorModal.value = true;
-      }
-  } else if (confirmAction.value === 'reject') {
-      // 审核拒绝
-      const res = await rejectAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id, reason });
-      if (res.code === 0 || res.code === 200) {
-    showRejectModal.value = true;
+        console.log('审核通过请求成功', res);
+        showApproveModal.value = true;
         // 重新加载列表
         await loadApplications();
         await loadProcessedStats();
       } else {
+        console.error('审核通过请求失败', res);
+        errorMessage.value = res.message || '审核通过失败';
+        showErrorModal.value = true;
+      }
+    } else if (confirmAction.value === 'reject') {
+      // 审核拒绝
+      const res = await rejectAdopt(selectedApplication.value.id, { adoptId: selectedApplication.value.id, reason });
+      if (res.code === 0 || res.code === 200) {
+        console.log('审核拒绝请求成功', res);
+        showRejectModal.value = true;
+        // 重新加载列表
+        await loadApplications();
+        await loadProcessedStats();
+      } else {
+        console.error('审核拒绝请求失败', res);
         errorMessage.value = res.message || '审核拒绝失败';
         showErrorModal.value = true;
       }
