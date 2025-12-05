@@ -42,11 +42,40 @@ export function getMyAdoptTodoList() {
   return httpClient.get<AdoptTodoItem[]>('/adopt/todo')
 }
 
-export type AdoptMineListResponse = ApiResponse<AdoptTodoItem[]>
+// MyAdoptItemDTO，我的领养申请列表项
+export interface MyAdoptItemDTO {
+  /** 领养申请ID */
+  adoptId?: number
+  /** 宠物ID */
+  animalId?: number
+  /** 宠物名称 */
+  animalName?: string
+  /** 宠物封面照片 URL */
+  animalPhoto?: string
+  /** 用户审核状态 */
+  applicationStatus?: string
+  /** 创建时间 */
+  createTime?: Date | string
+  /** 用户撤销状态 */
+  isCanceled?: string
+  /** 领养理由 */
+  reason?: string
+  /** 管理员审核状态 */
+  reviewStatus?: string
+  /** 被申请用户头像 URL */
+  targetUserAvatar?: string
+  /** 被申请用户ID（宠物发布者ID） */
+  targetUserId?: number
+  /** 被申请用户名称（宠物发布者昵称） */
+  targetUserName?: string
+  [property: string]: any
+}
+
+export type AdoptMineListResponse = ApiResponse<MyAdoptItemDTO[]>
 
 // 获取我的领养申请列表
 export function getMyAdoptMineList() {
-  return httpClient.get<AdoptTodoItem[]>('/adopt/mine')
+  return httpClient.get<MyAdoptItemDTO[]>('/adopt/mine')
 }
 
 /**

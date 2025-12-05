@@ -2,9 +2,9 @@
   <div>
     <h2 class="text-2xl font-bold mb-5" style="color: #111;">我的待办</h2>
 
-    <div v-if="todos.length" class="flex flex-col gap-5">
+    <div v-if="pagedTodos.length" class="flex flex-col gap-5">
       <div 
-        v-for="todo in todos" 
+        v-for="todo in pagedTodos" 
         :key="todo.id"
         class="bg-white rounded-xl p-6 shadow-sm border-l-4"
         style="border-left-color: #FF8C00;"
@@ -90,23 +90,36 @@
       当前没有待办事项
     </div>
 
-    <!-- 分页 -->
+    <!-- 分页：统一样式，空列表也显示，至少一页 -->
     <div class="flex justify-center mt-10 mb-5">
-      <div class="flex gap-2.5">
+      <div class="flex items-center gap-2.5">
         <button 
-          v-for="page in 4" 
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          style="color: #6B7280;"
+          :disabled="currentPage === 1"
+          :class="currentPage === 1 ? 'cursor-not-allowed opacity-50' : ''"
+          @click="goPage(Math.max(1, currentPage - 1))"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <button 
+          v-for="page in totalPages" 
           :key="page"
           class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-          :class="page === 1 ? 'bg-[#E67E22] text-white border-[#E67E22]' : 'text-gray-600'"
+          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
+          @click="goPage(page)"
         >
           {{ page }}
         </button>
         <button 
-          class="px-5 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
           style="color: #6B7280;"
+          :disabled="currentPage === totalPages"
+          :class="currentPage === totalPages ? 'cursor-not-allowed opacity-50' : ''"
+          @click="goPage(Math.min(totalPages, currentPage + 1))"
         >
-          下一页
+          <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
     </div>
@@ -156,7 +169,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
@@ -195,6 +208,18 @@ interface Todo {
 }
 
 const todos = ref<Todo[]>([]);
+const currentPage = ref(1);
+const pageSize = 3;
+const totalPages = computed(() => Math.max(1, Math.ceil((todos.value.length || 0) / pageSize)));
+const pagedTodos = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return todos.value.slice(start, start + pageSize);
+});
+
+function goPage(page: number) {
+  if (page < 1 || page > totalPages.value) return;
+  currentPage.value = page;
+}
 
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);

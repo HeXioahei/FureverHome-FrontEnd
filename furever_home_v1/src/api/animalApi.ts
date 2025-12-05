@@ -60,6 +60,8 @@ export interface 动物信息 {
   species?: Species
   userId?: number
   userName?: string
+  /** 发布用户头像 */
+  userAvatar?: string
   [property: string]: any
 }
 

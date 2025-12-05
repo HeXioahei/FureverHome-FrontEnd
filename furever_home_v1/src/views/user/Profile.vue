@@ -18,7 +18,7 @@
             >
               <img
                 v-if="user.avatarUrl"
-                :src="user.avatarUrl"
+                :src="normalizeImageUrl(user.avatarUrl)"
                 alt="用户头像"
                 class="w-full h-full object-cover"
               />
@@ -80,12 +80,13 @@
           <!-- 爱宠证明档案 -->
           <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">爱宠证明档案</h2>
       <h3 class="font-semibold text-gray-700 mb-2">爱宠证明简介</h3>
-      <p class="mb-4 text-gray-600 leading-7">
+      <p v-if="proofIntro || experiences.length > 0" class="mb-4 text-gray-600 leading-7">
         {{ proofIntro || experiences.map(exp => exp.text).join(' ') }}
-          </p>
+      </p>
+      <p v-else class="mb-4 text-gray-400 text-sm leading-7">暂无内容</p>
 
           <h3 class="font-semibold text-gray-700 mb-2">证明材料</h3>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 mt-4">
+          <div v-if="proofs.length > 0" class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 mt-4">
             <div 
               v-for="proof in proofs" 
               :key="proof.id" 
@@ -93,13 +94,14 @@
               @click="openProofPreview(proof)"
             >
               <template v-if="proof.fileUrl">
-                <img :src="proof.fileUrl" alt="爱宠证明" class="w-full h-full object-cover" />
+                <img :src="normalizeImageUrl(proof.fileUrl)" alt="爱宠证明" class="w-full h-full object-cover" />
               </template>
               <template v-else>
                 {{ proof.title }}
               </template>
             </div>
           </div>
+          <p v-else class="mt-4 text-gray-400 text-sm">暂无内容</p>
 
           <!-- 信誉积分 -->
           <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">信誉积分</h2>
@@ -127,17 +129,35 @@
           </div>
 
           <div class="mt-5">
+            <div v-if="evaluations.length === 0" class="text-gray-400 text-sm text-center py-4">暂无内容</div>
             <div 
               v-for="eva in evaluations.slice(0, 2)" 
               :key="eva.id" 
               class="bg-white rounded-2xl p-4 mb-4 shadow-sm"
             >
               <div class="flex justify-between mb-2.5">
-                <div 
-                  class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
-                  @click="router.push({ name: 'UserProfile', params: { userId: getUserIdByName(eva.author) } })"
-                >
-                  {{ eva.author }}
+                <div class="flex items-center gap-2">
+                  <div 
+                    v-if="eva.authorAvatar"
+                    class="w-8 h-8 rounded-full overflow-hidden cursor-pointer"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    <img :src="normalizeImageUrl(eva.authorAvatar)" alt="头像" class="w-full h-full object-cover" />
+                  </div>
+                  <div 
+                    v-else
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold cursor-pointer"
+                    style="background-color: #F3C697;"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    {{ eva.author.charAt(0) }}
+                  </div>
+                  <div 
+                    class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    {{ eva.author }}
+                  </div>
                 </div>
                 <div class="text-gray-500 text-sm">{{ eva.date }}</div>
               </div>
@@ -173,7 +193,8 @@
               查看全部
             </button>
           </div>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
+          <div v-if="shortTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
+          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
             <div 
               v-for="pet in shortTermAdoptions.slice(0, 2)" 
               :key="pet.id" 
@@ -215,7 +236,8 @@
               查看全部
             </button>
           </div>
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
+          <div v-if="longTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
+          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
             <div 
               v-for="pet in longTermAdoptions.slice(0, 2)" 
               :key="pet.id" 
@@ -259,7 +281,8 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5 mt-5">
+          <div v-if="recentPosts.length === 0" class="text-gray-400 text-sm text-center py-4 mt-5">暂无内容</div>
+          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-5 mt-5">
             <div 
               v-for="post in recentPosts.slice(0, 2)" 
               :key="post.id" 
@@ -341,18 +364,36 @@
       <div class="bg-white rounded-2xl w-[90%] max-w-4xl max-h-[80vh] p-8 shadow-xl flex flex-col">
         <h2 class="mb-5 text-center" style="color: #FF8C42;">全部评价 ({{ evaluations.length }})</h2>
         <div class="flex-1 overflow-y-auto mb-5">
-          <div class="flex flex-col gap-4">
+          <div v-if="evaluations.length === 0" class="text-gray-400 text-sm text-center py-8">暂无内容</div>
+          <div v-else class="flex flex-col gap-4">
             <div 
               v-for="eva in paginatedEvaluations" 
               :key="eva.id" 
               class="bg-white rounded-2xl p-4 shadow-sm"
             >
               <div class="flex justify-between mb-2.5">
-                <div 
-                  class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
-                  @click="router.push({ name: 'UserProfile', params: { userId: getUserIdByName(eva.author) } })"
-                >
-                  {{ eva.author }}
+                <div class="flex items-center gap-2">
+                  <div 
+                    v-if="eva.authorAvatar"
+                    class="w-8 h-8 rounded-full overflow-hidden cursor-pointer"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    <img :src="normalizeImageUrl(eva.authorAvatar)" alt="头像" class="w-full h-full object-cover" />
+                  </div>
+                  <div 
+                    v-else
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold cursor-pointer"
+                    style="background-color: #F3C697;"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    {{ eva.author.charAt(0) }}
+                  </div>
+                  <div 
+                    class="font-bold cursor-pointer transition-colors hover:text-[#FF8C42]"
+                    @click="router.push({ name: 'UserProfile', params: { userId: eva.authorId || 0 } })"
+                  >
+                    {{ eva.author }}
+                  </div>
                 </div>
                 <div class="text-gray-500 text-sm">{{ eva.date }}</div>
               </div>
@@ -406,19 +447,20 @@
       </div>
     </div>
 
-    <!-- 全部短期领养宠物模态框 -->
-    <div 
-      v-if="showShortTermPetsModal" 
+    <!-- 短期领养宠物弹窗 -->
+    <div
+      v-if="showShortTermPetsModal"
       class="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center"
       @click.self="showShortTermPetsModal = false"
     >
-      <div class="bg-white rounded-2xl w-[90%] max-w-4xl max-h-[80vh] p-8 shadow-xl flex flex-col">
-        <h2 class="mb-5 text-center" style="color: #FF8C42;">TA短期领养的全部宠物 ({{ shortTermAdoptions.length }})</h2>
+      <div class="bg-white rounded-2xl w-[90%] max-w-6xl max-h-[80vh] p-8 shadow-xl flex flex-col">
+        <h2 class="mb-5 text-center" style="color: #FF8C42;">短期领养 ({{ shortTermAdoptions.length }})</h2>
         <div class="flex-1 overflow-y-auto mb-5">
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
-            <div 
-              v-for="pet in paginatedShortTermPets" 
-              :key="pet.id" 
+          <div v-if="shortTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-8">暂无内容</div>
+          <div v-else class="grid grid-cols-3 gap-5">
+            <div
+              v-for="pet in paginatedShortTermPets"
+              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
@@ -429,9 +471,7 @@
                   :alt="pet.name"
                   class="w-full h-full object-cover"
                 />
-                <span v-else>
-                  {{ pet.name }}的照片
-                </span>
+                <span v-else>{{ pet.name }}的照片</span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -447,9 +487,9 @@
           </div>
         </div>
         <!-- 分页 -->
-        <div class="flex justify-center mt-10 mb-5">
+        <div class="flex justify-center mt-5 mb-5">
           <div class="flex gap-2.5">
-            <button 
+            <button
               v-if="currentShortTermPage > 1"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -457,8 +497,8 @@
             >
               <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button 
-              v-for="page in totalShortTermPages" 
+            <button
+              v-for="page in totalShortTermPages"
               :key="page"
               class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               :class="page === currentShortTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
@@ -466,7 +506,7 @@
             >
               {{ page }}
             </button>
-            <button 
+            <button
               v-if="currentShortTermPage < totalShortTermPages"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -477,8 +517,8 @@
           </div>
         </div>
         <div class="flex justify-end mt-5">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
             style="background-color: #FF8C42;"
             @click="showShortTermPetsModal = false"
@@ -489,19 +529,20 @@
       </div>
     </div>
 
-    <!-- 全部长期领养宠物模态框 -->
-    <div 
-      v-if="showLongTermPetsModal" 
+    <!-- 长期领养宠物弹窗 -->
+    <div
+      v-if="showLongTermPetsModal"
       class="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center"
       @click.self="showLongTermPetsModal = false"
     >
-      <div class="bg-white rounded-2xl w-[90%] max-w-4xl max-h-[80vh] p-8 shadow-xl flex flex-col">
-        <h2 class="mb-5 text-center" style="color: #FF8C42;">TA长期领养的全部宠物 ({{ longTermAdoptions.length }})</h2>
+      <div class="bg-white rounded-2xl w-[90%] max-w-6xl max-h-[80vh] p-8 shadow-xl flex flex-col">
+        <h2 class="mb-5 text-center" style="color: #FF8C42;">长期领养 ({{ longTermAdoptions.length }})</h2>
         <div class="flex-1 overflow-y-auto mb-5">
-          <div class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5">
-            <div 
-              v-for="pet in paginatedLongTermPets" 
-              :key="pet.id" 
+          <div v-if="longTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-8">暂无内容</div>
+          <div v-else class="grid grid-cols-3 gap-5">
+            <div
+              v-for="pet in paginatedLongTermPets"
+              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
@@ -512,9 +553,7 @@
                   :alt="pet.name"
                   class="w-full h-full object-cover"
                 />
-                <span v-else>
-                  {{ pet.name }}的照片
-                </span>
+                <span v-else>{{ pet.name }}的照片</span>
               </div>
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
@@ -530,9 +569,9 @@
           </div>
         </div>
         <!-- 分页 -->
-        <div class="flex justify-center mt-10 mb-5">
+        <div class="flex justify-center mt-5 mb-5">
           <div class="flex gap-2.5">
-            <button 
+            <button
               v-if="currentLongTermPage > 1"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -540,8 +579,8 @@
             >
               <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button 
-              v-for="page in totalLongTermPages" 
+            <button
+              v-for="page in totalLongTermPages"
               :key="page"
               class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               :class="page === currentLongTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
@@ -549,7 +588,7 @@
             >
               {{ page }}
             </button>
-            <button 
+            <button
               v-if="currentLongTermPage < totalLongTermPages"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -560,8 +599,8 @@
           </div>
         </div>
         <div class="flex justify-end mt-5">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
             style="background-color: #FF8C42;"
             @click="showLongTermPetsModal = false"
@@ -572,61 +611,33 @@
       </div>
     </div>
 
-    <!-- 全部帖子模态框 -->
-    <div 
-      v-if="showAllPostsModal" 
+    <!-- 全部帖子弹窗 -->
+    <div
+      v-if="showAllPostsModal"
       class="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center"
       @click.self="showAllPostsModal = false"
     >
       <div class="bg-white rounded-2xl w-[90%] max-w-4xl max-h-[80vh] p-8 shadow-xl flex flex-col">
-        <h2 class="mb-5 text-center" style="color: #FF8C42;">TA发布的全部帖子 ({{ allPosts.length }})</h2>
+        <h2 class="mb-5 text-center" style="color: #FF8C42;">全部帖子 ({{ allPosts.length }})</h2>
         <div class="flex-1 overflow-y-auto mb-5">
-          <div class="flex flex-col gap-5">
-            <div 
-              v-for="post in paginatedPosts" 
-              :key="post.id" 
-              class="bg-white rounded-2xl shadow-lg p-6 transition-transform hover:-translate-y-1 cursor-pointer"
+          <div v-if="allPosts.length === 0" class="text-gray-400 text-sm text-center py-8">暂无内容</div>
+          <div v-else class="flex flex-col gap-4">
+            <div
+              v-for="post in paginatedPosts"
+              :key="post.id"
+              class="bg-white rounded-2xl p-5 shadow-sm cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
             >
-              <div class="flex flex-col gap-2 mb-4">
-                <div class="flex items-center gap-3 text-gray-600 text-sm">
-                  <div class="flex items-center gap-2">
-                    <div 
-                      class="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-semibold cursor-pointer transition-transform hover:scale-105" 
-                      style="background-color: #F3C697;"
-                      @click.stop="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
-                    >
-                      {{ user.name.charAt(0) }}
-                    </div>
-                    <span 
-                      class="cursor-pointer transition-colors hover:text-[#FF8C42]"
-                      @click.stop="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
-                    >
-                      {{ user.name }}
-                    </span>
-                  </div>
-                  <span>{{ post.date }}</span>
-                </div>
-                <div class="text-xl font-bold leading-tight" style="color: #FF8C42;">{{ post.title }}</div>
-              </div>
-              <div class="text-gray-800 mb-4 leading-relaxed">{{ post.summary }}</div>
-              <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5 my-4">
-                <div class="w-full h-38 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
-                  帖子图片
-                </div>
-              </div>
-              <div class="flex gap-5 text-gray-600 text-sm border-t border-gray-200 pt-4">
-                <div class="flex items-center gap-1.5">❤️ 128</div>
-                <div class="flex items-center gap-1.5">💬 42</div>
-                <div class="flex items-center gap-1.5">👁️ 568</div>
-              </div>
+              <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
+              <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
+              <div class="text-gray-600 leading-relaxed">{{ post.summary }}</div>
             </div>
           </div>
         </div>
         <!-- 分页 -->
-        <div class="flex justify-center mt-10 mb-5">
+        <div class="flex justify-center mt-5 mb-5">
           <div class="flex gap-2.5">
-            <button 
+            <button
               v-if="currentPostPage > 1"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -634,8 +645,8 @@
             >
               <i class="fa-solid fa-chevron-left"></i>
             </button>
-            <button 
-              v-for="page in totalPostPages" 
+            <button
+              v-for="page in totalPostPages"
               :key="page"
               class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               :class="page === currentPostPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
@@ -643,7 +654,7 @@
             >
               {{ page }}
             </button>
-            <button 
+            <button
               v-if="currentPostPage < totalPostPages"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
               style="color: #6B7280;"
@@ -654,8 +665,8 @@
           </div>
         </div>
         <div class="flex justify-end mt-5">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
             style="background-color: #FF8C42;"
             @click="showAllPostsModal = false"
@@ -722,7 +733,7 @@
       </button>
       <img
         v-if="previewProofUrl"
-        :src="previewProofUrl"
+        :src="normalizeImageUrl(previewProofUrl)"
         alt="爱宠证明预览"
         class="max-w-[90vw] max-h-[90vh] object-contain block"
       />
@@ -760,7 +771,7 @@ const isOwnProfile = computed(() => {
 interface Stat { key: string; label: string; value: number; }
 interface Experience { id: number; text: string; }
 interface Proof { id: number; title: string; status: 'approved' | 'pending' | 'rejected'; reason?: string; fileUrl?: string; }
-interface Evaluation { id: number; author: string; stars: number; content: string; date: string; appealable?: boolean; }
+interface Evaluation { id: number; author: string; authorId?: number; authorAvatar?: string; stars: number; content: string; date: string; appealable?: boolean; }
 interface AdoptionPet {
   id: number;
   name: string;
@@ -854,12 +865,13 @@ async function loadUserRatings() {
         const raw = item.createTime ? String(item.createTime) : '';
         let date = '';
         if (raw) {
-          date = raw.includes('T') ? raw.split('T')[0] : raw;
+          date = raw.includes('T') ? (raw.split('T')[0] || raw) : raw;
         }
         return {
           id: item.ratingId ?? index + 1,
           author: item.otherUserName ?? '用户',
           authorId: item.otherUserId ?? 0,
+          authorAvatar: normalizeImageUrl(item.otherUserAvatar),
           stars: item.score ?? 0,
           content: item.content ?? '',
           date,
@@ -891,6 +903,21 @@ async function loadUserRatings() {
   }
 }
 
+// 规范化图片URL，确保相对路径添加正确的API前缀
+const normalizeImageUrl = (url: string | undefined | null): string => {
+  if (!url) return '';
+  // 如果已经是完整的URL，直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // 如果已经以/api开头，直接返回
+  if (url.startsWith('/api/')) {
+    return url;
+  }
+  // 否则添加/api/storage/image/前缀
+  return `/api/storage/image/${url.replace(/^\/+/, '')}`;
+};
+
 function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean }) {
   if (options?.asCurrent && data.userId) {
     currentUserId.value = data.userId;
@@ -898,7 +925,7 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
   if (data.userName) {
     user.value.name = data.userName;
   }
-  user.value.avatarUrl = data.avatarUrl || '';
+  user.value.avatarUrl = normalizeImageUrl(data.avatarUrl) || '';
   baseInfo.value = [
     { label: '年龄', value: data.userAge != null ? String(data.userAge) : '-' },
     { label: '性别', value: data.sex || '-' },
@@ -914,7 +941,7 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
       id: index + 1,
       title: `爱宠证明 ${index + 1}`,
       status: 'approved',
-      fileUrl: url
+      fileUrl: normalizeImageUrl(url)
     }));
   }
 }
@@ -941,7 +968,7 @@ async function loadUserShortAnimals() {
         let photos: string[] = [];
         if (Array.isArray(item.photoUrls)) {
           photos = item.photoUrls as string[];
-        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+        } else if (typeof item.photoUrls === 'string' && (item.photoUrls as string).trim()) {
           try {
             const parsed = JSON.parse(item.photoUrls as unknown as string);
             if (Array.isArray(parsed)) {
@@ -1001,21 +1028,38 @@ async function loadUserFromApi() {
   }
 }
 
-// 根据路由中的 userId 加载他人主页信息
+// 根据路由中的 userId 加载用户主页信息（无论是自己还是他人）
 async function loadViewedUserFromApi() {
   const userId = viewedUserId.value;
-  if (!userId || userId === currentUserId.value) {
+  if (!userId) {
     return;
   }
-  try {
-    const res = await getUserById(userId);
-    if ((res.code === 0 || res.code === 200) && res.data) {
-      applyUserData(res.data, { asCurrent: false });
-    } else {
-      console.error('获取他人用户信息失败(Profile)', res);
+  
+  // 如果是查看自己的主页，使用getCurrentUser接口
+  if (currentUserId.value !== null && userId === currentUserId.value) {
+    try {
+      const res = await getCurrentUser();
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        applyUserData(res.data, { asCurrent: true });
+        localStorage.setItem('currentUser', JSON.stringify(res.data));
+      } else {
+        console.error('获取当前用户信息失败(Profile)', res);
+      }
+    } catch (e) {
+      console.error('获取当前用户信息异常(Profile)', e);
     }
-  } catch (e) {
-    console.error('获取他人用户信息异常(Profile)', e);
+  } else {
+    // 如果是查看他人主页，使用getUserById接口
+    try {
+      const res = await getUserById(userId);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        applyUserData(res.data, { asCurrent: false });
+      } else {
+        console.error('获取他人用户信息失败(Profile)', res);
+      }
+    } catch (e) {
+      console.error('获取他人用户信息异常(Profile)', e);
+    }
   }
 }
 
@@ -1085,7 +1129,7 @@ function handleProofClick(proof: Proof) {
 
 function openProofPreview(proof: Proof) {
   if (proof.fileUrl) {
-    previewProofUrl.value = proof.fileUrl;
+    previewProofUrl.value = normalizeImageUrl(proof.fileUrl);
     showProofPreview.value = true;
   }
 }
@@ -1223,7 +1267,7 @@ async function loadUserPosts() {
         const raw = item.createTime ? String(item.createTime) : '';
         let date: string = '';
         if (raw) {
-          date = raw.includes('T') ? raw.split('T')[0] : raw;
+          date = raw.includes('T') ? (raw.split('T')[0] || raw) : raw;
         }
         return {
           id: item.postId ?? index + 1,
@@ -1268,7 +1312,7 @@ async function loadUserLongAnimals() {
         let photos: string[] = [];
         if (Array.isArray(item.photoUrls)) {
           photos = item.photoUrls as string[];
-        } else if (typeof item.photoUrls === 'string' && item.photoUrls.trim()) {
+        } else if (typeof item.photoUrls === 'string' && (item.photoUrls as string).trim()) {
           try {
             const parsed = JSON.parse(item.photoUrls as unknown as string);
             if (Array.isArray(parsed)) {
@@ -1307,7 +1351,8 @@ async function loadUserLongAnimals() {
 onMounted(() => {
   loadUserFromCache();
   loadUserFromApi().then(() => {
-    // 当前用户信息加载完成后，如果路由上带有 userId 且不是自己，再加载他人信息
+    // 当前用户信息加载完成后，根据路由参数加载对应的用户信息
+    // loadViewedUserFromApi会根据userId是否等于currentUserId来决定调用getCurrentUser还是getUserById
     loadViewedUserFromApi();
     // 初始化加载评价/帖子/宠物等数据
     loadUserPosts();
@@ -1317,18 +1362,33 @@ onMounted(() => {
   });
 });
 
-// 监听：路由中的 userId 或当前登录用户ID 变化
-// 用于区分「查看自己主页」还是「查看他人主页」，并重新加载相关数据
+// 监听：路由参数变化，当userId变化时重新加载所有数据
 watch(
-  () => [viewedUserId.value, currentUserId.value],
+  () => route.params.userId,
   () => {
+    // 路由参数变化时，重新加载用户信息和所有列表数据
     loadViewedUserFromApi();
     loadUserPosts();
     loadUserShortAnimals();
     loadUserLongAnimals();
     loadUserRatings();
   },
-  { immediate: true }
+  { immediate: false }
+);
+
+// 监听：当前登录用户ID变化时，也需要重新加载数据
+watch(
+  () => currentUserId.value,
+  () => {
+    if (currentUserId.value !== null) {
+      loadViewedUserFromApi();
+      loadUserPosts();
+      loadUserShortAnimals();
+      loadUserLongAnimals();
+      loadUserRatings();
+    }
+  },
+  { immediate: false }
 );
 </script>
 
