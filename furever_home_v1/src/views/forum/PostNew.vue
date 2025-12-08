@@ -798,7 +798,12 @@ const confirmSuccess = ()=>{
   showSuccessModal.value=false;
 
   if (isEditMode.value && editingPostId.value !== null) {
-    // 编辑完成后回到帖子详情
+    // 如果来源于个人中心「我的帖子」，编辑后返回该列表
+    if (route.query.from === 'myPosts') {
+      router.push({ path: '/user-center', query: { menu: 'posts' } });
+      return;
+    }
+    // 默认编辑完成后回到帖子详情
     router.push({ name: 'PostDetail', params: { id: editingPostId.value.toString() } });
   } else {
     // 发布成功后，返回论坛页面并恢复之前的页码（不跳转到帖子详情）
