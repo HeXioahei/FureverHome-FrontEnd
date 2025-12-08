@@ -131,6 +131,8 @@ function clearSelection() {
 
 function clearCity() {
   modelCity.value = ''
+  // 只清空城市但保留已选省份，同时收起下拉
+  open.value = false
 }
 
 watch(

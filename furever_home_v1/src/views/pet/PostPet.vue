@@ -108,6 +108,12 @@ const getImageUrls = () => {
   return uploadedFiles.value.map(item => item.preview)
 }
 
+const handleAgeInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const numericValue = target.value.replace(/\D+/g, '')
+  form.value.age = numericValue
+}
+
 const uploadAllImages = async (): Promise<string[]> => {
   const urls: string[] = []
   for (const item of uploadedFiles.value) {
@@ -166,6 +172,14 @@ const validateForm = (): boolean => {
     return false
   }
 
+  // 验证联系电话为 11 位数字
+  const phoneValue = form.value.phone.trim()
+  if (!/^\d{11}$/.test(phoneValue)) {
+    errorMessage.value = '联系电话需为11位数字'
+    showErrorModal.value = true
+    return false
+  }
+
   return true
 }
 
@@ -174,12 +188,8 @@ const submitForm = async () => {
     return
   }
 
-  // 组合省市 + 详细地址为当前所在位置
-  const currentLocation = [
-    form.value.province,
-    form.value.city,
-    form.value.detailAddress
-  ].join('')
+  // 只用详细地址存入 currentLocation，省/市单独存储，避免重复拼接
+  const currentLocation = (form.value.detailAddress || '').trim()
 
   try {
     const animalAge = Number(form.value.age)
@@ -258,7 +268,10 @@ const closeErrorModal = () => {
                   v-model="form.age"
                   type="text"
                   placeholder="例如：5"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
                   class="w-full px-4 py-3 border border-[#E5E7EB] rounded-lg text-sm transition-colors focus:border-[#FF8C00] focus:outline-none"
+                  @input="handleAgeInput"
                 />
               </div>
 
