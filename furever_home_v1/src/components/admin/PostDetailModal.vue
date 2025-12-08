@@ -83,7 +83,7 @@
                 <div class="flex-1">
                   <div class="flex items-center gap-2">
                     <span class="text-sm font-medium text-slate-900 dark:text-white">{{ comment.userName || '未知用户' }}</span>
-                    <span class="text-xs text-slate-400">{{ formatTime(comment.createTime) }}</span>
+                    <span class="text-xs text-slate-400">{{ formatDateTime(comment.createTime) }}</span>
                   </div>
                   <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ comment.content || '暂无内容' }}</p>
                 </div>
@@ -139,6 +139,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { getPostComments, type AdminCommentDto } from '../../api/adminApi';
+import { formatDateTime } from '@/utils/format';
 
 interface PostData {
   id?: number;
@@ -169,11 +170,6 @@ const loadingComments = ref(false);
 
 const commentTotalPages = computed(() => Math.ceil(commentsTotal.value / COMMENT_PAGE_SIZE));
 
-function formatTime(time?: string | Date): string {
-  if (!time) return '未知时间';
-  const date = typeof time === 'string' ? new Date(time) : time;
-  return date.toLocaleString('zh-CN');
-}
 
 async function loadComments() {
   if (!props.postData?.id) return;

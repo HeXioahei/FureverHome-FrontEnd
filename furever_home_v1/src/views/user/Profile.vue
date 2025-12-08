@@ -751,6 +751,7 @@ import { getCurrentUser, getUserById, type CurrentUserInfo } from '../../api/use
 import { getUserPosts, type 帖子公开信息 } from '../../api/postApi';
 import { getUserShortAnimals, getUserLongAnimals, type 动物公开信息 } from '../../api/animalApi';
 import { getOthersRatings, getReceivedRatings, addMyRating, updateMyRating, type ReceivedRatingItemDTO } from '../../api/ratingApi';
+import { formatDateTime } from '@/utils/format';
 
 const router = useRouter();
 const route = useRoute();
@@ -863,11 +864,7 @@ async function loadUserRatings() {
     if ((res.code === 0 || res.code === 200) && res.data) {
       const records: ReceivedRatingItemDTO[] = res.data.records ?? [];
       const mapped: Evaluation[] = records.map((item, index) => {
-        const raw = item.createTime ? String(item.createTime) : '';
-        let date = '';
-        if (raw) {
-          date = raw.includes('T') ? (raw.split('T')[0] || raw) : raw;
-        }
+        const date = formatDateTime(item.createTime);
         return {
           id: item.ratingId ?? index + 1,
           author: item.otherUserName ?? '用户',
@@ -932,7 +929,7 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
     { label: '性别', value: data.sex || '-' },
     { label: '所在地', value: data.location || '-' },
     { label: '邮箱', value: data.email || '-' },
-    { label: '注册时间', value: data.createTime || '-' }
+    { label: '注册时间', value: formatDateTime(data.createTime) || '-' }
   ];
 
   proofIntro.value = data.proofText || proofIntro.value;
@@ -1265,11 +1262,7 @@ async function loadUserPosts() {
     if ((res.code === 0 || res.code === 200) && res.data) {
       const records: 帖子公开信息[] = res.data.records ?? [];
       const mapped: Post[] = records.map((item, index) => {
-        const raw = item.createTime ? String(item.createTime) : '';
-        let date: string = '';
-        if (raw) {
-          date = raw.includes('T') ? (raw.split('T')[0] || raw) : raw;
-        }
+        const date = formatDateTime(item.createTime);
         return {
           id: item.postId ?? index + 1,
           title: item.title ?? '',

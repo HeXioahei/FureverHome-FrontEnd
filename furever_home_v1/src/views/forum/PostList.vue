@@ -194,11 +194,17 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue';
+
+defineOptions({
+  name: 'PostList'
+})
+
 import { useRouter, useRoute } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
 import { likePost as likePostApi } from '@/api/commentapi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
 import { isVideoUrl } from '@/utils/mediaUtils';
+import { formatDateTime } from '@/utils/format';
 
 interface Post {
   id: number;
@@ -382,7 +388,7 @@ const mapPosts = (list: any[]): Post[] => {
       id: p.id || p.postId,
       author: authorName,
       avatarInitial: avatarInitial,
-      timeAgo: p.timeAgo || p.createTime || '刚刚',
+      timeAgo: formatDateTime(p.createTime || p.timeAgo || new Date()),
       title: p.title || '无标题',
       content: p.content || p.summary || '',
       images,
@@ -486,7 +492,7 @@ const handleSearch = async () => {
             id: p.id || p.postId,
             author: authorName,
             avatarInitial: avatarInitial,
-            timeAgo: p.timeAgo || p.createTime || '刚刚',
+            timeAgo: formatDateTime(p.createTime || p.timeAgo || new Date()),
             title: p.title || '无标题',
             content: p.content || p.summary || '',
             images: p.images || [],

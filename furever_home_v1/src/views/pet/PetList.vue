@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+
+defineOptions({
+  name: 'PetList'
+})
+
 import { useRouter } from 'vue-router'
 import ImageViewer from '../../components/common/ImageViewer.vue'
 import { getAnimalList, type AdoptionStatus, type Gender, type Species } from '@/api/animalApi'

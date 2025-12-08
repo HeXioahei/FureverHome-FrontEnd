@@ -1,34 +1,27 @@
 /**
- * HTTP请求工具
- * 封装fetch请求，提供统一的请求接口
- * 并通过 window 全局事件通知 UI 显示/隐藏“请求中”加载提示
+ * HTTP request helper based on fetch.
+ * Emits window events to control global loading indicator.
  */
 
-// API基础URL - 默认走 /api，由 Vite 代理到测试环境
-// 开发环境使用相对路径 /api，会经过 Vite 代理转发到后端
-// 生产环境可以通过环境变量 VITE_API_BASE_URL 设置完整后端地址
+// Base URL: dev uses /api (proxied by Vite); prod can override via VITE_API_BASE_URL
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-// 请求配置接口
+// Request config
 interface RequestConfig extends RequestInit {
   params?: Record<string, any>
   timeout?: number
 }
 
-// 响应数据接口
+// Standard API response
 interface ApiResponse<T = any> {
   code: number
   message: string
   data: T
 }
 
-/**
- * HTTP请求类
- */
 class HttpClient {
   private baseURL: string
   private timeout: number
-  // 静态全局计数：所有 HttpClient 实例共享，用于控制全局 loading
   private static globalPendingCount = 0
 
   constructor(baseURL: string, timeout: number = 10000) {
@@ -36,42 +29,34 @@ class HttpClient {
     this.timeout = timeout
   }
 
-  /**
-   * 获取前台/后台 token
-   * - bearerToken：通用 Bearer token（如后台、其他接口）
-   * - saTokenName / saTokenValue：Sa-Token 风格的 token（例如 header: satoken: xxx）
-   */
   private getAuthTokens(): {
     bearerToken: string | null
     saTokenName: string | null
     saTokenValue: string | null
   } {
-    const bearerToken = localStorage.getItem('token') || sessionStorage.getItem('token')
+    // 浼樺厛璇诲彇宸茬粡甯?Bearer 鍓嶇紑鐨?Authorization锛岄伩鍏嶅墠缂€涓㈠け
+    const storedAuth = localStorage.getItem('Authorization') || sessionStorage.getItem('Authorization')
+    const bearerToken =
+      storedAuth ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token')
+
     const saTokenName = localStorage.getItem('saTokenName')
     const saTokenValue = localStorage.getItem('saTokenValue')
     return { bearerToken, saTokenName, saTokenValue }
   }
-
-  /**
-   * 构建完整URL
-   */
   private buildURL(url: string, params?: Record<string, any>): string {
     let fullURL: string
     if (url.startsWith('http')) {
-      // 已经是完整URL，直接使用
       fullURL = url
     } else if (this.baseURL) {
-      // 有 baseURL，拼接
-      // 确保 baseURL 和 url 之间没有重复的斜杠
       const base = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL
       const path = url.startsWith('/') ? url : `/${url}`
       fullURL = `${base}${path}`
     } else {
-      // baseURL 为空（后台接口），直接使用 url（url 应该以 / 开头，如 /admin/xxx）
-      // 确保 url 以 / 开头
       fullURL = url.startsWith('/') ? url : `/${url}`
     }
-    
+
     if (params) {
       const searchParams = new URLSearchParams()
       Object.keys(params).forEach(key => {
@@ -82,98 +67,94 @@ class HttpClient {
       const queryString = searchParams.toString()
       return queryString ? `${fullURL}?${queryString}` : fullURL
     }
-    
+
     return fullURL
   }
 
-  /**
-   * 处理响应
-   */
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     const contentType = response.headers.get('content-type')
     const isJson = contentType?.includes('application/json')
-    
+
     let data: any
     if (isJson) {
       try {
         data = await response.json()
       } catch (e) {
-        // JSON 解析失败，尝试作为文本读取
         const text = await response.text()
-        console.error('JSON解析失败，原始响应:', text)
-        throw new Error(`响应解析失败: ${text}`)
+        console.error('JSON parse failed, raw response:', text)
+        throw new Error(`鍝嶅簲瑙ｆ瀽澶辫触: ${text}`)
       }
     } else {
       data = await response.text()
     }
 
-    // 如果 HTTP 状态码不是 2xx，抛出错误
     if (!response.ok) {
-      // 记录详细的错误信息用于调试
-      console.error('HTTP错误响应:', {
+      console.error('HTTP error response:', {
         status: response.status,
         statusText: response.statusText,
         url: response.url,
-        data: data
+        data
       })
-      
-      // 如果响应体是 JSON 且有 message 字段，使用它作为错误消息
+
       if (isJson && data && typeof data === 'object') {
         const errorMsg = data.message || data.msg || `HTTP error! status: ${response.status}`
         throw new Error(errorMsg)
       }
-      throw new Error(data.message || data || `HTTP error! status: ${response.status}`)
+      throw new Error((data as any)?.message || data || `HTTP error! status: ${response.status}`)
     }
 
-    // HTTP 状态码是 2xx，但检查响应体中的 code 字段
-    // 如果 code 不是 0 或 200，且不是成功状态，可能需要特殊处理
-    // 但这里先返回数据，让调用方根据 code 判断
     return data
   }
 
-  /**
-   * 发送请求
-   */
   private async request<T>(
     url: string,
     config: RequestConfig = {}
   ): Promise<ApiResponse<T>> {
     const { params, timeout = this.timeout, ...fetchConfig } = config
-
-    // 构建完整URL
     const fullURL = this.buildURL(url, params)
 
-    // 设置请求头
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(fetchConfig.headers as Record<string, string>),
     }
 
-    // 添加token
     const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
+
+    // 统一处理 Token 逻辑：始终优先使用 Authorization: Bearer <token>
+    // 只有当 saTokenName 明确存在且不为 Authorization/satoken 时，才额外添加自定义头
     
-    // 优先使用 saTokenName/saTokenValue（如果存在），因为这是后端返回的标准格式
-    if (saTokenName && saTokenValue) {
-      // 确保 tokenValue 不包含 Bearer 前缀（如果包含则去掉）
-      const cleanTokenValue = saTokenValue.startsWith('Bearer ') 
-        ? saTokenValue.substring(7) 
-        : saTokenValue
-      
-      // Sa-Token 约定的 header 名称 + token 值，需要带上 Bearer 前缀
-      const tokenWithBearer = `Bearer ${cleanTokenValue}`
-      headers[saTokenName] = tokenWithBearer
-      // 同时设置 Authorization header，确保兼容性
-      headers['Authorization'] = tokenWithBearer
+    let finalToken = ''
+
+    if (saTokenValue) {
+      finalToken = saTokenValue
     } else if (bearerToken) {
-      // 如果没有 saToken，使用 bearerToken
-      // 确保 bearerToken 不包含 Bearer 前缀（如果包含则去掉）
-      const cleanBearerToken = bearerToken.startsWith('Bearer ') 
-        ? bearerToken.substring(7) 
-        : bearerToken
-      headers['Authorization'] = `Bearer ${cleanBearerToken}`
+      finalToken = bearerToken
     }
 
-    // 全局开始计数：通知 UI 有请求开始
+    if (finalToken) {
+      // 确保 Token 值不包含 Bearer 前缀（先清理）
+      const cleanToken = finalToken.startsWith('Bearer ') 
+        ? finalToken.substring(7) 
+        : finalToken
+      
+      // 构造标准的 Bearer Token
+      const tokenWithBearer = `Bearer ${cleanToken}`
+
+      // 1. 始终设置 Authorization 头（最标准做法）
+      headers['Authorization'] = tokenWithBearer
+
+      // 2. 如果有自定义的 Token Name，且不是 Authorization，则也设置（兼容性）
+      // 注意：不要设置 satoken 头，除非 saTokenName 明确是 satoken，否则容易导致后端重复读取报错
+      if (saTokenName && saTokenName.toLowerCase() !== 'authorization') {
+         headers[saTokenName] = tokenWithBearer
+      }
+    }
+
+    // 调试日志：打印请求头，方便排查 500 错误
+    if (url.includes('/admin')) {
+       console.log(`[HttpClient] Request: ${fullURL}`, headers)
+    }
+
     HttpClient.globalPendingCount++
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('http-request-start', {
@@ -181,7 +162,6 @@ class HttpClient {
       }))
     }
 
-    // 创建AbortController用于超时控制
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
@@ -197,11 +177,10 @@ class HttpClient {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        throw new Error('请求超时')
+        throw new Error('璇锋眰瓒呮椂')
       }
       throw error
     } finally {
-      // 无论成功/失败，都减少全局计数，并通知 UI
       HttpClient.globalPendingCount = Math.max(0, HttpClient.globalPendingCount - 1)
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('http-request-end', {
@@ -211,9 +190,6 @@ class HttpClient {
     }
   }
 
-  /**
-   * GET请求
-   */
   get<T = any>(url: string, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
@@ -221,9 +197,6 @@ class HttpClient {
     })
   }
 
-  /**
-   * POST请求
-   */
   post<T = any>(
     url: string,
     data?: any,
@@ -236,9 +209,6 @@ class HttpClient {
     })
   }
 
-  /**
-   * PUT请求
-   */
   put<T = any>(
     url: string,
     data?: any,
@@ -251,9 +221,6 @@ class HttpClient {
     })
   }
 
-  /**
-   * DELETE请求
-   */
   delete<T = any>(url: string, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(url, {
       ...config,
@@ -261,9 +228,6 @@ class HttpClient {
     })
   }
 
-  /**
-   * PATCH请求
-   */
   patch<T = any>(
     url: string,
     data?: any,
@@ -276,9 +240,6 @@ class HttpClient {
     })
   }
 
-  /**
-   * 文件上传
-   */
   async upload<T = any>(
     url: string,
     formData: FormData,
@@ -287,13 +248,23 @@ class HttpClient {
     const fullURL = this.buildURL(url)
     const headers: Record<string, string> = {}
 
-    // 添加token
     const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
     if (bearerToken) {
-      headers['Authorization'] = `Bearer ${bearerToken}`
+      const cleanBearerToken = bearerToken.startsWith('Bearer ')
+        ? bearerToken.substring(7)
+        : bearerToken
+      const tokenWithBearer = `Bearer ${cleanBearerToken}`
+      headers['Authorization'] = tokenWithBearer
+      headers['satoken'] = tokenWithBearer
     }
     if (saTokenName && saTokenValue) {
-      headers[saTokenName] = `Bearer ${saTokenValue}`
+      const cleanTokenValue = saTokenValue.startsWith('Bearer ')
+        ? saTokenValue.substring(7)
+        : saTokenValue
+      const tokenWithBearer = `Bearer ${cleanTokenValue}`
+      headers[saTokenName] = tokenWithBearer
+      headers['Authorization'] = tokenWithBearer
+      headers['satoken'] = tokenWithBearer
     }
 
     const controller = new AbortController()
@@ -314,18 +285,15 @@ class HttpClient {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        throw new Error('上传超时')
+        throw new Error('涓婁紶瓒呮椂')
       }
       throw error
     }
   }
 }
 
-// 创建默认实例（前台接口使用，BASE_URL = '/api'）
 const httpClient = new HttpClient(BASE_URL)
 
-// 创建后台管理专用实例（后台接口使用，BASE_URL = ''，路径直接写 /admin/xxx）
-// 后台接口路径：/admin/xxx，不需要 /api 前缀
 const ADMIN_BASE_URL = import.meta.env.VITE_ADMIN_BASE_URL || (import.meta.env.DEV ? '' : 'http://localhost:8080')
 const adminHttpClient = new HttpClient(ADMIN_BASE_URL)
 

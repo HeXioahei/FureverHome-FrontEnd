@@ -118,6 +118,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin',
     component: AdminLayout,
+    beforeEnter: (to, from, next) => {
+      const token = localStorage.getItem('token') || localStorage.getItem('saTokenValue')
+      if (!token) {
+        next({ name: 'AdminLogin', query: { redirect: to.fullPath } })
+      } else {
+        next()
+      }
+    },
     children: [
       {
         path: '',
@@ -188,7 +196,14 @@ const routes: RouteRecordRaw[] = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
 })
 
 export default router

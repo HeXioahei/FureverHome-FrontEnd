@@ -81,6 +81,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { getCurrentUser, getCurrentUserStats, type CurrentUserInfo, type CurrentUserStats } from '../../../api/userApi';
 import { getMyNotifications } from '../../../api/notifyApi';
+import { formatDateTime } from '@/utils/format';
 
 const userName = ref('用户');
 const stats = ref<Required<CurrentUserStats>>({
@@ -211,7 +212,7 @@ const handleWsMessage = (event: MessageEvent) => {
     const data = payload?.data || payload;
     const title = data?.title || '系统通知';
     const content = generateNotificationContent(data);
-    const time = formatTime(data?.createTime || data?.time || new Date().toISOString());
+    const time = formatDateTime(data?.createTime || data?.time || new Date().toISOString());
     const newItem: NotificationItem = {
       id: data?.activityId ?? data?.id ?? Date.now(),
       title,
@@ -251,18 +252,6 @@ const initWs = () => {
   }
 };
 
-const formatTime = (val?: string | Date) => {
-  if (!val) return '';
-  const date = typeof val === 'string' ? new Date(val) : val;
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mi = String(date.getMinutes()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
-};
-
-
 async function loadNotifications(page = 1) {
   try {
     const res = await getMyNotifications({ page, pageSize, onlyUnread: false });
@@ -273,7 +262,7 @@ async function loadNotifications(page = 1) {
         id: item.activityId ?? item.targetId ?? Date.now(),
         title: item.title || '系统通知',
         content: generateNotificationContent(item),
-        time: formatTime(item.createTime || new Date().toISOString()),
+        time: formatDateTime(item.createTime || new Date().toISOString()),
         icon: 'fa-solid fa-bell',
         iconBg: '#E5F3FF',
         iconColor: '#2563EB'

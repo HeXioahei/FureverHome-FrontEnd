@@ -466,6 +466,7 @@ import {
   type AdminAnimalSummaryDto,
   type AdminAnimalDetailDto
 } from '../../api/adminApi';
+import { formatDateTime } from '@/utils/format';
 
 interface Pet {
   id: number;
@@ -550,18 +551,13 @@ const paginatedLongTermPets = computed(() => filteredLongTermPets.value);
 
 // 将后端 AdminAnimalSummaryDto 映射到前端展示用 Pet
 function mapAnimalToPet(item: AdminAnimalSummaryDto, petType: 'shortTerm' | 'longTerm'): Pet {
-  const createdAt = item.createdAt
-    ? typeof item.createdAt === 'string'
-      ? new Date(item.createdAt).toLocaleString('zh-CN')
-      : new Date(item.createdAt).toLocaleString('zh-CN')
-    : '';
   return {
     id: item.animalId ?? 0,
     name: item.animalName ?? '',
     category: `${item.species ?? ''}  ${item.breed ?? ''}`.trim(),
     publisher: item.ownerName ?? '未知发布者',
     ownerAvatar: item.ownerAvatar,
-    publishedAt: createdAt,
+    publishedAt: formatDateTime(item.createdAt),
     adopterName: item.ownerName,
     adopterAvatar: item.ownerAvatar,
     petType
@@ -694,11 +690,7 @@ async function handleViewDetail(pet: Pet) {
         category: `${data.species ?? ''}  ${data.breed ?? ''}`.trim() || pet.category,
         publisher: data.ownerName ?? pet.publisher,
         ownerAvatar: data.ownerAvatar ?? pet.ownerAvatar,
-        publishedAt: data.createdAt
-          ? typeof data.createdAt === 'string'
-            ? new Date(data.createdAt).toLocaleString('zh-CN')
-            : new Date(data.createdAt).toLocaleString('zh-CN')
-          : pet.publishedAt,
+        publishedAt: formatDateTime(data.createdAt) || pet.publishedAt,
         adopterName: data.ownerName,
         adopterAvatar: data.ownerAvatar,
         petType: pet.petType

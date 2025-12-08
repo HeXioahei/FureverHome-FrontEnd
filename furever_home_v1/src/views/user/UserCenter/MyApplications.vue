@@ -39,7 +39,7 @@
               </div>
               <span class="text-xs" style="color: #6B7280;">{{ application.targetUserName || '未知' }}</span>
             </div>
-            <div class="text-xs" style="color: #9CA3AF;">申请日期：{{ formatDate(application.createTime) }}</div>
+            <div class="text-xs" style="color: #9CA3AF;">申请日期：{{ formatDateTime(application.createTime) }}</div>
           </div>
         </div>
 
@@ -164,6 +164,7 @@ import {
   type AdoptDetail,
   type MyAdoptItemDTO
 } from '@/api/adoptApi';
+import { formatDateTime } from '@/utils/format';
 
 interface Application extends MyAdoptItemDTO {
   id: number;
@@ -189,7 +190,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pag
 // 规范化图片URL
 function normalizeImageUrl(url: string | undefined | null): string {
   if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
   if (url.startsWith('/api/')) {
@@ -198,21 +199,6 @@ function normalizeImageUrl(url: string | undefined | null): string {
   return `/api/storage/image/${url.replace(/^\/+/, '')}`;
 }
 
-// 格式化日期
-function formatDate(date: Date | string | undefined | null): string {
-  if (!date) return '';
-  try {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
-  } catch (e) {
-    return String(date);
-  }
-}
 
 // 根据三个状态字段判断综合状态
 function determineComprehensiveStatus(
@@ -363,6 +349,7 @@ async function handleViewDetail(application: Application) {
         address: detail.livingLocation || application.address,
         animalName: (detail as any).animalName || application.animalName,
         reason: detail.adoptReason || application.reason,
+        date: formatDateTime(application.createTime) || '',
       };
       showApplicationDetailModal.value = true;
     } else {

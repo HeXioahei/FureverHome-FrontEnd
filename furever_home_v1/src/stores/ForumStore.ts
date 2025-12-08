@@ -1,4 +1,5 @@
 import { reactive, readonly} from 'vue';
+import { formatDateTime } from '@/utils/format';
 
 // ----------------------------------------
 // 1. 定义类型
@@ -93,7 +94,7 @@ function addPost(
         author: '当前用户',
         avatarUrl: 'https://i.ibb.co/34Gf4rW/avatar-default.png',
         // 修正日期格式，避免 TS 错误
-        publishDate: new Date().toISOString().slice(0, 10),
+        publishDate: formatDateTime(new Date()),
         views: 0,
         likes: 0,
         comments: 0,
