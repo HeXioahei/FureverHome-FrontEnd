@@ -19,22 +19,29 @@ export default defineConfig({
         target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
-        ws: true,
+        ws: false, // 暂时禁用 WebSocket，避免解析错误
         timeout: 30000,
+        // 不重写路径，保持原样
+        rewrite: (path) => path,
         // 前台接口路径：/api/xxx，后端也是 /api/xxx，所以不需要 rewrite
         configure: (proxy, _options) => {
           proxy.on('error', (err, req, res) => {
-            console.log('前台接口代理错误:', err.message)
-            // 如果响应还没有发送，发送错误响应
-            if (!res.headersSent) {
-              res.writeHead(502, {
-                'Content-Type': 'application/json'
-              })
-              res.end(JSON.stringify({
-                code: 502,
-                message: '网关错误：无法连接到后端服务器',
-                error: err.message
-              }))
+            console.error('前台接口代理错误:', err.message)
+            console.error('请求路径:', req.url)
+            // 静默处理错误，避免崩溃
+            if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+              try {
+                res.writeHead(502, {
+                  'Content-Type': 'application/json'
+                })
+                res.end(JSON.stringify({
+                  code: 502,
+                  message: '网关错误：无法连接到后端服务器',
+                  error: err.message
+                }))
+              } catch (e) {
+                // 忽略错误处理失败
+              }
             }
           })
           proxy.on('proxyReq', (proxyReq, req, _res) => {
@@ -53,23 +60,27 @@ export default defineConfig({
         target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
-        ws: true,
+        ws: false, // 暂时禁用 WebSocket，避免解析错误
         timeout: 30000,
         // 后台接口路径：/admin/xxx，后端也是 /admin/xxx，所以不需要 rewrite
         // 确保代理所有 /admin 开头的请求
         configure: (proxy, _options) => {
           proxy.on('error', (err, req, res) => {
             console.log('后台接口代理错误:', err.message)
-            // 如果响应还没有发送，发送错误响应
-            if (!res.headersSent) {
-              res.writeHead(502, {
-                'Content-Type': 'application/json'
-              })
-              res.end(JSON.stringify({
-                code: 502,
-                message: '网关错误：无法连接到后端服务器',
-                error: err.message
-              }))
+            // Vite 5 中需要检查 res 是否有 writeHead 方法
+            if (res && typeof res.writeHead === 'function' && !res.headersSent) {
+              try {
+                res.writeHead(502, {
+                  'Content-Type': 'application/json'
+                })
+                res.end(JSON.stringify({
+                  code: 502,
+                  message: '网关错误：无法连接到后端服务器',
+                  error: err.message
+                }))
+              } catch (e) {
+                console.error('代理错误处理失败:', e)
+              }
             }
           })
           proxy.on('proxyReq', (proxyReq, req, _res) => {

@@ -653,7 +653,14 @@ function populateEditForm(pet: PetCard) {
   editForm.gender = pet.gender;
   editForm.species = pet.species;
   editForm.breed = pet.breed;
-  editForm.sterilized = pet.sterilized;
+  // 将显示用的 "已绝育"/"未绝育" 映射回后端枚举值 "是"/"否"
+  if (pet.sterilized === '已绝育') {
+    editForm.sterilized = '是';
+  } else if (pet.sterilized === '未绝育') {
+    editForm.sterilized = '否';
+  } else {
+    editForm.sterilized = pet.sterilized || '未知';
+  }
   editForm.province = pet.province || '';
   editForm.city = pet.city || '';
   editForm.location = pet.location || '';
@@ -752,13 +759,23 @@ async function submitEdit() {
 
   try {
     const id = editingPet.value.id;
+    // 确保 isSterilized 是后端接受的枚举值：'是'、'否'、'未知'
+    let sterilizedValue: string = editForm.sterilized;
+    if (sterilizedValue === '已绝育') {
+      sterilizedValue = '是';
+    } else if (sterilizedValue === '未绝育') {
+      sterilizedValue = '否';
+    } else if (!['是', '否', '未知'].includes(sterilizedValue)) {
+      sterilizedValue = '未知';
+    }
+    
     const reqBody = {
       animalName: editForm.name,
       animalAge: editForm.age ? Number(editForm.age) : 0,
       gender: editForm.gender as any,
       species: editForm.species as any,
       breed: editForm.breed,
-      isSterilized: editForm.sterilized as any,
+      isSterilized: sterilizedValue as any,
       province: editForm.province || '',
       city: editForm.city || '',
       currentLocation: editForm.location || '',
