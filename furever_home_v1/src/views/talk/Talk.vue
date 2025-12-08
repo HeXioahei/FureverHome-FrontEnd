@@ -205,9 +205,9 @@
     </div>
 
     <!-- 页脚 -->
-    <footer class="bg-[#1E293B] text-[#94A3B8] py-5 text-xs text-center mt-auto">
+    <!-- <footer class="bg-[#1E293B] text-[#94A3B8] py-5 text-xs text-center mt-auto">
       <div>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</div>
-    </footer>
+    </footer> -->
   </div>
 </template>
 

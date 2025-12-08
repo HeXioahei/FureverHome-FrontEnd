@@ -115,8 +115,8 @@
                   </div>
                 </div>
               </div>
-              <p class="text-gray-500 dark:text-gray-400">提交时间：{{ pet.publishedAt }}</p>
-              <p class="text-gray-500 dark:text-gray-400">更新时间：{{ pet.updatedAt || '—' }}</p>
+              <!-- <p class="text-gray-500 dark:text-gray-400">提交时间：{{ pet.publishedAt }}</p> -->
+              <p class="text-gray-500 dark:text-gray-400">提交时间：{{ pet.updatedAt || '—' }}</p>
             </div>
             <div class="flex items-center gap-2 justify-end">
               <button

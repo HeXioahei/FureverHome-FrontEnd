@@ -434,7 +434,7 @@ const currentPets = computed(() => {
   return currentList.value.slice(start, start + pageSize).map(pet => ({
     ...pet,
     photoText: `${pet.name}的照片`,
-    footerText: pet.type === 'short' ? `已短期领养第 ${pet.days} 天` : `已发布第 ${pet.days} 天`
+    footerText: pet.type === 'short' ? `已短期领养第 ${pet.days} 天` : `已长期领养第 ${pet.days} 天`
   }));
 });
 
@@ -817,8 +817,8 @@ async function submitEdit() {
     }
 
     showEditModal.value = false;
-    successModal.title = '保存成功';
-    successModal.message = '宠物信息已更新。';
+    successModal.title = '提交成功';
+    successModal.message = '您提交的宠物信息将送往管理员审核，审核通过后将展示在平台上。';
     successModal.visible = true;
   } catch (err) {
     console.error('更新宠物信息接口异常', err);

@@ -405,14 +405,15 @@ const paginatedPublishedPosts = computed(() => {
 
 // 将后端 AdminPostSummaryDto 映射到前端展示用 Post
 function mapAdminPostToPost(item: AdminPostSummaryDto): Post {
-  const createTime = formatDateTime(item.createTime);
+  console.log('Post Item:', item.postId, 'Create:', item.createTime, 'Update:', item.updateTime);
+  const displayTime = formatDateTime(item.updateTime || item.createTime);
   return {
     id: item.postId ?? 0,
     title: item.title ?? '',
     excerpt: item.excerpt ?? '',
     author: (item.authorName ?? '未知作者') as string,
     authorAvatar: item.authorAvatar,
-    time: createTime
+    time: displayTime
   };
 }
 

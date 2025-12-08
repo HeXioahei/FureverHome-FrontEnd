@@ -35,7 +35,7 @@
     </section>
 
     <!-- 数字展示 -->
-    <div class="flex justify-center gap-[60px] py-[60px] bg-white mx-[10%] my-10 rounded-xl shadow-sm relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] before:rounded-t-xl">
+    <!-- <div class="flex justify-center gap-[60px] py-[60px] bg-white mx-[10%] my-10 rounded-xl shadow-sm relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] before:rounded-t-xl">
       <div class="text-center relative">
         <div class="text-[40px] font-bold text-[#FF8C00] mb-2">1,286</div>
         <div class="text-sm text-[#666666]">成功领养</div>
@@ -52,7 +52,7 @@
         <div class="text-[40px] font-bold text-[#FF8C00] mb-2">156</div>
         <div class="text-sm text-[#666666]">合作救助站</div>
       </div>
-    </div>
+    </div> -->
 
     <!-- 核心功能 -->
     <section class="py-20 px-[10%]">
@@ -92,7 +92,7 @@
     </section>
 
     <!-- 救助指南 -->
-    <section class="py-20 px-[10%] bg-[#F8F9FB]">
+    <!-- <section class="py-20 px-[10%] bg-[#F8F9FB]">
       <h2 class="text-[32px] text-center mb-[50px] relative text-[#333333] after:content-[''] after:absolute after:bottom-[-10px] after:left-1/2 after:-translate-x-1/2 after:w-[60px] after:h-[3px] after:bg-[#FF8C00] after:rounded">
         救助指南
       </h2>
@@ -138,10 +138,10 @@
           <div class="text-[#666666] text-sm leading-relaxed">在平台发布救助信息，寻找合适的领养家庭</div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- 合作伙伴 -->
-    <section class="py-20 px-[10%]">
+    <!-- <section class="py-20 px-[10%]">
       <h2 class="text-[32px] text-center mb-[50px] relative text-[#333333] after:content-[''] after:absolute after:bottom-[-10px] after:left-1/2 after:-translate-x-1/2 after:w-[60px] after:h-[3px] after:bg-[#FF8C00] after:rounded">
         合作伙伴
       </h2>
@@ -175,11 +175,11 @@
           <div class="text-[#666666] text-sm">热心公益的志愿者服务团队</div>
         </div>
       </div>
-    </section>
+    </section> -->
 
     <!-- Footer -->
     <footer class="bg-[#1E293B] text-white py-10 px-[10%] mt-16">
-      <div class="flex flex-wrap justify-between max-w-[1200px] mx-auto gap-8">
+      <!-- <div class="flex flex-wrap justify-between max-w-[1200px] mx-auto gap-8">
         <div class="flex-1 min-w-[220px]">
           <h3 class="mb-4 text-lg">数据统计</h3>
           <p class="mb-2 text-sm text-[#ccc]">我们与多家救助站建立了长期合作关系</p>
@@ -195,7 +195,7 @@
             <i class="fa-brands fa-weibo text-2xl hover:text-[#FF8C00] cursor-pointer transition-colors"></i>
           </div>
         </div>
-      </div>
+      </div> -->
       <div class="text-center mt-8 pt-5 border-t border-[rgba(255,255,255,0.1)] text-sm text-[#aaa]">
         2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
       </div>

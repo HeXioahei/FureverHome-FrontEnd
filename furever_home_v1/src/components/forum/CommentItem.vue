@@ -20,6 +20,7 @@
       <div class="flex items-center gap-6 text-sm text-gray-400 mb-3">
         <span>{{ comment.date }}</span>
         <button 
+          v-if="!readonly"
           class="flex items-center gap-1 hover:text-orange-500 transition-colors" 
           :class="{ 'text-orange-500': comment.isLiked }"
           @click="$emit('like', comment.id)"
@@ -28,7 +29,7 @@
           <i class="fa-solid fa-thumbs-up" v-else></i>
           <span>{{ comment.likes || 0 }}</span>
         </button>
-        <button class="hover:text-blue-500 transition-colors" @click="toggleReply(comment)">
+        <button v-if="!readonly" class="hover:text-blue-500 transition-colors" @click="toggleReply(comment)">
           回复
         </button>
       </div>
@@ -88,6 +89,7 @@
               <div class="flex items-center gap-4 text-xs text-gray-400 mt-1">
                 <span>{{ child.date }}</span>
                 <button 
+                  v-if="!readonly"
                   class="flex items-center gap-1 hover:text-orange-500 transition-colors"
                   :class="{ 'text-orange-500': child.isLiked }"
                   @click="$emit('like', child.id)"
@@ -96,7 +98,7 @@
                   <i class="fa-solid fa-thumbs-up" v-else></i>
                   <span>{{ child.likes || 0 }}</span>
                 </button>
-                <button class="hover:text-blue-500 transition-colors" @click="toggleReply(child)">
+                <button v-if="!readonly" class="hover:text-blue-500 transition-colors" @click="toggleReply(child)">
                   回复
                 </button>
               </div>
@@ -142,6 +144,7 @@ import type { Comment } from '@/api/commentapi';
 
 const props = defineProps<{
   comment: Comment;
+  readonly?: boolean;
 }>();
 
 const emit = defineEmits<{

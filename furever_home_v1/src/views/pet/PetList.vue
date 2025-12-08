@@ -354,7 +354,7 @@ onMounted(() => {
     </div>
 
     <!-- Footer -->
-    <footer class="bg-[#2C3E50] text-white py-10 px-[5%] mt-16">
+    <!-- <footer class="bg-[#2C3E50] text-white py-10 px-[5%] mt-16">
       <div class="flex flex-wrap justify-between max-w-[1200px] mx-auto gap-8">
         <div class="flex-1 min-w-[220px]">
           <h3 class="mb-4 text-lg font-semibold">数据统计</h3>
@@ -377,7 +377,7 @@ onMounted(() => {
       <div class="text-center mt-8 pt-5 border-t border-white/10 text-sm text-[#aaa]">
         2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家
       </div>
-    </footer>
+    </footer> -->
 
     <!-- 图片查看器 -->
     <ImageViewer

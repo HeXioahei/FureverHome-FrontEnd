@@ -61,39 +61,19 @@
             <div v-if="loadingComments" class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
               加载中...
             </div>
-            <ul v-else-if="comments.length > 0" class="space-y-3">
-              <li
-                v-for="comment in comments"
-                :key="comment.commentId"
-                class="flex gap-3"
-              >
-                <img
-                  v-if="comment.userAvatar"
-                  :src="comment.userAvatar"
-                  :alt="comment.userName"
-                  class="size-9 rounded-full object-cover shrink-0"
-                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
-                />
-                <div
-                  v-if="!comment.userAvatar || !comment.userAvatar.trim()"
-                  class="size-9 rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 flex items-center justify-center text-xs font-medium shrink-0"
-                >
-                  {{ comment.userName?.charAt(0) || '头' }}
-                </div>
-                <div class="flex-1">
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium text-slate-900 dark:text-white">{{ comment.userName || '未知用户' }}</span>
-                    <span class="text-xs text-slate-400">{{ formatDateTime(comment.createTime) }}</span>
-                  </div>
-                  <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ comment.content || '暂无内容' }}</p>
-                </div>
-              </li>
-            </ul>
+            <div v-else-if="displayedComments.length > 0" class="space-y-3">
+              <CommentItem 
+                v-for="comment in displayedComments"
+                :key="comment.id"
+                :comment="comment"
+                :readonly="true"
+              />
+            </div>
             <p v-else class="text-sm text-slate-500 dark:text-slate-400">暂无评论</p>
             <!-- 评论分页 -->
-            <div v-if="commentsTotal > 0" class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+            <div v-if="commentTotalPages > 1" class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
               <p class="text-xs text-slate-500 dark:text-slate-400">
-                显示 {{ (commentPage - 1) * COMMENT_PAGE_SIZE + 1 }} 到 {{ Math.min(commentPage * COMMENT_PAGE_SIZE, commentsTotal) }} 条，共 {{ commentsTotal }} 条
+                显示 {{ (commentPage - 1) * pageSize + 1 }} 到 {{ Math.min(commentPage * pageSize, comments.length) }} 条，共 {{ comments.length }} 条
               </p>
               <div class="flex gap-2">
                 <button
@@ -140,6 +120,8 @@
 import { ref, computed, watch } from 'vue';
 import { getPostComments, type AdminCommentDto } from '../../api/adminApi';
 import { formatDateTime } from '@/utils/format';
+import CommentItem from '@/components/forum/CommentItem.vue';
+import type { Comment } from '@/api/commentapi';
 
 interface PostData {
   id?: number;
@@ -152,7 +134,7 @@ interface PostData {
   images?: string[];
 }
 
-const COMMENT_PAGE_SIZE = 5;
+const pageSize = ref(5);
 
 const props = defineProps<{
   visible: boolean;
@@ -163,13 +145,46 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const comments = ref<AdminCommentDto[]>([]);
+// 统一映射为 Comment 结构
+const normalizeComments = (list: any[]): Comment[] => {
+  if (!Array.isArray(list)) return [];
+  return list.map((item: any, index: number) => {
+    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+    
+    let children: Comment[] = [];
+    if (Array.isArray(item.children) && item.children.length > 0) {
+       children = normalizeComments(item.children);
+    } else if (Array.isArray(item.replies) && item.replies.length > 0) {
+       children = normalizeComments(item.replies);
+    }
+
+    return {
+      id: item.id ?? item.commentId ?? index + 1,
+      content: item.content ?? item.commentContent ?? item.text ?? item.body ?? item.message ?? '',
+      authorName: authorName,
+      authorAvatar: item.authorAvatar ?? item.avatar ?? item.userAvatar ?? '',
+      date: formatDateTime(item.createTime || item.date) || item.timeAgo || '刚刚',
+      likes: item.likes ?? item.likeCount ?? 0,
+      isLiked: item.isLiked ?? item.liked ?? false,
+      parentId: item.parentId ?? item.parentCommentId ?? item.parent_id ?? null,
+      replyTo: item.replyTo ?? item.replyToUser ?? item.reply_to_user_name ?? undefined,
+      children: children
+    };
+  });
+};
+
+const comments = ref<Comment[]>([]);
 const commentsTotal = ref(0);
 const commentPage = ref(1);
 const loadingComments = ref(false);
 
-const commentTotalPages = computed(() => Math.ceil(commentsTotal.value / COMMENT_PAGE_SIZE));
+const displayedComments = computed(() => {
+  const start = (commentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return comments.value.slice(start, end);
+});
 
+const commentTotalPages = computed(() => Math.ceil(comments.value.length / pageSize.value));
 
 async function loadComments() {
   if (!props.postData?.id) return;
@@ -177,17 +192,78 @@ async function loadComments() {
   try {
     loadingComments.value = true;
     const res = await getPostComments(props.postData.id, {
-      page: commentPage.value,
-      pageSize: COMMENT_PAGE_SIZE
+      page: 1,
+      pageSize: 1000
     });
     
+    let rawList: any[] = [];
     if ((res.code === 0 || res.code === 200) && res.data) {
-      const list = res.data.list || res.data.records || [];
-      comments.value = list;
-      commentsTotal.value = res.data.total ?? list.length;
+       const d: any = res.data;
+       if (Array.isArray(d)) {
+          rawList = d;
+       } else if (d && Array.isArray(d.data)) {
+          rawList = d.data;
+       } else if (d && Array.isArray(d.list)) {
+          rawList = d.list;
+       } else if (d && Array.isArray(d.records)) {
+          rawList = d.records;
+       }
+       
+       commentsTotal.value = res.data.total ?? rawList.length;
+    }
+
+    const flatComments = normalizeComments(rawList);
+    
+    const hasChildren = flatComments.some(c => c.children && c.children.length > 0);
+    
+    if (hasChildren) {
+       comments.value = flatComments;
     } else {
-      comments.value = [];
-      commentsTotal.value = 0;
+        const commentMap = new Map<number, Comment>();
+        const roots: Comment[] = [];
+
+        flatComments.forEach((c: Comment) => {
+          c.children = []; 
+          commentMap.set(c.id, c);
+        });
+
+        flatComments.forEach((c: Comment) => {
+          if (c.parentId) {
+            const parent = commentMap.get(c.parentId);
+            if (parent) {
+              if (!c.replyTo) {
+                 c.replyTo = parent.authorName;
+              }
+              let root = parent;
+              let current = parent;
+              let depth = 0;
+              while (current.parentId && depth < 20) {
+                const p = commentMap.get(current.parentId);
+                if (p) {
+                  current = p;
+                  root = p;
+                } else {
+                  break;
+                }
+                depth++;
+              }
+              root.children = root.children || [];
+              root.children.push(c);
+            } else {
+              roots.push(c);
+            }
+          } else {
+            roots.push(c);
+          }
+        });
+        
+        roots.forEach(root => {
+          if (root.children && root.children.length > 0) {
+            root.children.sort((a, b) => a.id - b.id);
+          }
+        });
+
+        comments.value = roots;
     }
   } catch (error) {
     console.error('获取评论列表异常', error);
@@ -198,17 +274,9 @@ async function loadComments() {
   }
 }
 
-// 监听 visible 和 postData.id 变化，重新加载评论
 watch([() => props.visible, () => props.postData?.id], ([newVisible, newId]) => {
   if (newVisible && newId) {
     commentPage.value = 1;
-    loadComments();
-  }
-});
-
-// 监听分页变化，重新加载评论
-watch(commentPage, () => {
-  if (props.visible && props.postData?.id) {
     loadComments();
   }
 });

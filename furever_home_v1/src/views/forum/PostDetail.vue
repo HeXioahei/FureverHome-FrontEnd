@@ -1,11 +1,6 @@
 <template>
   <div class="post-detail-page">
     <main class="forum-main">
-      <!-- 返回按钮 -->
-      <a href="#" class="back-btn" @click.prevent="goBack">
-        <i class="fa-solid fa-arrow-left"></i> 返回论坛
-      </a>
-
       <!-- 帖子详情 -->
       <div v-if="post" class="post-detail">
         <div class="post-header">
@@ -33,16 +28,17 @@
           </p>
         </div>
 
-        <div v-if="post.images && post.images.length" class="post-images">
+        <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2 mt-4">
           <div
             v-for="(media, index) in post.images"
             :key="index"
-            class="post-media"
+            class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
             <img 
               v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
               :src="media" 
               :alt="`帖子图片 ${index + 1}`"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               @error="handleImageError"
             />
             <video
@@ -50,9 +46,9 @@
               :src="media"
               controls
               preload="metadata"
-              class="post-video"
+              class="w-full h-full object-cover"
             ></video>
-            <span v-else>{{ media }}</span>
+            <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
           </div>
         </div>
 
@@ -97,6 +93,9 @@
         </div>
 
         <div class="comments-list space-y-4">
+          <div v-if="displayedComments.length === 0" class="no-comments py-8 text-center text-gray-500">
+             暂无评论，快来抢沙发吧！
+          </div>
           <CommentItem 
             v-for="c in displayedComments" 
             :key="c.id" 
@@ -359,6 +358,8 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
   const time = (route.query.time as string) || '刚刚';
   const updatedAt = (route.query.updateTime as string) || '';
   const authorFromRoute = (route.query.author as string) || '';
+  const avatarUrlFromRoute = (route.query.avatarUrl as string) || undefined;
+  const userIdFromRoute = Number(route.query.userId) || undefined;
   const likes = Number(route.query.likes) || 0;
   const commentsCount = Number(route.query.comments) || 0;
   const views = Number(route.query.views) || 0;
@@ -380,10 +381,11 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
 
   post.value = {
     id,
+    userId: userIdFromRoute,
     title,
-    author: authorFromRoute || currentUser.value?.userName || '用户',
-    avatarInitial: (authorFromRoute || currentUser.value?.userName || '用')[0] || '用',
-    avatarUrl: currentUser.value?.avatarUrl,
+    author: authorFromRoute || '用户',
+    avatarInitial: (authorFromRoute || '用')[0] || '用',
+    avatarUrl: avatarUrlFromRoute,
     timeAgo: updatedAt || time,
     publishDate: updatedAt || time,
     content,
@@ -553,7 +555,10 @@ const loadPost = async (id: number) => {
       isMockPost.value = true;
       reviewNotice.value = '';
       await loadComments(id);
-    } else if (!buildPostFromRouteIfAvailable(id)) {
+    } else if (buildPostFromRouteIfAvailable(id)) {
+      // 即使是从路由恢复的帖子，也尝试加载评论
+      await loadComments(id);
+    } else {
       post.value = undefined;
       isMockPost.value = false;
       reviewNotice.value = '';

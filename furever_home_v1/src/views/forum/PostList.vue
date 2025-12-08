@@ -49,16 +49,17 @@
 
           <div class="post-content clamped">{{ post.content }}</div>
 
-          <div v-if="post.images && post.images.length" class="post-images">
+          <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2 mt-3">
             <div
               v-for="(media, index) in post.images.slice(0, 3)"
               :key="index"
-              class="post-media"
+              class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
             >
               <img
                 v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
                 :src="media"
                 :alt="`帖子图片 ${index + 1}`"
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 @error="handleImageError"
                 @load="console.log('图片加载成功:', media)"
               />
@@ -67,11 +68,11 @@
                 :src="media"
                 controls
                 preload="metadata"
-                class="post-video"
+                class="w-full h-full object-cover"
                 @loadedmetadata="console.log('视频加载成功:', media)"
                 @error="console.error('视频加载失败:', media, $event)"
               ></video>
-              <span v-else>{{ media }}</span>
+              <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
             </div>
           </div>
 
@@ -413,6 +414,7 @@ const mapPosts = (list: any[]): Post[] => {
       userId: p.userId,
       author: authorName,
       avatarInitial: avatarInitial,
+      avatarUrl: avatarUrl,
       timeAgo: formatDateTime(p.createTime || p.timeAgo || new Date()),
       title: p.title || '无标题',
       content: p.content || p.summary || '',
@@ -572,7 +574,8 @@ const handleSearch = async () => {
             userId: p.userId,
             author: authorName,
             avatarInitial: avatarInitial,
-            timeAgo: formatDateTime(p.createTime || p.timeAgo || new Date()),
+      avatarUrl: avatarUrl,
+      timeAgo: formatDateTime(p.createTime || p.timeAgo || new Date()),
             title: p.title || '无标题',
             content: p.content || p.summary || '',
             images: p.images || [],
@@ -768,7 +771,10 @@ const goToPostDetail = (postId: number) => {
       views: views.toString(),
       title: targetPost?.title || '',
       content: targetPost?.content || '',
-      images: targetPost?.images ? JSON.stringify(targetPost.images) : ''
+      images: targetPost?.images ? JSON.stringify(targetPost.images) : '',
+      author: targetPost?.author || '',
+      avatarUrl: targetPost?.avatarUrl || '',
+      userId: targetPost?.userId?.toString() || ''
     }
   });
 };
@@ -1171,16 +1177,23 @@ onMounted(async () => {
 }
 
 .author-avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #F3C697;
+  background: #FF8C00 !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  color: white;
+  font-size: 16px;
+  color: white !important;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-title {

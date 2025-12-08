@@ -288,14 +288,19 @@
               v-for="post in recentPosts.slice(0, 2)" 
               :key="post.id" 
               class="bg-white rounded-2xl p-5 shadow-md cursor-pointer transition-transform hover:-translate-y-1"
-              @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
+              @click="goToPostDetail(post)"
             >
               <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
               <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
               <div class="text-gray-600 leading-relaxed mb-4">{{ post.summary }}</div>
-              <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5 my-4">
-                <div class="w-full h-38 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
-                  帖子图片
+              <!-- 帖子图片展示区 -->
+              <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 my-4">
+                <div class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                  <img 
+                    :src="normalizeImageUrl(post.images[0])" 
+                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
+                    alt="帖子图片" 
+                  />
                 </div>
               </div>
             </div>
@@ -627,11 +632,17 @@
               v-for="post in paginatedPosts"
               :key="post.id"
               class="bg-white rounded-2xl p-5 shadow-sm cursor-pointer transition-transform hover:-translate-y-1"
-              @click="router.push({ name: 'PostDetail', params: { id: post.id } })"
+              @click="goToPostDetail(post)"
             >
               <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
               <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
-              <div class="text-gray-600 leading-relaxed">{{ post.summary }}</div>
+              <div class="text-gray-600 leading-relaxed mb-4">{{ post.summary }}</div>
+              <!-- 图片展示区 -->
+              <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5">
+                 <div v-for="(img, index) in post.images.slice(0, 3)" :key="index" class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                   <img :src="normalizeImageUrl(img)" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="帖子图片" />
+                 </div>
+              </div>
             </div>
           </div>
         </div>
@@ -696,7 +707,7 @@
 
     <!-- Footer -->
     <footer class="text-white py-10 mt-12 px-[5%]" style="background-color: #2C3E50;">
-      <div class="flex flex-wrap justify-between max-w-6xl mx-auto">
+      <!-- <div class="flex flex-wrap justify-between max-w-6xl mx-auto">
         <div class="flex-1 min-w-[250px] mb-5">
           <h3 class="mb-5 text-lg font-bold">数据统计</h3>
           <p class="text-sm leading-loose mb-2">我们与多家救助站建立了长期合作关系，致力于为流浪动物提供更好的临时安置和长期领养服务。</p>
@@ -711,7 +722,7 @@
             <span class="text-2xl">🌐</span>
           </div>
         </div>
-      </div>
+      </div> -->
       <div class="text-center pt-5 mt-5 border-t border-white border-opacity-10 text-sm">
         <p>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
       </div>
@@ -788,7 +799,19 @@ interface AdoptionPet {
   // 宠物封面图（photoUrls 的第一张或 animalPhoto）
   photoUrl?: string;
 }
-interface Post { id: number; title: string; date: string; summary: string; status: 'approved' | 'pending' | 'rejected'; statusLabel: string; colorClass: string; reason?: string; }
+interface Post {
+  id: number;
+  title: string;
+  date: string;
+  summary: string;
+  status: 'approved' | 'pending' | 'rejected';
+  statusLabel: string;
+  colorClass: string;
+  images?: string[];
+  likes?: number;
+  comments?: number;
+  views?: number;
+}
 interface Badge { id: number; name: string; }
 
 const user = ref({
@@ -1263,6 +1286,26 @@ async function loadUserPosts() {
       const records: 帖子公开信息[] = res.data.records ?? [];
       const mapped: Post[] = records.map((item, index) => {
         const date = formatDateTime(item.createTime);
+        // 解析图片
+        let images: string[] = [];
+        const rawItem = item as any;
+        if (Array.isArray(rawItem.images)) {
+          images = rawItem.images;
+        } else if (Array.isArray(rawItem.mediaUrls)) {
+          images = rawItem.mediaUrls;
+        } else if (typeof rawItem.mediaUrls === 'string' && rawItem.mediaUrls) {
+          try {
+            const parsed = JSON.parse(rawItem.mediaUrls);
+            if (Array.isArray(parsed)) {
+              images = parsed;
+            } else {
+              images = [rawItem.mediaUrls];
+            }
+          } catch {
+            images = [rawItem.mediaUrls];
+          }
+        }
+
         return {
           id: item.postId ?? index + 1,
           title: item.title ?? '',
@@ -1270,7 +1313,11 @@ async function loadUserPosts() {
           summary: item.content ?? '',
           status: 'approved',
           statusLabel: '已发布',
-          colorClass: 'text-orange-500'
+          colorClass: 'text-orange-500',
+          images,
+          likes: item.likeCount ?? 0,
+          comments: item.commentCount ?? 0,
+          views: item.viewCount ?? 0
         };
       });
       allPosts.value = mapped;
@@ -1282,6 +1329,26 @@ async function loadUserPosts() {
   } catch (e) {
     console.error('获取用户帖子列表异常', e);
   }
+}
+
+function goToPostDetail(post: Post) {
+  router.push({
+    name: 'PostDetail',
+    params: { id: post.id },
+    query: {
+      from: 'profile',
+      title: post.title,
+      content: post.summary,
+      time: post.date,
+      images: JSON.stringify(post.images || []),
+      likes: post.likes,
+      comments: post.comments,
+      views: post.views,
+      author: user.value.name,
+      avatarUrl: user.value.avatarUrl || '',
+      userId: viewedUserId.value
+    }
+  });
 }
 
 // 加载他人长期领养宠物列表

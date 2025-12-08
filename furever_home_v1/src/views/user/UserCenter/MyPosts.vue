@@ -55,18 +55,18 @@
         <!-- 图片区域 -->
         <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 mb-4">
           <div
-            v-for="(img, index) in post.images"
+            v-for="(img, index) in post.images.slice(0, 3)"
             :key="index"
-            class="bg-gray-200 rounded-md aspect-[16/10] flex items-center justify-center text-xs text-gray-400 overflow-hidden"
+            class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
             <img
               v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))"
               :src="img"
               :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               @error="handleImageError"
             />
-            <span v-else>{{ img }}</span>
+            <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ img }}</span>
           </div>
         </div>
 
@@ -189,6 +189,7 @@ interface Post {
 
 const userName = ref('用户');
 const avatarUrl = ref<string | null>(null);
+const userId = ref<number | undefined>(undefined);
 
 const posts = ref<Post[]>([]);
 
@@ -341,7 +342,10 @@ function goToDetail(post: Post) {
       reviewStatus: post.reviewStatus || '',
       likes: post.likes,
       comments: post.comments,
-      views: post.views
+      views: post.views,
+      author: userName.value,
+      avatarUrl: avatarUrl.value || '',
+      userId: userId.value?.toString() || ''
     }
   });
 }
@@ -421,6 +425,7 @@ function loadUserFromCache() {
       const data = JSON.parse(cached) as CurrentUserInfo;
       if (data.userName) userName.value = data.userName;
       if (data.avatarUrl) avatarUrl.value = data.avatarUrl;
+      if (data.userId) userId.value = data.userId;
     }
   } catch (e) {
     console.error('解析本地缓存用户信息失败(MyPosts)', e);
@@ -433,13 +438,14 @@ async function loadUserFromApi() {
     if ((res.code === 0 || res.code === 200) && res.data) {
       const data = res.data;
       if (data.userName) userName.value = data.userName;
-      if (data.avatarUrl) avatarUrl.value = data.avatarUrl;
-      // 更新本地缓存，供其他页面复用
-      localStorage.setItem('currentUser', JSON.stringify(data));
-    }
-  } catch (e) {
-    console.error('获取当前用户信息失败(MyPosts)', e);
+    if (data.avatarUrl) avatarUrl.value = data.avatarUrl;
+    if (data.userId) userId.value = data.userId;
+    // 更新本地缓存，供其他页面复用
+    localStorage.setItem('currentUser', JSON.stringify(data));
   }
+} catch (e) {
+  console.error('获取当前用户信息失败(MyPosts)', e);
+}
 }
 
 function goPage(page: number) {

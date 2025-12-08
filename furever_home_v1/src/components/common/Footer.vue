@@ -1,6 +1,6 @@
 <template>
   <footer class="bg-gray-900 text-white pt-10 pb-5 mt-16">
-    <div class="footer-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap justify-between gap-8">
+    <!-- <div class="footer-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap justify-between gap-8">
 
       <div class="footer-section flex-1 min-w-[220px]">
         <h3 class="text-lg font-semibold mb-3">数据统计</h3>
@@ -19,7 +19,7 @@
         </div>
       </div>
 
-    </div>
+    </div> -->
 
     <div class="copyright text-center text-sm text-gray-500 mt-8 pt-5 border-t border-gray-800">
       &copy; 2025 FUREVERHOME动物领养平台 - 让每个生命都有温暖的家

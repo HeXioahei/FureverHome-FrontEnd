@@ -68,6 +68,7 @@ export interface AdminPostSummaryDto {
   likeCount?: number
   commentCount?: number
   createTime?: string | Date
+  updateTime?: string | Date
   [property: string]: any
 }
 
