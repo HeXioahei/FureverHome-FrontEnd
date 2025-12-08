@@ -41,7 +41,10 @@ export function uploadMedia(file: File): Promise<ApiResponse<string>> {
     ? '/storage/upload/video'  // 视频上传接口
     : '/storage/upload/image'  // 图片上传接口
   
-  return httpClient.upload<string>(uploadUrl, formData)
+  // 视频可能较大，延长超时时间；图片保持 30 秒
+  const timeout = isVideo ? 300000 : 30000
+
+  return httpClient.upload<string>(uploadUrl, formData, { timeout })
 }
 
 /**
