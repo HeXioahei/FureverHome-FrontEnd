@@ -62,7 +62,7 @@
             </div>
           </div>
 
-          <!-- 勋章区域 -->
+          <!-- 勋章区域（按需启用）
           <h2 class="text-xl my-6 pb-2.5 border-b-2" style="color: #FF8C42; border-color: #FFF9F0;">TA的勋章</h2>
           <div class="grid grid-cols-2 gap-4">
             <div 
@@ -73,6 +73,7 @@
               {{ badge.name }}
             </div>
           </div>
+          -->
         </div>
 
         <!-- 右侧主内容 -->

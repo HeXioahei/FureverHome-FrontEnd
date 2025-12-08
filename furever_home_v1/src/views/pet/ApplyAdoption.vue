@@ -31,6 +31,17 @@ const showCancelConfirmModal = ref(false)
 const errorMessage = ref('')
 
 // 宠物信息（从后端接口获取）
+// 月龄转换为“X岁Y个月”展示
+function formatAge(ageInMonths: number | null | undefined): string {
+  if (ageInMonths == null || isNaN(ageInMonths)) return ''
+  const months = Math.max(0, Math.floor(ageInMonths))
+  const years = Math.floor(months / 12)
+  const restMonths = months % 12
+  if (years === 0) return `${restMonths}个月`
+  if (restMonths === 0) return `${years}岁`
+  return `${years}岁${restMonths}个月`
+}
+
 const petInfo = ref({
   name: '',
   breed: '',
@@ -49,7 +60,8 @@ const loadPetInfo = async () => {
         name: item.animalName || '',
         breed: item.breed || '',
         species: item.species || '',
-        age: item.animalAge != null ? `${item.animalAge}岁` : '',
+        // 接口返回 animalAge 为月龄，这里统一展示为“X岁Y个月”
+        age: formatAge(item.animalAge),
         gender: item.gender || ''
       }
     } else {

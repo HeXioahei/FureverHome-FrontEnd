@@ -90,7 +90,12 @@ const loadPets = async () => {
       params.gender = genderFilter.value as Gender
     }
     if (ageFilter.value) {
-      params.age = ageFilter.value
+      // 将 "84+" 转换为后端可接受的格式 "84-999"（表示 84 个月及以上）
+      if (ageFilter.value === '84+') {
+        params.age = '84-999'
+      } else {
+        params.age = ageFilter.value
+      }
     }
     if (adoptionStatusFilter.value) {
       params.adoptionStatus = adoptionStatusFilter.value as AdoptionStatus
