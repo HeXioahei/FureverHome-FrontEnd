@@ -154,23 +154,19 @@ class HttpClient {
     
     // 优先使用 saTokenName/saTokenValue（如果存在），因为这是后端返回的标准格式
     if (saTokenName && saTokenValue) {
-      // 确保 tokenValue 不包含 Bearer 前缀（如果包含则去掉）
-      const cleanTokenValue = saTokenValue.startsWith('Bearer ') 
-        ? saTokenValue.substring(7) 
-        : saTokenValue
-      
-      // Sa-Token 约定的 header 名称 + token 值，需要带上 Bearer 前缀
-      const tokenWithBearer = `Bearer ${cleanTokenValue}`
-      headers[saTokenName] = tokenWithBearer
-      // 同时设置 Authorization header，确保兼容性
-      headers['Authorization'] = tokenWithBearer
+      // Sa-Token 自身的 header 原样透传
+      headers[saTokenName] = saTokenValue
+      // Authorization 需要 Bearer 前缀
+      const formattedBearer = saTokenValue.startsWith('Bearer ')
+        ? saTokenValue
+        : `Bearer ${saTokenValue}`
+      headers['Authorization'] = formattedBearer
     } else if (bearerToken) {
-      // 如果没有 saToken，使用 bearerToken
-      // 确保 bearerToken 不包含 Bearer 前缀（如果包含则去掉）
-      const cleanBearerToken = bearerToken.startsWith('Bearer ') 
-        ? bearerToken.substring(7) 
-        : bearerToken
-      headers['Authorization'] = `Bearer ${cleanBearerToken}`
+      // 如果没有 saToken，使用 bearerToken，确保带上 Bearer 前缀
+      const formattedBearer = bearerToken.startsWith('Bearer ')
+        ? bearerToken
+        : `Bearer ${bearerToken}`
+      headers['Authorization'] = formattedBearer
     }
 
     // 全局开始计数：通知 UI 有请求开始
@@ -289,11 +285,18 @@ class HttpClient {
 
     // 添加token
     const { bearerToken, saTokenName, saTokenValue } = this.getAuthTokens()
-    if (bearerToken) {
-      headers['Authorization'] = `Bearer ${bearerToken}`
-    }
     if (saTokenName && saTokenValue) {
-      headers[saTokenName] = `Bearer ${saTokenValue}`
+      // Sa-Token 自身的 header 原样透传
+      headers[saTokenName] = saTokenValue
+      const formattedBearer = saTokenValue.startsWith('Bearer ')
+        ? saTokenValue
+        : `Bearer ${saTokenValue}`
+      headers['Authorization'] = formattedBearer
+    } else if (bearerToken) {
+      const formattedBearer = bearerToken.startsWith('Bearer ')
+        ? bearerToken
+        : `Bearer ${bearerToken}`
+      headers['Authorization'] = formattedBearer
     }
 
     const controller = new AbortController()

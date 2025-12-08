@@ -162,7 +162,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { createPost, getPostDetail, updatePost } from '@/api/postApi'; // 帖子相关接口
-import { uploadImage, uploadVideo, uploadMedia } from '@/api/storageApi'; // 媒体上传接口，返回后端真实 URL
+import { uploadMedia } from '@/api/storageApi'; // 媒体上传接口，返回后端真实 URL
 import { isVideoUrl } from '@/utils/mediaUtils';
 
 const route = useRoute();
@@ -316,92 +316,49 @@ const closeImagePreview = () => {
   previewImageUrl.value = null;
 };
 
-// 带进度追踪的文件上传函数
+// 统一的媒体上传（简化：使用后端上传接口，无需手写XHR）
 const uploadFileWithProgress = async (
   file: File,
-  url: string,
   onProgress: (progress: number) => void
-): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append('file', file);
+): Promise<{ success: boolean; url: string }> => {
+  // 简单进度反馈：开始时 10%，成功后 100%
+  onProgress(10);
+  const isVideo = file.type.startsWith('video/');
+  let res: any;
 
-    // 获取token
-    const token = localStorage.getItem('token') || localStorage.getItem('saTokenValue');
-    const saTokenName = localStorage.getItem('saTokenName');
-    const saTokenValue = localStorage.getItem('saTokenValue');
-
-    // 监听上传进度
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        const progress = Math.round((e.loaded / e.total) * 100);
-        onProgress(progress);
-      }
-    });
-
-    // 监听完成
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          // 确保响应格式正确
-          if (response.code === undefined && response.data === undefined) {
-            // 如果响应格式不对，尝试包装
-            resolve({ code: 200, data: response });
-          } else {
-            resolve(response);
-          }
-        } catch (e) {
-          // 如果不是JSON，尝试作为文本返回
-          resolve({ code: 200, data: xhr.responseText });
-        }
-      } else {
-        try {
-          const error = JSON.parse(xhr.responseText);
-          reject(new Error(error.message || error.msg || `HTTP error! status: ${xhr.status}`));
-        } catch {
-          reject(new Error(`HTTP error! status: ${xhr.status}`));
-        }
-      }
-    });
-
-    // 监听错误
-    xhr.addEventListener('error', () => {
-      reject(new Error('网络错误，上传失败'));
-    });
-
-    // 监听超时
-    xhr.addEventListener('timeout', () => {
-      reject(new Error('上传超时'));
-    });
-
-    // 构建完整URL
-    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
-    const fullURL = url.startsWith('http') ? url : `${baseURL}${url}`;
-
-    // 打开请求
-    xhr.open('POST', fullURL);
-
-    // 设置请求头
-    if (saTokenName && saTokenValue) {
-      const cleanTokenValue = saTokenValue.startsWith('Bearer ')
-        ? saTokenValue.substring(7)
-        : saTokenValue;
-      xhr.setRequestHeader(saTokenName, `Bearer ${cleanTokenValue}`);
-      xhr.setRequestHeader('Authorization', `Bearer ${cleanTokenValue}`);
-    } else if (token) {
-      const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
-      xhr.setRequestHeader('Authorization', `Bearer ${cleanToken}`);
+  try {
+    res = await uploadMedia(file);
+  } catch (err: any) {
+    // 统一网络错误提示，便于定位后端/隧道问题
+    const msg = err?.message || String(err);
+    if (
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('ERR_EMPTY_RESPONSE') ||
+      msg.includes('网关') ||
+      msg.includes('502')
+    ) {
+      throw new Error(isVideo
+        ? '视频上传失败：无法连接上传服务（后端未响应或隧道断开）'
+        : '图片上传失败：无法连接上传服务（后端未响应或隧道断开）');
     }
+    throw err;
+  }
 
-    // 设置超时（视频5分钟，图片30秒）
-    const isVideo = file.type.startsWith('video/');
-    xhr.timeout = isVideo ? 300000 : 30000;
+  onProgress(100);
 
-    // 发送请求
-    xhr.send(formData);
-  });
+  // 兼容后端返回 {code,data} 或直接返回 URL 字符串
+  const url = typeof res === 'string'
+    ? res
+    : res?.data;
+
+  const okCode = res?.code === undefined || res?.code === 0 || res?.code === 200;
+
+  if (okCode && url) {
+    return { success: true, url: url as string };
+  }
+  const errMsg = res?.message || (isVideo ? '视频上传失败' : '图片上传失败');
+  throw new Error(errMsg);
 };
 
 
@@ -482,8 +439,7 @@ const submitPost = async () => {
         };
 
         console.log(`[编辑模式] 准备调用上传接口...`);
-        const uploadUrl = isVideo ? '/storage/upload/video' : '/storage/upload/image';
-        const uploadRes = await uploadFileWithProgress(item.file!, uploadUrl, updateProgress);
+        const uploadRes = await uploadFileWithProgress(item.file!, updateProgress);
 
         console.log(`[编辑模式] 上传响应:`, uploadRes);
 
@@ -492,13 +448,13 @@ const submitPost = async () => {
           uploadProgress.value.files[index].progress = 100;
         }
 
-        if ((uploadRes.code === 0 || uploadRes.code === 200) && uploadRes.data) {
-          item.remoteUrl = uploadRes.data;
+        if (uploadRes.success && uploadRes.url) {
+          item.remoteUrl = uploadRes.url;
           console.log(`[编辑模式] ${isVideo ? '视频' : '图片'}上传成功`);
-          return { success: true, url: uploadRes.data, name: item.name };
-        } else {
-          throw new Error(`${item.name} (${isVideo ? '视频' : '图片'}): ${uploadRes.message || '上传失败'}`);
+          return { success: true, url: uploadRes.url, name: item.name };
         }
+
+        throw new Error(`${item.name} (${isVideo ? '视频' : '图片'}): 上传失败`);
       });
 
       // 等待所有上传完成
@@ -626,10 +582,9 @@ const submitPost = async () => {
         };
 
         // 根据文件类型选择对应的上传接口
-        console.log(`[创建模式] 准备上传${isVideo ? '视频' : '图片'}，使用接口: ${isVideo ? '/api/storage/upload/video' : '/api/storage/upload/image'}`);
+        console.log(`[创建模式] 准备上传${isVideo ? '视频' : '图片'}，使用统一上传接口`);
 
-        const uploadUrl = isVideo ? '/storage/upload/video' : '/storage/upload/image';
-        const uploadRes = await uploadFileWithProgress(item.file!, uploadUrl, updateProgress);
+        const uploadRes = await uploadFileWithProgress(item.file!, updateProgress);
 
         console.log(`[创建模式] ${isVideo ? '视频' : '图片'}上传响应:`, uploadRes);
 
@@ -638,16 +593,15 @@ const submitPost = async () => {
           uploadProgress.value.files[index].progress = 100;
         }
 
-        if ((uploadRes.code === 0 || uploadRes.code === 200) && uploadRes.data) {
-          const uploadedUrl = uploadRes.data;
+        if (uploadRes.success && uploadRes.url) {
+          const uploadedUrl = uploadRes.url;
           console.log(`[创建模式] ${isVideo ? '视频' : '图片'}上传成功，URL:`, uploadedUrl);
           // 保存远程URL到文件项中
           item.remoteUrl = uploadedUrl;
           return { success: true, url: uploadedUrl, name: item.name };
-        } else {
-          const errorMsg = uploadRes.message || `上传失败，返回码: ${uploadRes.code}`;
-          throw new Error(`${item.name} (${isVideo ? '视频' : '图片'}): ${errorMsg}`);
         }
+
+        throw new Error(`${item.name} (${isVideo ? '视频' : '图片'}): 上传失败`);
       });
 
       // 等待所有上传完成
