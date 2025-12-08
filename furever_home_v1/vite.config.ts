@@ -19,7 +19,7 @@ export default defineConfig({
         target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
-        ws: false, // 暂时禁用 WebSocket，避免解析错误
+        ws: true, // 开启 WebSocket 代理，支持 /api/ws/*
         timeout: 30000,
         // 不重写路径，保持原样
         rewrite: (path) => path,
@@ -60,7 +60,7 @@ export default defineConfig({
         target: 'http://xd6325a9.natappfree.cc',
         changeOrigin: true,
         secure: false,
-        ws: false, // 暂时禁用 WebSocket，避免解析错误
+        ws: true, // 开启 WebSocket 代理
         timeout: 30000,
         // 关键修复：如果是浏览器页面请求（accept: text/html），则不走代理，让前端路由处理
         bypass: (req, res, options) => {

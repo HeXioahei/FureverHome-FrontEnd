@@ -126,7 +126,7 @@
           v-for="page in totalPages"
           :key="page"
           class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
+          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00] active-page' : 'text-gray-600'"
           style="color: #6B7280;"
           @click="goPage(page)"
         >
@@ -164,14 +164,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, reactive, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import { getMyPostList, deletePost } from '@/api/postApi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
 
 const router = useRouter();
+const route = useRoute();
 
 interface Post {
   id: number;
@@ -215,7 +216,12 @@ function handleEdit(post: Post) {
       from: 'myPosts',
       title: post.title,
       content: post.content,
-      images: JSON.stringify(post.images || [])
+      images: JSON.stringify(post.images || []),
+      likes: post.likes,
+      comments: post.comments,
+      views: post.views,
+      reviewStatus: post.reviewStatus || '',
+      time: post.time
     }
   });
 }
@@ -320,16 +326,22 @@ function closeDeleteSuccess() {
 
 // 从「我的帖子」跳转到帖子详情，同时把基础信息通过 query 传过去，便于在详情页回显（例如待审核时后端不返回详情）
 function goToDetail(post: Post) {
+  // 记录当前页，便于详情返回后恢复
+  sessionStorage.setItem('myPostsLastPage', currentPage.value.toString());
   router.push({
     name: 'PostDetail',
     params: { id: post.id.toString() },
     query: {
       from: 'myPosts',
+      fromMyPostsPage: currentPage.value.toString(),
       title: post.title,
       content: post.content,
       time: post.time,
       images: JSON.stringify(post.images || []),
-      reviewStatus: post.reviewStatus || ''
+      reviewStatus: post.reviewStatus || '',
+      likes: post.likes,
+      comments: post.comments,
+      views: post.views
     }
   });
 }
@@ -434,6 +446,8 @@ function goPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
   loadPosts(page);
+  // 同步路由，便于返回时恢复高亮页码
+  router.push({ path: '/user-center', query: { menu: 'posts', page: page.toString() } });
 }
 
 function goPrev() {
@@ -449,10 +463,31 @@ function goNext() {
 }
 
 onMounted(() => {
+  // 初始化页码：优先路由参数，其次缓存
+  const pageFromRoute = route.query.page;
+  const pageFromCache = sessionStorage.getItem('myPostsLastPage');
+  if (typeof pageFromRoute === 'string' && !isNaN(parseInt(pageFromRoute, 10))) {
+    currentPage.value = Math.max(1, parseInt(pageFromRoute, 10));
+  } else if (pageFromCache && !isNaN(parseInt(pageFromCache, 10))) {
+    currentPage.value = Math.max(1, parseInt(pageFromCache, 10));
+  }
   loadUserFromCache();
   loadUserFromApi();
   loadPosts(currentPage.value);
 });
+
+watch(
+  () => route.query.page,
+  (newPage) => {
+    if (typeof newPage === 'string') {
+      const num = parseInt(newPage, 10);
+      if (!isNaN(num) && num > 0 && num !== currentPage.value) {
+        currentPage.value = num;
+        loadPosts(num);
+      }
+    }
+  }
+);
 
 function getReviewStatusClass(status: string) {
   if (status === '通过') {
@@ -467,4 +502,8 @@ function getReviewStatusClass(status: string) {
 </script>
 
 <style scoped>
+.active-page {
+  outline: 2px solid #FF8C00 !important;
+  box-shadow: 0 0 0 2px #FF8C00 !important;
+}
 </style>

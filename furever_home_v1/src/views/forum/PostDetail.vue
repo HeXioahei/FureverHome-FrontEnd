@@ -10,8 +10,16 @@
       <div v-if="post" class="post-detail">
         <div class="post-header">
           <div class="post-meta">
-            <div class="post-author">
-              <div class="author-avatar">{{ post.avatarInitial || post.author?.[0] || '用' }}</div>
+            <div class="post-author" @click.stop="goToUserProfile(post.userId)" style="cursor: pointer;">
+              <div class="author-avatar">
+                <img
+                  v-if="post.avatarUrl"
+                  :src="post.avatarUrl"
+                  alt="用户头像"
+                  @error="handleAvatarError"
+                />
+                <span v-else>{{ post.avatarInitial || post.author?.[0] || '用' }}</span>
+              </div>
               <span>{{ post.author }}</span>
             </div>
             <span>{{ post.timeAgo || post.publishDate }}</span>
@@ -74,6 +82,7 @@
             v-model="newComment"
             class="comment-input"
             placeholder="写下你的评论..."
+            :disabled="!canComment"
           ></textarea>
           <button
             class="comment-submit"
@@ -82,6 +91,9 @@
           >
             发表评论
           </button>
+          <p v-if="!canComment" class="comment-hint">
+            帖子不存在或未发布，暂无法评论。
+          </p>
         </div>
 
         <div class="comments-list space-y-4">
@@ -134,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
@@ -144,7 +156,7 @@ import {
   likeComment as likeCommentApi,
   type Comment
 } from '@/api/commentapi';
-import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { getCurrentUser, getUserInfo, type CurrentUserInfo } from '@/api/userApi';
 import { isVideoUrl } from '@/utils/mediaUtils';
 import { formatDateTime } from '@/utils/format';
 import CommentItem from '@/components/forum/CommentItem.vue';
@@ -154,9 +166,11 @@ const router = useRouter();
 
 interface PostDetailData {
   id: number;
+  userId?: number;
   title: string;
   author: string;
   avatarInitial?: string;
+  avatarUrl?: string;
   timeAgo?: string;
   publishDate?: string;
   content: string;
@@ -195,8 +209,15 @@ const showErrorModal = ref(false);
 const errorMessage = ref('');
 // 审核提示（例如：尚未通过审核，仅自己可见）
 const reviewNotice = ref('');
+const canComment = computed(() => !!post.value && !isMockPost.value && !reviewNotice.value);
 // 当前登录用户信息
 const currentUser = ref<CurrentUserInfo | null>(null);
+const replyTargetId = ref<number | null>(null);
+const replyContent = ref('');
+// 用户信息缓存，减少重复请求
+const userNameCache = new Map<number, string>();
+const userAvatarCache = new Map<number, string | undefined>();
+const pendingUserFetch = new Map<number, Promise<void>>();
 
 // 示例帖子数据（仅用于演示 id 为 1 和 2 的情况）
 const getExamplePost = (id: number): PostDetailData | undefined => {
@@ -332,11 +353,16 @@ const postContentParagraphs = computed(() => {
 
 // 如果是从「我的帖子」过来，并且后端不返回详情时，尝试用路由 query 构建一个可预览的数据
 const buildPostFromRouteIfAvailable = (id: number): boolean => {
-  if (route.query.from !== 'myPosts') return false;
-
+  // 允许从任意列表页带参数进入，以便待审核/不可见时仍能展示基本信息和计数
   const title = (route.query.title as string) || '未命名帖子';
   const content = (route.query.content as string) || '';
   const time = (route.query.time as string) || '刚刚';
+  const updatedAt = (route.query.updateTime as string) || '';
+  const authorFromRoute = (route.query.author as string) || '';
+  const likes = Number(route.query.likes) || 0;
+  const commentsCount = Number(route.query.comments) || 0;
+  const views = Number(route.query.views) || 0;
+  const reviewStatus = (route.query.reviewStatus as string) || '';
   let images: string[] = [];
   if (typeof route.query.images === 'string') {
     try {
@@ -349,13 +375,17 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
     }
   }
 
+  // 如果路由没有提供标题和内容，认为没有足够信息
+  if (!title && !content && images.length === 0) return false;
+
   post.value = {
     id,
     title,
-    author: '我',
-    avatarInitial: '我',
-    timeAgo: time,
-    publishDate: time,
+    author: authorFromRoute || currentUser.value?.userName || '用户',
+    avatarInitial: (authorFromRoute || currentUser.value?.userName || '用')[0] || '用',
+    avatarUrl: currentUser.value?.avatarUrl,
+    timeAgo: updatedAt || time,
+    publishDate: updatedAt || time,
     content,
     fullContent: content
       ? content
@@ -364,12 +394,14 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
           .map(p => p.trim() + '。')
       : [],
     images,
-    likes: 0,
-    comments: 0,
-    views: 0
+    likes,
+    comments: commentsCount,
+    views
   };
   isMockPost.value = false;
-  reviewNotice.value = '当前帖子尚未通过审核，仅自己可见预览。';
+  if (reviewStatus && reviewStatus !== '通过') {
+    reviewNotice.value = '当前帖子尚未通过审核，仅自己可见预览。';
+  }
   return true;
 };
 
@@ -404,29 +436,49 @@ const loadPost = async (id: number) => {
       const p = res.data as 帖子详情DTO;
       const createdAt = formatDateTime(p.createTime);
       
-      // 判断是否是当前用户发布的帖子
-      let authorName = '用户 ' + (p.userId ?? '');
-      let avatarInitial = '用';
-      
-      // 如果接口返回了 userName，使用它
-      if ((p as any).userName) {
-        authorName = (p as any).userName;
-        avatarInitial = authorName[0] || '用';
-      }
-      
-      // 判断是否是当前用户
-      if (currentUser.value && p.userId === currentUser.value.userId) {
-        authorName = '我';
-        avatarInitial = '我';
-      }
+      const userInfo = (p as any).user || {};
+      // 显示真实昵称/头像，优先用户中心昵称
+      // 兼容不同字段命名，避免昵称为空
+      let authorName =
+        (p as any).userName ||
+        (p as any).username ||
+        (p as any).user_name ||
+        (p as any).authorName ||
+        (p as any).displayName ||
+        (p as any).name ||
+        (p as any).nickname ||
+        (p as any).nickName ||
+        (p as any).userNickname ||
+        (p as any).user_nickname ||
+        userInfo.userName ||
+        userInfo.username ||
+        userInfo.user_name ||
+        userInfo.displayName ||
+        userInfo.name ||
+        userInfo.nickname ||
+        userInfo.nickName ||
+        userInfo.userNickname ||
+        userInfo.user_nickname ||
+        '未知用户';
+      let avatarInitial = authorName[0] || '用';
+      const avatarUrl =
+        (p as any).userAvatar ||
+        (p as any).authorAvatar ||
+        (p as any).avatarUrl ||
+        (p as any).avatar ||
+        userInfo.avatarUrl ||
+        userInfo.userAvatar ||
+        userInfo.avatar;
       
       post.value = {
         id: p.postId ?? id,
+        userId: p.userId,
         title: p.title || '无标题',
         author: authorName,
         avatarInitial: avatarInitial,
-        timeAgo: createdAt || '刚刚',
-        publishDate: createdAt,
+        avatarUrl,
+        timeAgo: displayTime,
+        publishDate: displayTime,
         content: p.content || '',
         fullContent: p.content
           ? p.content
@@ -434,13 +486,35 @@ const loadPost = async (id: number) => {
               .filter((para: string) => para.trim())
               .map((para: string) => para.trim() + '。')
           : [],
-        images: p.mediaUrls || [],
+        images: Array.isArray(p.mediaUrls) ? p.mediaUrls : (typeof p.mediaUrls === 'string' ? [p.mediaUrls] : []),
         likes: p.likeCount ?? 0,
         comments: p.commentCount ?? 0,
         views: p.viewCount ?? 0
       };
       isMockPost.value = false;
+      // 审核状态：非通过则提示仅预览、禁用互动
+      const status = (p as any).reviewStatus || (p as any).status || '';
+      if (status && String(status) !== '通过') {
+        const timeTip = updatedAt || createdAt || '';
+        reviewNotice.value = timeTip
+          ? `当前帖子未通过审核或已下架（最新编辑时间：${timeTip}），暂不支持互动。`
+          : '当前帖子未通过审核或已下架，暂不支持互动。';
+
+        // 对未通过/待审核的帖子，如果后端清零计数，则用路由携带的快照保留原有计数
+        const queryLikes = Number(route.query.likes) || 0;
+        const queryComments = Number(route.query.comments) || 0;
+        const queryViews = Number(route.query.views) || 0;
+        if (queryLikes > 0) post.value.likes = queryLikes;
+        if (queryComments > 0) post.value.comments = queryComments;
+        if (queryViews > 0) post.value.views = queryViews;
+      } else {
+        reviewNotice.value = '';
+      }
       
+      // 如仍未知昵称，尝试请求用户信息补全
+      if (post.value.author === '未知用户' && post.value.userId) {
+        await ensureAuthorFromUser(post.value.userId);
+      }
       // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
       if (typeof (p as any).isLiked === 'boolean') {
         isLiked.value = (p as any).isLiked;
@@ -630,6 +704,66 @@ const loadComments = async (postId: number) => {
   }
 };
 
+// 通过 userId 请求用户信息，补全作者昵称/头像
+const ensureAuthorFromUser = async (userId: number) => {
+  if (userNameCache.has(userId)) {
+    const cachedName = userNameCache.get(userId);
+    const cachedAvatar = userAvatarCache.get(userId);
+    if (post.value && cachedName) {
+      post.value.author = cachedName;
+      post.value.avatarInitial = cachedName[0] || post.value.avatarInitial || '用';
+    }
+    if (post.value && cachedAvatar && !post.value.avatarUrl) {
+      post.value.avatarUrl = cachedAvatar;
+    }
+    return;
+  }
+  if (pendingUserFetch.has(userId)) {
+    await pendingUserFetch.get(userId);
+    return;
+  }
+  const fetchPromise = (async () => {
+    try {
+      const res = await getUserInfo(userId);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        const d: any = res.data;
+        const name =
+          d.userName ||
+          d.username ||
+          d.user_name ||
+          d.name ||
+          d.nickname ||
+          d.nickName ||
+          d.userNickname ||
+          d.user_nickname ||
+          d.displayName ||
+          `用户${userId}`;
+        const avatar =
+          d.avatarUrl ||
+          d.userAvatar ||
+          d.avatar ||
+          d.userAvatarUrl ||
+          d.avatarPath;
+        userNameCache.set(userId, name);
+        userAvatarCache.set(userId, avatar);
+        if (post.value && post.value.userId === userId) {
+          post.value.author = name;
+          post.value.avatarInitial = name[0] || post.value.avatarInitial || '用';
+          if (!post.value.avatarUrl && avatar) {
+            post.value.avatarUrl = avatar;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('获取用户信息失败', e);
+    } finally {
+      pendingUserFetch.delete(userId);
+    }
+  })();
+  pendingUserFetch.set(userId, fetchPromise);
+  await fetchPromise;
+};
+
 // 更新本地存储的点赞状态
 const updateLikedPostsStorage = (postId: number, liked: boolean) => {
   try {
@@ -816,10 +950,12 @@ const doSubmitComment = async (content: string, parentId?: number, replyTo?: str
       }
     }
   } catch (error: any) {
-    // 接口失败只提示一下，不删除刚才添加的本地评论
-    errorMessage.value = error?.message || '评论提交失败（仅本地可见），请稍后重试';
+    const msg =
+      error?.message?.includes('不存在') || error?.message?.includes('未发布')
+        ? '帖子不存在或未发布，无法评论。'
+        : error?.message || '评论失败，请稍后重试';
+    errorMessage.value = msg;
     showErrorModal.value = true;
-    console.error('评论失败:', error);
   }
 };
 
@@ -859,7 +995,30 @@ const handleLikeComment = async (commentId: number) => {
 
 // 返回
 const goBack = () => {
-  router.push({ name: 'Forum' });
+  // 优先处理来源路由
+  if (route.query.from === 'myPosts') {
+    const myPostsPage = route.query.fromMyPostsPage || sessionStorage.getItem('myPostsLastPage');
+    if (myPostsPage && typeof myPostsPage === 'string') {
+      router.push({ path: '/user-center', query: { menu: 'posts', page: myPostsPage } });
+    } else {
+      router.push({ path: '/user-center', query: { menu: 'posts' } });
+    }
+    return;
+  }
+  const fromPage = route.query.fromPage || sessionStorage.getItem('forumLastPage');
+  if (fromPage && typeof fromPage === 'string') {
+    const pageNum = parseInt(fromPage, 10);
+    if (!isNaN(pageNum) && pageNum > 0) {
+      router.push({ name: 'Forum', query: { page: pageNum.toString() } });
+      return;
+    }
+  }
+  // 优先回退到历史页面，若无历史则回论坛列表
+  if (window.history.length > 1) {
+    router.back();
+  } else {
+    router.push({ name: 'Forum' });
+  }
 };
 
 // 监听路由参数
@@ -887,12 +1046,29 @@ const handleImageError = (event: Event) => {
   }
 };
 
-onMounted(async () => {
-  // 先加载当前用户信息
-  await loadCurrentUser();
-  const postId = route.params.id;
-  if (postId) loadPost(Number(postId));
-});
+const handleAvatarError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+  if (post.value) {
+    post.value.avatarUrl = undefined;
+  }
+};
+
+const handleCommentAvatarError = (event: Event, c: Comment) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+  c.authorAvatar = '';
+};
+
+// 跳转到用户主页（有 userId 时）
+const goToUserProfile = (userId?: number) => {
+  if (!userId) return;
+  router.push({ name: 'UserProfile', params: { userId } });
+};
 </script>
 
 <style scoped>
@@ -983,6 +1159,12 @@ onMounted(async () => {
   font-size: 16px;
   color: white !important;
   font-weight: 600;
+  overflow: hidden;
+}
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-title {
@@ -1153,6 +1335,12 @@ onMounted(async () => {
   font-size: 14px;
   color: white;
   font-weight: 600;
+  overflow: hidden;
+}
+.comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .comment-author {
@@ -1163,6 +1351,33 @@ onMounted(async () => {
 .comment-time {
   color: var(--text-sub);
   font-size: 13px;
+}
+
+.reply-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #FF8C00;
+  cursor: pointer;
+}
+
+.reply-box {
+  margin-top: 12px;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-cancel {
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #555;
 }
 
 .comment-content {

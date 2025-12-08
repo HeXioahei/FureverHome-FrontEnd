@@ -522,7 +522,8 @@ async function loadMyShortPets() {
           name: item.animalName || '',
           meta: `${species || '未知'} · ${ageLabel || '未知'} · ${sterilizedLabel}`,
           type: 'short',
-          days: 0,
+          // adoptionDays: 后端返回的已领养/发布天数
+          days: item.adoptionDays ?? 0,
           // 兼容后端两种字段：photoUrls(string[]) / animalPhoto(string)
           cover:
             (item.animalPhoto as string | undefined) ||
@@ -583,7 +584,8 @@ async function loadMyLongPets() {
           name: item.animalName || '',
           meta: `${species || '未知'} · ${ageLabel || '未知'} · ${sterilizedLabel}`,
           type: 'long',
-          days: 0,
+          // adoptionDays: 后端返回的已领养/发布天数
+          days: item.adoptionDays ?? 0,
           cover:
             (item.animalPhoto as string | undefined) ||
             (photos.length > 0 ? photos[0] : ''),
@@ -671,6 +673,12 @@ function populateEditForm(pet: PetCard) {
 }
 
 function handleEdit(pet: PetCard) {
+  if (!canModifyLongPet(pet)) {
+    successModal.title = '无法操作';
+    successModal.message = '长期领养须满 6 个月后才能修改信息。';
+    successModal.visible = true;
+    return;
+  }
   editingPet.value = pet;
   populateEditForm(pet);
   showEditModal.value = true;
@@ -681,6 +689,13 @@ const successModal = reactive({
   title: '提示',
   message: ''
 });
+
+// 长期领养修改/删除的权限判断：领养天数需 > 180 天（约 6 个月）
+function canModifyLongPet(pet: PetCard) {
+  if (pet.type !== 'long') return true;
+  const days = pet.days ?? 0;
+  return days > 180;
+}
 
 function cancelEdit() {
   showEditModal.value = false;
@@ -814,6 +829,12 @@ async function submitEdit() {
 }
 
 function handleDelete(pet: PetCard) {
+  if (!canModifyLongPet(pet)) {
+    successModal.title = '无法操作';
+    successModal.message = '长期领养须满 6 个月后才能删除。';
+    successModal.visible = true;
+    return;
+  }
   petToDelete.value = pet;
   showDeleteConfirm.value = true;
 }
