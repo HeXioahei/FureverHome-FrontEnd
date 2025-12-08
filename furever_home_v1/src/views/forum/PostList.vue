@@ -46,7 +46,15 @@
             class="user-card"
             @click="goToUserProfile(user.userId)"
           >
-            <div class="user-avatar">{{ user.avatarInitial }}</div>
+            <div class="user-avatar">
+              <img
+                v-if="user.avatarUrl"
+                :src="user.avatarUrl"
+                alt="头像"
+                @error="user.avatarUrl = ''"
+              />
+              <span v-else>{{ user.avatarInitial }}</span>
+            </div>
             <div class="user-info">
               <div class="user-name">{{ user.userName }}</div>
               <div class="user-meta">用户ID: {{ user.userId }}</div>
@@ -71,7 +79,15 @@
           <div class="post-header">
             <div class="post-meta">
               <div class="post-author">
-                <div class="author-avatar">{{ post.avatarInitial }}</div>
+                <div class="author-avatar">
+                  <img
+                    v-if="post.avatarUrl"
+                    :src="post.avatarUrl"
+                    alt="用户头像"
+                    @error="handleAvatarError($event, post)"
+                  />
+                  <span v-else>{{ post.avatarInitial }}</span>
+                </div>
                 <span>{{ post.author }}</span>
               </div>
               <span>{{ post.timeAgo }}</span>
@@ -197,13 +213,15 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
 import { likePost as likePostApi } from '@/api/commentapi';
-import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { getCurrentUser, getUserInfo, type CurrentUserInfo } from '@/api/userApi';
 import { isVideoUrl } from '@/utils/mediaUtils';
 
 interface Post {
   id: number;
+  userId?: number;
   author: string;
   avatarInitial: string;
+  avatarUrl?: string;
   timeAgo: string;
   title: string;
   content: string;
@@ -221,6 +239,9 @@ const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post' | 'user'>('post');
 const isSearching = ref(false);
+const userNameCache = new Map<number, string>();
+const userAvatarCache = new Map<number, string | undefined>();
+const pendingUserFetch = new Map<number, Promise<void>>();
 
 // 分页相关
 const pageSize = 4;
@@ -267,6 +288,7 @@ interface UserSearchResult {
   userId: number;
   userName: string;
   avatarInitial: string;
+  avatarUrl?: string;
 }
 
 const searchResults = ref<{
@@ -357,13 +379,62 @@ const mapPosts = (list: any[]): Post[] => {
       });
     }
 
-    // 判断是否是当前用户发布的帖子
-    let authorName = p.authorName || p.userName || '未知用户';
+    // 判断是否是当前用户发布的帖子（显示真实昵称，不强制替换为“我”）
+    const userInfo = p.user || {};
+    // 兼容后端不同命名，避免作者名为空
+    const hasNameField =
+      p.userName ||
+      p.username ||
+      p.user_name ||
+      p.authorName ||
+      p.displayName ||
+      p.name ||
+      p.nickname ||
+      p.nickName ||
+      p.userNickname ||
+      p.user_nickname ||
+      userInfo.userName ||
+      userInfo.username ||
+      userInfo.user_name ||
+      userInfo.displayName ||
+      userInfo.name ||
+      userInfo.nickname ||
+      userInfo.nickName ||
+      userInfo.userNickname ||
+      userInfo.user_nickname;
+    let authorName =
+      p.userName ||
+      p.username ||
+      p.user_name ||
+      p.authorName ||
+      p.displayName ||
+      p.name ||
+      p.nickname ||
+      p.nickName ||
+      p.userNickname ||
+      p.user_nickname ||
+      userInfo.userName ||
+      userInfo.username ||
+      userInfo.user_name ||
+      userInfo.displayName ||
+      userInfo.name ||
+      userInfo.nickname ||
+      userInfo.nickName ||
+      userInfo.userNickname ||
+      userInfo.user_nickname ||
+      '未知用户';
     let avatarInitial = authorName[0] || '用';
+    let avatarUrl =
+      p.userAvatar ||
+      p.authorAvatar ||
+      p.avatarUrl ||
+      p.avatar ||
+      userInfo.avatarUrl ||
+      userInfo.userAvatar ||
+      userInfo.avatar;
 
     if (currentUser.value && p.userId === currentUser.value.userId) {
-      authorName = '我';
-      avatarInitial = '我';
+      avatarUrl = currentUser.value.avatarUrl || avatarUrl;
     }
 
     // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
@@ -378,10 +449,12 @@ const mapPosts = (list: any[]): Post[] => {
       isLiked = likedPosts.includes(p.id || p.postId);
     }
 
-    return {
+    const mapped: Post = {
       id: p.id || p.postId,
+      userId: p.userId,
       author: authorName,
       avatarInitial: avatarInitial,
+      avatarUrl,
       timeAgo: p.timeAgo || p.createTime || '刚刚',
       title: p.title || '无标题',
       content: p.content || p.summary || '',
@@ -390,7 +463,12 @@ const mapPosts = (list: any[]): Post[] => {
       comments: p.comments || p.commentCount || 0,
       views: p.views || p.viewCount || '0',
       isLiked: isLiked
-    } as Post;
+    };
+    // 若没有任何名称字段且有 userId，尝试异步补全昵称
+    if (!hasNameField && mapped.userId) {
+      void ensureAuthorFromUser(mapped.userId);
+    }
+    return mapped;
   });
 };
 
@@ -462,12 +540,61 @@ const handleSearch = async () => {
 
         posts.value = filtered.map((p: any) => {
           // 判断是否是当前用户发布的帖子
-          let authorName = p.authorName || '未知用户';
+          const userInfo = p.user || {};
+          // 兼容不同字段命名，避免昵称缺失
+          const hasNameField =
+            p.userName ||
+            p.username ||
+            p.user_name ||
+            p.authorName ||
+            p.displayName ||
+            p.name ||
+            p.nickname ||
+            p.nickName ||
+            p.userNickname ||
+            p.user_nickname ||
+            userInfo.userName ||
+            userInfo.username ||
+            userInfo.user_name ||
+            userInfo.displayName ||
+            userInfo.name ||
+            userInfo.nickname ||
+            userInfo.nickName ||
+            userInfo.userNickname ||
+            userInfo.user_nickname;
+          let authorName =
+            p.userName ||
+            p.username ||
+            p.user_name ||
+            p.authorName ||
+            p.displayName ||
+            p.name ||
+            p.nickname ||
+            p.nickName ||
+            p.userNickname ||
+            p.user_nickname ||
+            userInfo.userName ||
+            userInfo.username ||
+            userInfo.user_name ||
+            userInfo.displayName ||
+            userInfo.name ||
+            userInfo.nickname ||
+            userInfo.nickName ||
+            userInfo.userNickname ||
+            userInfo.user_nickname ||
+            '未知用户';
           let avatarInitial = authorName[0] || '用';
+          let avatarUrl =
+            p.userAvatar ||
+            p.authorAvatar ||
+            p.avatarUrl ||
+            p.avatar ||
+            userInfo.avatarUrl ||
+            userInfo.userAvatar ||
+            userInfo.avatar;
 
           if (currentUser.value && p.userId === currentUser.value.userId) {
-            authorName = '我';
-            avatarInitial = '我';
+            avatarUrl = currentUser.value.avatarUrl || avatarUrl;
           }
 
           // 检查点赞状态（优先使用接口返回的，其次使用本地存储的）
@@ -482,10 +609,12 @@ const handleSearch = async () => {
             isLiked = likedPosts.includes(p.id || p.postId);
           }
 
-          return {
+          const mapped: Post = {
             id: p.id || p.postId,
+            userId: p.userId,
             author: authorName,
             avatarInitial: avatarInitial,
+            avatarUrl,
             timeAgo: p.timeAgo || p.createTime || '刚刚',
             title: p.title || '无标题',
             content: p.content || p.summary || '',
@@ -495,6 +624,10 @@ const handleSearch = async () => {
             views: p.views || p.viewCount || '0',
             isLiked: isLiked
           };
+          if (!hasNameField && mapped.userId) {
+            void ensureAuthorFromUser(mapped.userId);
+          }
+          return mapped;
         });
       } else {
       // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
@@ -549,7 +682,31 @@ const handleSearch = async () => {
       if (res.data && res.data.list) {
         res.data.list.forEach((p: any) => {
           const userId = p.userId;
-          const userName = p.authorName || p.userName || '未知用户';
+          const userInfo = p.user || {};
+          const userName =
+            p.authorName ||
+            p.userName ||
+            p.username ||
+            p.user_name ||
+            p.nickname ||
+            p.nickName ||
+            p.userNickname ||
+            p.user_nickname ||
+            userInfo.userName ||
+            userInfo.username ||
+            userInfo.user_name ||
+            userInfo.nickname ||
+            userInfo.nickName ||
+            userInfo.userNickname ||
+            userInfo.user_nickname ||
+            '未知用户';
+          const avatarUrl =
+            p.userAvatar ||
+            p.avatarUrl ||
+            p.avatar ||
+            userInfo.avatarUrl ||
+            userInfo.userAvatar ||
+            userInfo.avatar;
           const userNameLower = userName.toLowerCase();
           const userIdStr = String(userId || '');
 
@@ -559,7 +716,8 @@ const handleSearch = async () => {
               userMap.set(userId, {
                 userId: userId,
                 userName: userName,
-                avatarInitial: userName[0] || '用'
+                avatarInitial: userName[0] || '用',
+                avatarUrl
               });
             }
           }
@@ -571,8 +729,22 @@ const handleSearch = async () => {
         const allPosts = await getAllPostsForSearch();
         allPosts.forEach((p: any) => {
           const userId = p.userId;
-          const userName = p.authorName || p.userName || '未知用户';
-          const userNameLower = userName.toLowerCase();
+          const userName =
+            p.authorName ||
+            p.userName ||
+            p.username ||
+            p.user_name ||
+            p.nickname ||
+            p.nickName ||
+            p.userNickname ||
+            p.user_nickname ||
+            '未知用户';
+          const avatarUrl =
+            p.userAvatar ||
+            p.avatarUrl ||
+            p.avatar ||
+            (p.user && (p.user.avatarUrl || p.user.userAvatar || p.user.avatar));
+          const userNameLower = (userName || '').toLowerCase();
           const userIdStr = String(userId || '');
 
           if (userId && (userNameLower.includes(keyword) || userIdStr.includes(keyword))) {
@@ -580,7 +752,8 @@ const handleSearch = async () => {
               userMap.set(userId, {
                 userId: userId,
                 userName: userName,
-                avatarInitial: userName[0] || '用'
+                avatarInitial: userName[0] || '用',
+                avatarUrl
               });
             }
           }
@@ -636,7 +809,7 @@ const goToPostCreation = () => {
 
 // 跳转到用户主页
 const goToUserProfile = (userId: number) => {
-  router.push({ name: 'Profile', params: { id: userId } });
+  router.push({ name: 'UserProfile', params: { userId } });
 };
 
 // 分页导航函数
@@ -664,6 +837,74 @@ const nextPage = () => {
     currentPage.value += 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+};
+
+// 通过 userId 请求用户信息，补全昵称/头像，带缓存防重复
+const ensureAuthorFromUser = async (userId: number) => {
+  if (userNameCache.has(userId)) {
+    const cachedName = userNameCache.get(userId);
+    const cachedAvatar = userAvatarCache.get(userId);
+    posts.value = posts.value.map(p => {
+      if (p.userId === userId) {
+        return {
+          ...p,
+          author: cachedName || p.author,
+          avatarInitial: cachedName?.[0] || p.avatarInitial || '用',
+          avatarUrl: p.avatarUrl || cachedAvatar
+        };
+      }
+      return p;
+    });
+    return;
+  }
+  if (pendingUserFetch.has(userId)) {
+    await pendingUserFetch.get(userId);
+    return;
+  }
+  const fetchPromise = (async () => {
+    try {
+      const res = await getUserInfo(userId);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        const d: any = res.data;
+        const name =
+          d.userName ||
+          d.username ||
+          d.user_name ||
+          d.name ||
+          d.nickname ||
+          d.nickName ||
+          d.userNickname ||
+          d.user_nickname ||
+          d.displayName ||
+          `用户${userId}`;
+        const avatar =
+          d.avatarUrl ||
+          d.userAvatar ||
+          d.avatar ||
+          d.userAvatarUrl ||
+          d.avatarPath;
+        userNameCache.set(userId, name);
+        userAvatarCache.set(userId, avatar);
+        posts.value = posts.value.map(p => {
+          if (p.userId === userId) {
+            return {
+              ...p,
+              author: name,
+              avatarInitial: name[0] || p.avatarInitial || '用',
+              avatarUrl: p.avatarUrl || avatar
+            };
+          }
+          return p;
+        });
+      }
+    } catch (e) {
+      console.error('获取用户信息失败', e);
+    } finally {
+      pendingUserFetch.delete(userId);
+    }
+  })();
+  pendingUserFetch.set(userId, fetchPromise);
+  await fetchPromise;
 };
 
 // 验证跳转页码输入
@@ -706,6 +947,18 @@ const handleImageError = (event: Event) => {
   const target = event.target as HTMLImageElement;
   if (target) {
     target.style.display = 'none';
+  }
+};
+
+// 头像加载失败时回退为首字
+const handleAvatarError = (event: Event, post: Post) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.style.display = 'none';
+  }
+  post.avatarUrl = undefined;
+  if (!post.avatarInitial && post.author) {
+    post.avatarInitial = post.author[0] || '用';
   }
 };
 
