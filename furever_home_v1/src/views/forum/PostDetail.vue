@@ -82,14 +82,18 @@
             v-model="newComment"
             class="comment-input"
             placeholder="写下你的评论..."
+            :disabled="!canComment"
           ></textarea>
           <button
             class="comment-submit"
             @click="submitComment"
-            :disabled="!newComment.trim()"
+            :disabled="!canComment || !newComment.trim()"
           >
             发表评论
           </button>
+          <p v-if="!canComment" class="comment-hint">
+            帖子不存在或未发布，暂无法评论。
+          </p>
         </div>
 
         <div class="comments-list">
@@ -187,6 +191,7 @@ const showErrorModal = ref(false);
 const errorMessage = ref('');
 // 审核提示（例如：尚未通过审核，仅自己可见）
 const reviewNotice = ref('');
+const canComment = computed(() => !!post.value && !isMockPost.value && !reviewNotice.value);
 // 当前登录用户信息
 const currentUser = ref<CurrentUserInfo | null>(null);
 const replyTargetId = ref<number | null>(null);
@@ -301,12 +306,16 @@ const postContentParagraphs = computed(() => {
 
 // 如果是从「我的帖子」过来，并且后端不返回详情时，尝试用路由 query 构建一个可预览的数据
 const buildPostFromRouteIfAvailable = (id: number): boolean => {
-  if (route.query.from !== 'myPosts') return false;
-
+  // 允许从任意列表页带参数进入，以便待审核/不可见时仍能展示基本信息和计数
   const title = (route.query.title as string) || '未命名帖子';
   const content = (route.query.content as string) || '';
   const time = (route.query.time as string) || '刚刚';
+  const updatedAt = (route.query.updateTime as string) || '';
   const authorFromRoute = (route.query.author as string) || '';
+  const likes = Number(route.query.likes) || 0;
+  const commentsCount = Number(route.query.comments) || 0;
+  const views = Number(route.query.views) || 0;
+  const reviewStatus = (route.query.reviewStatus as string) || '';
   let images: string[] = [];
   if (typeof route.query.images === 'string') {
     try {
@@ -319,14 +328,17 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
     }
   }
 
+  // 如果路由没有提供标题和内容，认为没有足够信息
+  if (!title && !content && images.length === 0) return false;
+
   post.value = {
     id,
     title,
     author: authorFromRoute || currentUser.value?.userName || '用户',
     avatarInitial: (authorFromRoute || currentUser.value?.userName || '用')[0] || '用',
     avatarUrl: currentUser.value?.avatarUrl,
-    timeAgo: time,
-    publishDate: time,
+    timeAgo: updatedAt || time,
+    publishDate: updatedAt || time,
     content,
     fullContent: content
       ? content
@@ -335,12 +347,14 @@ const buildPostFromRouteIfAvailable = (id: number): boolean => {
           .map(p => p.trim() + '。')
       : [],
     images,
-    likes: 0,
-    comments: 0,
-    views: 0
+    likes,
+    comments: commentsCount,
+    views
   };
   isMockPost.value = false;
-  reviewNotice.value = '当前帖子尚未通过审核，仅自己可见预览。';
+  if (reviewStatus && reviewStatus !== '通过') {
+    reviewNotice.value = '当前帖子尚未通过审核，仅自己可见预览。';
+  }
   return true;
 };
 
@@ -374,6 +388,13 @@ const loadPost = async (id: number) => {
     if (res.data) {
       const p = res.data as 帖子详情DTO;
       const createdAt = p.createTime ? String(p.createTime) : '';
+      const updatedAt =
+        (p as any).updateTime ||
+        (p as any).modifyTime ||
+        (p as any).modifiedTime ||
+        (p as any).lastModified ||
+        '';
+      const displayTime = updatedAt || createdAt || '刚刚';
       
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
@@ -416,8 +437,8 @@ const loadPost = async (id: number) => {
         author: authorName,
         avatarInitial: avatarInitial,
         avatarUrl,
-        timeAgo: createdAt || '刚刚',
-        publishDate: createdAt,
+        timeAgo: displayTime,
+        publishDate: displayTime,
         content: p.content || '',
         fullContent: p.content
           ? p.content
@@ -431,6 +452,24 @@ const loadPost = async (id: number) => {
         views: p.viewCount ?? 0
       };
       isMockPost.value = false;
+      // 审核状态：非通过则提示仅预览、禁用互动
+      const status = (p as any).reviewStatus || (p as any).status || '';
+      if (status && String(status) !== '通过') {
+        const timeTip = updatedAt || createdAt || '';
+        reviewNotice.value = timeTip
+          ? `当前帖子未通过审核或已下架（最新编辑时间：${timeTip}），暂不支持互动。`
+          : '当前帖子未通过审核或已下架，暂不支持互动。';
+
+        // 对未通过/待审核的帖子，如果后端清零计数，则用路由携带的快照保留原有计数
+        const queryLikes = Number(route.query.likes) || 0;
+        const queryComments = Number(route.query.comments) || 0;
+        const queryViews = Number(route.query.views) || 0;
+        if (queryLikes > 0) post.value.likes = queryLikes;
+        if (queryComments > 0) post.value.comments = queryComments;
+        if (queryViews > 0) post.value.views = queryViews;
+      } else {
+        reviewNotice.value = '';
+      }
       
       // 如仍未知昵称，尝试请求用户信息补全
       if (post.value.author === '未知用户' && post.value.userId) {
@@ -671,9 +710,26 @@ const toggleLike = async () => {
 // 提交评论
 const submitComment = async () => {
   if (!post.value || !newComment.value.trim()) return;
-  await submitCommentApi(post.value.id, { content: newComment.value.trim() });
-  newComment.value = '';
-  await loadComments(post.value.id);
+
+  // 未发布/未通过审核或示例帖子，提示不可评论
+  if (!canComment.value) {
+    errorMessage.value = '帖子不存在或未发布，无法评论。';
+    showErrorModal.value = true;
+    return;
+  }
+
+  try {
+    await submitCommentApi(post.value.id, { content: newComment.value.trim() });
+    newComment.value = '';
+    await loadComments(post.value.id);
+  } catch (error: any) {
+    const msg =
+      error?.message?.includes('不存在') || error?.message?.includes('未发布')
+        ? '帖子不存在或未发布，无法评论。'
+        : error?.message || '评论失败，请稍后重试';
+    errorMessage.value = msg;
+    showErrorModal.value = true;
+  }
 };
 
 // 打开回复框
@@ -699,6 +755,24 @@ const submitReply = async (comment: Comment) => {
 
 // 返回
 const goBack = () => {
+  // 优先处理来源路由
+  if (route.query.from === 'myPosts') {
+    const myPostsPage = route.query.fromMyPostsPage || sessionStorage.getItem('myPostsLastPage');
+    if (myPostsPage && typeof myPostsPage === 'string') {
+      router.push({ path: '/user-center', query: { menu: 'posts', page: myPostsPage } });
+    } else {
+      router.push({ path: '/user-center', query: { menu: 'posts' } });
+    }
+    return;
+  }
+  const fromPage = route.query.fromPage || sessionStorage.getItem('forumLastPage');
+  if (fromPage && typeof fromPage === 'string') {
+    const pageNum = parseInt(fromPage, 10);
+    if (!isNaN(pageNum) && pageNum > 0) {
+      router.push({ name: 'Forum', query: { page: pageNum.toString() } });
+      return;
+    }
+  }
   // 优先回退到历史页面，若无历史则回论坛列表
   if (window.history.length > 1) {
     router.back();
