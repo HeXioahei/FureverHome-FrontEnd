@@ -92,7 +92,7 @@ const loginWithPassword = async () => {
   loading.value = true;
   try {
     const res = await userLogin({ account: email.value, password: password.value });
-    const { targetRouteName } = await processLoginSuccess(res, email.value);
+    const { targetRouteName } = await processLoginSuccess(res, email.value, { preferAdmin: route.query.from === 'admin' });
     await router.push({ name: targetRouteName });
   } catch (error: any) {
     alert(error?.message || '登录失败，请稍后再试');

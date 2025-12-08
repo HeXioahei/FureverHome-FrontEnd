@@ -77,9 +77,7 @@
                 {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
               </span>
             </div>
-            <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
-              {{ pet.name }} 的照片
-            </div>
+            <!-- 图片占位已移除 -->
             <div class="flex items-center gap-3">
               <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
@@ -118,6 +116,7 @@
                 </div>
               </div>
               <p class="text-gray-500 dark:text-gray-400">提交时间：{{ pet.publishedAt }}</p>
+              <p class="text-gray-500 dark:text-gray-400">更新时间：{{ pet.updatedAt || '—' }}</p>
             </div>
             <div class="flex items-center gap-2 justify-end">
               <button
@@ -205,9 +204,7 @@
                 {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
               </span>
             </div>
-            <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
-              {{ pet.name }} 的照片
-            </div>
+            <!-- 图片占位已移除 -->
             <div class="flex items-center gap-3">
               <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
@@ -302,9 +299,7 @@
                 {{ pet.petType === 'shortTerm' ? '短期' : '长期' }}
               </span>
             </div>
-            <div class="rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 w-full h-28 flex items-center justify-center text-blue-600 dark:text-blue-200 text-sm font-semibold">
-              {{ pet.name }} 的照片
-            </div>
+            <!-- 图片占位已移除 -->
             <div class="flex items-center gap-3">
               <div>
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ pet.name }}</h3>
@@ -386,7 +381,10 @@
         mainImage: selectedPetDetail.photoUrls?.[0] ?? selectedPetDetail.images?.[0],
         galleryImages: selectedPetDetail.photoUrls ?? selectedPetDetail.images ?? [],
         adopterName: selectedPetDetail.ownerName ?? selectedPet.adopterName ?? selectedPet.publisher,
-        adopterAvatar: selectedPetDetail.ownerAvatar ?? selectedPet.adopterAvatar
+        adopterAvatar: selectedPetDetail.ownerAvatar ?? selectedPet.adopterAvatar,
+        province: selectedPetDetail.province,
+        city: selectedPetDetail.city,
+        currentLocation: selectedPetDetail.currentLocation
       } : selectedPet ? {
         id: selectedPet.id,
         name: selectedPet.name,
@@ -397,7 +395,10 @@
         neutered: '未知',
         description: '暂无简介',
         adopterName: selectedPet.adopterName || selectedPet.publisher,
-        adopterAvatar: selectedPet.adopterAvatar
+        adopterAvatar: selectedPet.adopterAvatar,
+        province: '',
+        city: '',
+        currentLocation: ''
       } : undefined"
       @close="showPetDetailModal = false"
     />
@@ -472,11 +473,21 @@ interface Pet {
   name: string;
   category: string;
   publisher: string;
+  cover?: string;
   ownerAvatar?: string;
   publishedAt: string;
+  updatedAt?: string;
   adopterName?: string;
   adopterAvatar?: string;
   petType?: 'shortTerm' | 'longTerm';
+}
+
+// 规范化图片 URL：如果是完整 URL 直接返回，否则补 /api/storage/image/ 前缀
+function normalizeImageUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/')) return url;
+  return `/api/storage/image/${url.replace(/^\/+/, '')}`;
 }
 
 const route = useRoute();
@@ -550,18 +561,46 @@ const paginatedLongTermPets = computed(() => filteredLongTermPets.value);
 
 // 将后端 AdminAnimalSummaryDto 映射到前端展示用 Pet
 function mapAnimalToPet(item: AdminAnimalSummaryDto, petType: 'shortTerm' | 'longTerm'): Pet {
+  // 处理图片：支持 photoUrls / images / animalPhoto
+  let cover: string | undefined;
+  const rawPhoto = (item as any).animalPhoto as string | undefined;
+  const rawPhotos = (item as any).photoUrls || (item as any).images;
+  let photos: string[] = [];
+  if (Array.isArray(rawPhotos)) {
+    photos = rawPhotos as string[];
+  } else if (typeof rawPhotos === 'string' && rawPhotos.trim()) {
+    try {
+      const parsed = JSON.parse(rawPhotos);
+      if (Array.isArray(parsed)) photos = parsed;
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (photos.length > 0) {
+    cover = normalizeImageUrl(photos[0]);
+  } else if (rawPhoto) {
+    cover = normalizeImageUrl(rawPhoto);
+  }
+
   const createdAt = item.createdAt
     ? typeof item.createdAt === 'string'
       ? new Date(item.createdAt).toLocaleString('zh-CN')
       : new Date(item.createdAt).toLocaleString('zh-CN')
+    : '';
+  const updatedAt = item.updatedAt
+    ? typeof item.updatedAt === 'string'
+      ? new Date(item.updatedAt).toLocaleString('zh-CN')
+      : new Date(item.updatedAt).toLocaleString('zh-CN')
     : '';
   return {
     id: item.animalId ?? 0,
     name: item.animalName ?? '',
     category: `${item.species ?? ''}  ${item.breed ?? ''}`.trim(),
     publisher: item.ownerName ?? '未知发布者',
+    cover,
     ownerAvatar: item.ownerAvatar,
     publishedAt: createdAt,
+    updatedAt,
     adopterName: item.ownerName,
     adopterAvatar: item.ownerAvatar,
     petType

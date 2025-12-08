@@ -99,6 +99,16 @@
                 <p class="text-xs uppercase tracking-wide text-slate-400 mb-1.5">绝育</p>
                 <p class="font-medium text-slate-900 dark:text-white">{{ petData?.neutered || '未知' }}</p>
               </div>
+              <div class="col-span-2">
+                <p class="text-xs uppercase tracking-wide text-slate-400 mb-1.5">所在地</p>
+                <p class="font-medium text-slate-900 dark:text-white">
+                  {{
+                    [petData?.province, petData?.city, petData?.currentLocation]
+                      .filter(Boolean)
+                      .join(' · ') || '未知'
+                  }}
+                </p>
+              </div>
             </div>
             <div class="space-y-2">
               <p class="text-xs uppercase tracking-wide text-slate-400">宠物简介</p>
@@ -137,6 +147,9 @@ interface PetData {
   galleryImages?: string[];
   adopterName?: string;
   adopterAvatar?: string;
+  province?: string;
+  city?: string;
+  currentLocation?: string;
 }
 
 const props = defineProps<{
