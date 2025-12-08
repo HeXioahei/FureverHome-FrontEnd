@@ -224,6 +224,7 @@ import {
   type MessageDto,
   type SendMessageRequest,
 } from '@/api'
+import { formatDateTime } from '@/utils/format'
 
 interface Contact {
   id: string
@@ -601,29 +602,6 @@ const getStoredToken = () => {
   return normalizeTokenValue(raw)
 }
 
-const formatTime = (value?: string | number | Date) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const now = new Date()
-  const sameDay = date.toDateString() === now.toDateString()
-  return sameDay
-    ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
-
-const formatDateTime = (value?: string | number | Date) => {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  const Y = date.getFullYear()
-  const M = String(date.getMonth() + 1).padStart(2, '0')
-  const D = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const m = String(date.getMinutes()).padStart(2, '0')
-  return `${Y}-${M}-${D} ${h}:${m}`
-}
-
 const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
   return list.map(item => {
     const conversationId =
@@ -682,7 +660,7 @@ const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
       avatarColor: getAvatarColor(name) ?? '',
       avatarUrl,
       lastMessage: lastMessageDisplay,
-      time: formatTime(lastMessageTime),
+      time: formatDateTime(lastMessageTime),
       unread: unreadCount > 0 ? unreadCount : undefined,
     }
   })

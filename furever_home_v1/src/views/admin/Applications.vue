@@ -208,6 +208,7 @@ import {
   type AdminAdoptSummaryDto,
   type AdminAdoptDetailDto
 } from '../../api/adminApi';
+import { formatDateTime } from '@/utils/format';
 
 interface Application {
   id: number;
@@ -253,11 +254,7 @@ const paginatedApplications = computed(() => filteredApplications.value);
 
 // 将后端 AdminAdoptSummaryDto 映射到前端展示用 Application
 function mapAdoptToApplication(item: AdminAdoptSummaryDto): Application {
-  const createTime = item.createTime
-    ? typeof item.createTime === 'string'
-      ? new Date(item.createTime).toLocaleString('zh-CN')
-      : new Date(item.createTime).toLocaleString('zh-CN')
-    : '';
+  const createTime = formatDateTime(item.createTime);
   return {
     id: item.adoptId ?? 0,
     applicant: item.userName ?? '未知申请人',
@@ -348,11 +345,7 @@ async function handleViewDetail(app: Application) {
         petName: data.animalName ?? app.petName,
         targetUser: data.targetUserName ?? app.targetUser,
         targetUserAvatar: data.targetUserAvatar ?? app.targetUserAvatar,
-        time: data.createTime
-          ? typeof data.createTime === 'string'
-            ? new Date(data.createTime).toLocaleString('zh-CN')
-            : new Date(data.createTime).toLocaleString('zh-CN')
-          : app.time
+        time: formatDateTime(data.createTime) || app.time
       };
       selectedApplicationDetail.value = data;
       showApplicationDetailModal.value = true;

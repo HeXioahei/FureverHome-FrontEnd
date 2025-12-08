@@ -467,6 +467,7 @@ import {
   type AdminAnimalSummaryDto,
   type AdminAnimalDetailDto
 } from '../../api/adminApi';
+import { formatDateTime } from '@/utils/format';
 
 interface Pet {
   id: number;
@@ -733,11 +734,7 @@ async function handleViewDetail(pet: Pet) {
         category: `${data.species ?? ''}  ${data.breed ?? ''}`.trim() || pet.category,
         publisher: data.ownerName ?? pet.publisher,
         ownerAvatar: data.ownerAvatar ?? pet.ownerAvatar,
-        publishedAt: data.createdAt
-          ? typeof data.createdAt === 'string'
-            ? new Date(data.createdAt).toLocaleString('zh-CN')
-            : new Date(data.createdAt).toLocaleString('zh-CN')
-          : pet.publishedAt,
+        publishedAt: formatDateTime(data.createdAt) || pet.publishedAt,
         adopterName: data.ownerName,
         adopterAvatar: data.ownerAvatar,
         petType: pet.petType

@@ -1,4 +1,4 @@
-import httpClient, { type ApiResponse } from './request'
+import { adminHttpClient, type ApiResponse } from './request'
 
 export interface DashboardStatisticsDTO {
   /**
@@ -40,7 +40,7 @@ export interface DashboardStatisticsResponse extends ApiResponse<DashboardStatis
  * 获取管理后台首页统计数据
  */
 export function fetchDashboardStatistics() {
-  return httpClient.get<DashboardStatisticsDTO>('/admin/dashboard/statistics')
+  return adminHttpClient.get<DashboardStatisticsDTO>('/admin/dashboard/statistics')
 }
 
 

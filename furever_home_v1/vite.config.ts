@@ -62,6 +62,14 @@ export default defineConfig({
         secure: false,
         ws: true, // 开启 WebSocket 代理
         timeout: 30000,
+        // 关键修复：如果是浏览器页面请求（accept: text/html），则不走代理，让前端路由处理
+        bypass: (req, res, options) => {
+          const accept = req.headers.accept
+          if (accept && accept.includes('text/html')) {
+            console.log('跳过代理，服务前端页面:', req.url)
+            return req.url
+          }
+        },
         // 后台接口路径：/admin/xxx，后端也是 /admin/xxx，所以不需要 rewrite
         // 确保代理所有 /admin 开头的请求
         configure: (proxy, _options) => {

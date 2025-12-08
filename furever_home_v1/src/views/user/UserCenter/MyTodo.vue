@@ -184,6 +184,8 @@ import {
   type AdoptTodoItem 
 } from '@/api/adoptApi';
 
+import { formatDateTime } from '@/utils/format';
+
 const router = useRouter();
 
 interface Todo {
@@ -250,7 +252,7 @@ async function handleViewDetail(todo: Todo) {
         ...todo,
         avatar: (detail as any).applicantAvatar || todo.avatar,
         requester: detail.userName || todo.requester,
-        date: (detail.createTime as string) || todo.date,
+        date: formatDateTime(detail.createTime) || todo.date,
         phone: detail.phone || todo.phone,
         email: detail.email || todo.email,
         address: detail.livingLocation || todo.address,
@@ -373,7 +375,7 @@ async function loadTodos() {
         const id = item.adoptId ?? index + 1;
         const requester = item.applicantName || '未知申请人';
         const petName = item.animalName || '';
-        const createdAt = item.createTime ? String(item.createTime) : '';
+        const createdAt = formatDateTime(item.createTime);
         const reason = item.reason || '';
         return {
           id,

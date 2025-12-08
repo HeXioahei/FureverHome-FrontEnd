@@ -58,7 +58,11 @@ onBeforeUnmount(() => {
 <template>
   <div>
     <NavBar v-if="!isAdminPage && !isAuthPage" />
-    <RouterView />
+    <RouterView v-slot="{ Component }">
+      <KeepAlive :include="['PetList', 'PostList']">
+        <component :is="Component" />
+      </KeepAlive>
+    </RouterView>
     <!-- 全局请求加载提示，覆盖前台 + 后台所有页面 -->
     <GlobalLoading />
     <!-- 全局通知弹窗 -->

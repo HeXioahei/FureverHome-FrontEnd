@@ -1,7 +1,7 @@
 /**
  * 管理端帖子相关 API
  */
-import httpClient, { type ApiResponse } from './request'
+import { adminHttpClient, type ApiResponse } from './request'
 
 /**
  * 审核状态
@@ -56,7 +56,7 @@ export interface AdminPostListParams {
  * GET /admin/posts/published
  */
 export function fetchPublishedAdminPosts(params?: AdminPostListParams) {
-  return httpClient.get<PageResultAdminPostSummaryDTO>('/admin/posts/published', {
+  return adminHttpClient.get<PageResultAdminPostSummaryDTO>('/admin/posts/published', {
     params
   })
 }

@@ -321,6 +321,7 @@ import {
   type AdminPostSummaryDto,
   type AdminPostDetailDto
 } from '../../api/adminApi';
+import { formatDateTime } from '@/utils/format';
 
 interface Post {
   id: number;
@@ -404,11 +405,7 @@ const paginatedPublishedPosts = computed(() => {
 
 // 将后端 AdminPostSummaryDto 映射到前端展示用 Post
 function mapAdminPostToPost(item: AdminPostSummaryDto): Post {
-  const createTime = item.createTime
-    ? typeof item.createTime === 'string'
-      ? new Date(item.createTime).toLocaleString('zh-CN')
-      : new Date(item.createTime).toLocaleString('zh-CN')
-    : '';
+  const createTime = formatDateTime(item.createTime);
   return {
     id: item.postId ?? 0,
     title: item.title ?? '',
@@ -505,11 +502,7 @@ async function handleViewDetail(post: Post) {
         excerpt: res.data.content?.substring(0, 100) ?? post.excerpt,
         author: res.data.authorName ?? post.author,
         authorAvatar: res.data.authorAvatar ?? post.authorAvatar,
-        time: res.data.createTime
-          ? typeof res.data.createTime === 'string'
-            ? new Date(res.data.createTime).toLocaleString('zh-CN')
-            : new Date(res.data.createTime).toLocaleString('zh-CN')
-          : post.time
+        time: formatDateTime(res.data.createTime) || post.time
       };
       selectedPostDetail.value = res.data;
       showPostDetailModal.value = true;

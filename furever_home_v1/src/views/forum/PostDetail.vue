@@ -74,8 +74,8 @@
       </div>
 
       <!-- 评论区域 -->
-      <div class="comments-section">
-        <h2 class="section-title">评论 ({{ comments.length || post.comments || 0 }})</h2>
+      <div class="comments-section" v-if="post">
+        <h2 class="section-title">评论 ({{ totalComments || post?.comments || comments.length || 0 }})</h2>
 
         <div class="comment-form">
           <textarea
@@ -86,8 +86,8 @@
           ></textarea>
           <button
             class="comment-submit"
-            @click="submitComment"
-            :disabled="!canComment || !newComment.trim()"
+            @click="handleRootSubmit"
+            :disabled="!newComment.trim()"
           >
             发表评论
           </button>
@@ -96,37 +96,35 @@
           </p>
         </div>
 
-        <div class="comments-list">
-          <div v-for="c in comments" :key="c.id" class="comment-item">
-            <div class="comment-header">
-              <div class="comment-avatar" @click.stop="goToUserProfile(c.userId || c.authorId)" style="cursor: pointer;">
-                <img
-                  v-if="c.authorAvatar"
-                  :src="c.authorAvatar"
-                  alt="头像"
-                  @error="handleCommentAvatarError($event, c)"
-                />
-                <span v-else>{{ c.authorName?.[0] || '用' }}</span>
-              </div>
-              <div class="comment-author" @click.stop="goToUserProfile(c.userId || c.authorId)" style="cursor: pointer;">
-                {{ c.authorName }}
-              </div>
-              <div class="comment-time">{{ c.date || c.timeAgo || '刚刚' }}</div>
-              <button class="reply-btn" @click="openReply(c)">回复</button>
-            </div>
-            <div class="comment-content">{{ c.content }}</div>
-            <div v-if="replyTargetId === c.id" class="reply-box">
-              <textarea
-                v-model="replyContent"
-                class="comment-input"
-                :placeholder="`回复 ${c.authorName}...`"
-              ></textarea>
-              <div class="reply-actions">
-                <button class="comment-submit" @click="submitReply(c)" :disabled="!replyContent.trim()">发送</button>
-                <button class="btn-cancel" @click="cancelReply">取消</button>
-              </div>
-            </div>
-          </div>
+        <div class="comments-list space-y-4">
+          <CommentItem 
+            v-for="c in displayedComments" 
+            :key="c.id" 
+            :comment="c"
+            @like="handleLikeComment"
+            @reply="handleReplyComment"
+          />
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalPages > 1" class="pagination-controls flex justify-center items-center gap-4 mt-6">
+          <button 
+            @click="changePage(currentPage - 1)" 
+            :disabled="currentPage === 1"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            上一页
+          </button>
+          <span class="text-gray-600">
+            第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
+          </span>
+          <button 
+            @click="changePage(currentPage + 1)" 
+            :disabled="currentPage === totalPages"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            下一页
+          </button>
         </div>
       </div>
     </main>
@@ -155,10 +153,13 @@ import {
   getPostComments,
   submitComment as submitCommentApi,
   likePost as likePostApi,
+  likeComment as likeCommentApi,
   type Comment
 } from '@/api/commentapi';
 import { getCurrentUser, getUserInfo, type CurrentUserInfo } from '@/api/userApi';
 import { isVideoUrl } from '@/utils/mediaUtils';
+import { formatDateTime } from '@/utils/format';
+import CommentItem from '@/components/forum/CommentItem.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -173,7 +174,7 @@ interface PostDetailData {
   timeAgo?: string;
   publishDate?: string;
   content: string;
-  fullContent?: string; // 完整内容（多段文字）
+  fullContent?: string[]; // 完整内容（多段文字）
   images: string[];
   likes: number;
   comments: number;
@@ -183,8 +184,25 @@ interface PostDetailData {
 const post = ref<PostDetailData | undefined>(undefined);
 // 是否为前端示例帖子（如"李同学""王医生"），示例帖子在后端并不存在
 const isMockPost = ref(false);
-type CommentWithAuthor = Comment & { authorId?: number; userId?: number };
-const comments = ref<CommentWithAuthor[]>([]);
+const comments = ref<Comment[]>([]);
+const totalComments = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(4);
+
+const displayedComments = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return comments.value.slice(start, end);
+});
+
+const totalPages = computed(() => Math.ceil(comments.value.length / pageSize.value));
+
+const changePage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
 const newComment = ref('');
 const isLiked = ref(false);
 const showErrorModal = ref(false);
@@ -255,25 +273,48 @@ const getExampleComments = (postId: number): Comment[] => {
         id: 1,
         content: '小橘太可爱了！我经常在宿舍楼下看到它，性格真的很好，希望它能找到一个好人家！',
         authorName: '王同学',
-        date: '2小时前'
+        date: '2小时前',
+        likes: 12,
+        isLiked: false,
+        children: [
+           {
+             id: 101,
+             content: '确实，上次我喂它，它还蹭我裤腿呢。',
+             authorName: '赵同学',
+             date: '1小时前',
+             likes: 2,
+             isLiked: false,
+             parentId: 1,
+             replyTo: '王同学'
+           }
+        ]
       },
       {
         id: 2,
         content: '感谢你们为小橘做的一切！绝育手术对流浪猫的健康和寿命非常重要。如果需要帮助，可以联系学校的动物保护社团。',
         authorName: '张医生',
-        date: '1小时前'
+        date: '1小时前',
+        likes: 24,
+        isLiked: true,
+        children: []
       },
       {
         id: 3,
         content: '我室友对领养小橘很感兴趣！可以私聊一下领养条件和流程吗？',
         authorName: '陈同学',
-        date: '45分钟前'
+        date: '45分钟前',
+        likes: 5,
+        isLiked: false,
+        children: []
       },
       {
         id: 4,
         content: '看到小橘的变化真的很感动！你们做得太好了，希望更多流浪动物能像小橘一样幸运。',
         authorName: '刘学姐',
-        date: '30分钟前'
+        date: '30分钟前',
+        likes: 8,
+        isLiked: false,
+        children: []
       }
     ];
   } else {
@@ -282,13 +323,19 @@ const getExampleComments = (postId: number): Comment[] => {
         id: 1,
         content: '非常实用的指南！我家的猫咪最近确实有些咳嗽，看来需要带它去检查一下了。',
         authorName: '李同学',
-        date: '5小时前'
+        date: '5小时前',
+        likes: 3,
+        isLiked: false,
+        children: []
       },
       {
         id: 2,
         content: '感谢王医生的专业建议，这些预防措施对我们这些新手宠物主人来说很有帮助。',
         authorName: '张同学',
-        date: '3小时前'
+        date: '3小时前',
+        likes: 7,
+        isLiked: false,
+        children: []
       }
     ];
   }
@@ -387,14 +434,7 @@ const loadPost = async (id: number) => {
     const res = await getPostDetail(id);
     if (res.data) {
       const p = res.data as 帖子详情DTO;
-      const createdAt = p.createTime ? String(p.createTime) : '';
-      const updatedAt =
-        (p as any).updateTime ||
-        (p as any).modifyTime ||
-        (p as any).modifiedTime ||
-        (p as any).lastModified ||
-        '';
-      const displayTime = updatedAt || createdAt || '刚刚';
+      const createdAt = formatDateTime(p.createTime);
       
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
@@ -523,6 +563,35 @@ const loadPost = async (id: number) => {
   }
 };
 
+// 统一映射为 Comment 结构
+const normalizeComments = (list: any[]): Comment[] => {
+  if (!Array.isArray(list)) return [];
+  return list.map((item: any, index: number) => {
+    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+    
+    // 递归处理子评论（如果后端已经返回了嵌套结构）
+    let children: Comment[] = [];
+    if (Array.isArray(item.children) && item.children.length > 0) {
+       children = normalizeComments(item.children);
+    } else if (Array.isArray(item.replies) && item.replies.length > 0) {
+       children = normalizeComments(item.replies);
+    }
+
+    return {
+      id: item.id ?? item.commentId ?? index + 1,
+      content: item.content ?? item.commentContent ?? item.text ?? item.body ?? item.message ?? '',
+      authorName: authorName,
+      authorAvatar: item.authorAvatar ?? item.avatar ?? item.userAvatar ?? '',
+      date: formatDateTime(item.createTime || item.date) || item.timeAgo || '刚刚',
+      likes: item.likes ?? item.likeCount ?? 0,
+      isLiked: item.isLiked ?? item.liked ?? false,
+      parentId: item.parentId ?? item.parentCommentId ?? item.parent_id ?? null,
+      replyTo: item.replyTo ?? item.replyToUser ?? item.reply_to_user_name ?? undefined,
+      children: children
+    };
+  });
+};
+
 // 获取评论列表
 const loadComments = async (postId: number) => {
   try {
@@ -534,6 +603,14 @@ const loadComments = async (postId: number) => {
     // 3) data: { list: Comment[] } / { records: Comment[] }
     let rawList: any[] = [];
     const d: any = res.data;
+    
+    // 尝试提取总数
+    if (d && d.total !== undefined) {
+      totalComments.value = Number(d.total);
+    } else if ((res as any).total !== undefined) {
+      totalComments.value = Number((res as any).total);
+    }
+
     if (Array.isArray(d)) {
       rawList = d;
     } else if (d && Array.isArray(d.data)) {
@@ -544,39 +621,81 @@ const loadComments = async (postId: number) => {
       rawList = d.records;
     }
 
-    // 统一映射为 Comment 结构
-    comments.value = rawList.map((item: any, index: number) => {
-      // 兼容后端不同字段命名
-      let authorName =
-        item.userName ??
-        item.username ??
-        item.user_name ??
-        item.authorName ??
-        item.displayName ??
-        item.name ??
-        item.nickname ??
-        item.nickName ??
-        item.userNickname ??
-        item.user_nickname ??
-        '未知用户';
-      const authorId = item.userId ?? item.authorId ?? item.uid ?? item.id;
-      if (currentUser.value && (item.userId === currentUser.value.userId || item.authorId === currentUser.value.userId)) {
-        authorName = currentUser.value.userName || authorName;
-      }
-      return {
-        id: item.id ?? item.commentId ?? index + 1,
-        content: item.content ?? item.commentContent ?? item.text ?? '',
-        authorName,
-        authorAvatar: item.authorAvatar ?? item.userAvatar ?? '',
-        date: item.date ?? item.createTime ?? item.timeAgo ?? '刚刚',
-        authorId,
-        userId: authorId
-      };
-    });
+    const flatComments = normalizeComments(rawList);
 
     // 如果接口返回空数据，仅对内置示例帖子使用示例评论
-    if (comments.value.length === 0 && isMockPost.value) {
+    if (flatComments.length === 0 && isMockPost.value) {
       comments.value = getExampleComments(postId);
+    } else {
+      // 检查是否已经是树形结构（如果有 children 且 children 不为空）
+      const hasChildren = flatComments.some(c => c.children && c.children.length > 0);
+      
+      if (hasChildren) {
+        // 已经是树形结构，直接使用
+        comments.value = flatComments;
+      } else {
+        // 构建树形结构
+        const commentMap = new Map<number, Comment>();
+        const roots: Comment[] = [];
+
+        // 1. 建立映射
+        flatComments.forEach((c: Comment) => {
+          c.children = []; // 初始化子评论数组
+          commentMap.set(c.id, c);
+        });
+
+        // 2. 组装树结构，同时处理回复关系
+        flatComments.forEach((c: Comment) => {
+          if (c.parentId) {
+            const parent = commentMap.get(c.parentId);
+            if (parent) {
+              // 找到直接父评论，设置回复对象
+              if (!c.replyTo) {
+                 c.replyTo = parent.authorName;
+              }
+              
+              // 关键逻辑：找到顶级父评论（Root Ancestor）
+              // 如果 parent 已经是顶级（没有 parentId），则 parent 就是 Root
+              // 如果 parent 也有 parentId，则需要向上追溯
+              let root = parent;
+              let current = parent;
+              // 防止死循环，设置最大深度
+              let depth = 0;
+              while (current.parentId && depth < 20) {
+                const p = commentMap.get(current.parentId);
+                if (p) {
+                  current = p;
+                  root = p;
+                } else {
+                  break;
+                }
+                depth++;
+              }
+              
+              // 将该评论添加到顶级父评论的 children 中
+              root.children = root.children || [];
+              root.children.push(c);
+              
+            } else {
+              // 如果找不到父评论，作为根评论处理
+              roots.push(c);
+            }
+          } else {
+            // 没有 parentId，则是顶级评论
+            roots.push(c);
+          }
+        });
+        
+        // 3. 对子评论按时间排序（可选）
+        roots.forEach(root => {
+          if (root.children && root.children.length > 0) {
+            // 这里假设 id 越大越新，或者可以用 date 比较
+            root.children.sort((a, b) => a.id - b.id);
+          }
+        });
+
+        comments.value = roots;
+      }
     }
   } catch (error) {
     console.error('加载评论失败:', error);
@@ -707,21 +826,129 @@ const toggleLike = async () => {
   }
 };
 
-// 提交评论
-const submitComment = async () => {
+// 提交根评论
+const handleRootSubmit = async () => {
   if (!post.value || !newComment.value.trim()) return;
+  await doSubmitComment(newComment.value.trim());
+};
 
-  // 未发布/未通过审核或示例帖子，提示不可评论
-  if (!canComment.value) {
-    errorMessage.value = '帖子不存在或未发布，无法评论。';
-    showErrorModal.value = true;
-    return;
+// 回复评论
+const handleReplyComment = async (rootId: number, content: string, replyToUser?: string) => {
+  await doSubmitComment(content, rootId, replyToUser);
+};
+
+// 统一提交逻辑
+const doSubmitComment = async (content: string, parentId?: number, replyTo?: string) => {
+  if (!post.value) return;
+  
+  // 乐观更新：构建本地评论对象
+  const localComment: Comment = {
+    id: Date.now(), // 临时ID
+    content: content,
+    authorName: '我',
+    // 优先使用当前用户的头像
+    authorAvatar: currentUser.value?.avatarUrl || currentUser.value?.userAvatar || '',
+    date: formatDateTime(new Date()),
+    likes: 0,
+    isLiked: false,
+    parentId: parentId || null,
+    replyTo: replyTo,
+    children: []
+  };
+
+  // 插入到列表中（根评论或子评论）
+  if (!parentId) {
+    // 既然刷新后评论在底部（后端按时间正序），那么前端乐观更新也应该添加到此底部
+    comments.value.push(localComment);
+    if (post.value.comments !== undefined) {
+       post.value.comments = (post.value.comments || 0) + 1;
+    }
+    // 同时更新 totalComments
+    totalComments.value = (totalComments.value || 0) + 1;
+    newComment.value = ''; // 清空根评论输入框
+  } else {
+    // 找到父评论所属的顶级评论（Root Ancestor）
+    let root: Comment | undefined;
+    let targetParent: Comment | undefined;
+
+    for (const r of comments.value) {
+      if (r.id === parentId) {
+        root = r;
+        targetParent = r;
+        break;
+      }
+      if (r.children && r.children.some(c => c.id === parentId)) {
+        root = r;
+        targetParent = r.children.find(c => c.id === parentId);
+        break;
+      }
+    }
+
+    if (root) {
+      root.children = root.children || [];
+      
+      // 如果没有指定 replyTo，则尝试从目标父评论获取
+      if (!localComment.replyTo && targetParent) {
+        localComment.replyTo = targetParent.authorName;
+      }
+
+      // 添加到顶级评论的子评论列表中
+      root.children.push(localComment);
+    }
   }
 
   try {
-    await submitCommentApi(post.value.id, { content: newComment.value.trim() });
-    newComment.value = '';
-    await loadComments(post.value.id);
+    const res = await submitCommentApi(post.value.id, { content, parentId, replyTo });
+    // 如果后端返回了带真实 id 的评论，用后端数据替换刚才那条本地评论
+    if (res && res.data) {
+      const normalizedList = normalizeComments([res.data]);
+      if (normalizedList.length > 0) {
+        const serverComment = normalizedList[0];
+        
+        // 安全合并：如果后端返回的数据缺失（如content为空），则保留本地乐观数据
+        // 这解决了"后端只返回ID导致前端显示空白评论"的问题
+        const mergedComment: Comment = {
+          ...serverComment,
+          // 优先使用后端内容，但如果为空则回退到本地内容
+          content: (serverComment.content && serverComment.content.trim()) ? serverComment.content : localComment.content,
+          // 优先使用后端作者名，但如果是默认值或空则回退到本地
+          authorName: (serverComment.authorName && serverComment.authorName !== '用户') ? serverComment.authorName : localComment.authorName,
+          authorAvatar: serverComment.authorAvatar || localComment.authorAvatar,
+          // 确保关联关系不丢失
+          parentId: serverComment.parentId || localComment.parentId,
+          replyTo: serverComment.replyTo || localComment.replyTo,
+          // 保持子评论结构（通常新评论没有子评论，但保持一致性）
+          children: (serverComment.children && serverComment.children.length > 0) ? serverComment.children : localComment.children,
+          // 必须使用后端生成的真实ID
+          id: serverComment.id
+        };
+
+        if (!parentId) {
+          const idx = comments.value.indexOf(localComment);
+          if (idx > -1) {
+            comments.value[idx] = mergedComment;
+          }
+        } else {
+          // 同样需要找到正确的 Root 来更新
+          let root: Comment | undefined;
+          for (const r of comments.value) {
+             // 这里的 parentId 是提交时的 ID（可能是子评论ID），所以要找包含该 ID 的 root
+             // 或者更简单：找包含 localComment 的 root
+             if (r.children && r.children.includes(localComment)) {
+               root = r;
+               break;
+             }
+          }
+
+          if (root && root.children) {
+            const idx = root.children.indexOf(localComment);
+            if (idx > -1) {
+               root.children[idx] = mergedComment;
+            }
+          }
+        }
+      }
+    }
   } catch (error: any) {
     const msg =
       error?.message?.includes('不存在') || error?.message?.includes('未发布')
@@ -732,25 +959,38 @@ const submitComment = async () => {
   }
 };
 
-// 打开回复框
-const openReply = (comment: Comment) => {
-  replyTargetId.value = comment.id;
-  replyContent.value = '';
-};
+// 点赞评论
+const handleLikeComment = async (commentId: number) => {
+  // 递归查找评论
+  const findComment = (list: Comment[], id: number): Comment | undefined => {
+    for (const c of list) {
+      if (c.id === id) return c;
+      if (c.children) {
+        const found = findComment(c.children, id);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
 
-const cancelReply = () => {
-  replyTargetId.value = null;
-  replyContent.value = '';
-};
+  const comment = findComment(comments.value, commentId);
+  if (!comment) return;
 
-// 提交回复（复用评论接口，增加 @昵称 前缀）
-const submitReply = async (comment: Comment) => {
-  if (!post.value || !replyTargetId.value || !replyContent.value.trim()) return;
-  const content = `@${comment.authorName} ${replyContent.value.trim()}`;
-  await submitCommentApi(post.value.id, { content });
-  replyContent.value = '';
-  replyTargetId.value = null;
-  await loadComments(post.value.id);
+  const previousLiked = comment.isLiked;
+  const previousLikes = comment.likes;
+
+  // 乐观更新
+  comment.isLiked = !comment.isLiked;
+  comment.likes = comment.isLiked ? comment.likes + 1 : Math.max(0, comment.likes - 1);
+
+  try {
+    await likeCommentApi(commentId);
+  } catch (error) {
+    // 回滚
+    comment.isLiked = previousLiked;
+    comment.likes = previousLikes;
+    console.error('点赞评论失败', error);
+  }
 };
 
 // 返回
