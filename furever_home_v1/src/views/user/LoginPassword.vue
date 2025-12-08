@@ -1,3 +1,4 @@
+<!--test1-->
 <template>
   <div class="relative flex min-h-screen w-full flex-col items-center justify-center p-4 sm:p-6">
     <main class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12">
