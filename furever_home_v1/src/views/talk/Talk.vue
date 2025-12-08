@@ -1150,11 +1150,12 @@ const resolveWsUrl = (rawUrl: string, token?: string) => {
 }
 
 const getFallbackWsUrl = () => {
+  // 优先使用环境变量；未配置时直连测试环境的 ws 地址，避免本地代理异常
   const envUrl =
     (import.meta as any).env?.VITE_CHAT_WS_URL ||
     (import.meta as any).env?.VITE_WS_URL ||
     (import.meta as any).env?.VITE_WS_BASE_URL ||
-    '/api/ws/common'
+    'ws://xd6325a9.natappfree.cc/ws/common'
   return resolveWsUrl(envUrl)
 }
 

@@ -4,10 +4,10 @@
  * 并通过 window 全局事件通知 UI 显示/隐藏“请求中”加载提示
  */
 
-// API基础URL - 默认走 /api，由 Vite 代理到测试环境
-// 开发环境使用相对路径 /api，会经过 Vite 代理转发到后端
-// 生产环境可以通过环境变量 VITE_API_BASE_URL 设置完整后端地址
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+// 后端基础地址：优先取环境变量，未配置时默认走 Vite 代理的 /api
+// 如果需要直连测试环境，可在 .env.local 设置 VITE_API_BASE_URL=http://xxx/api
+const DEFAULT_API_BASE = '/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE
 
 // 请求配置接口
 interface RequestConfig extends RequestInit {
