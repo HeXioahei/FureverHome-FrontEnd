@@ -52,20 +52,29 @@
           {{ post.content }}
         </div>
 
-        <!-- 图片区域 -->
+        <!-- 图片/视频区域 -->
         <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 mb-4">
           <div
             v-for="(img, index) in post.images.slice(0, 3)"
             :key="index"
             class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
-            <img
-              v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))"
-              :src="img"
-              :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-              @error="handleImageError"
-            />
+            <template v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))">
+              <video
+                v-if="isVideoUrl(img)"
+                :src="img"
+                controls
+                preload="metadata"
+                class="w-full h-full object-cover"
+              ></video>
+              <img
+                v-else
+                :src="img"
+                :alt="`帖子图片 ${index + 1}`"
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                @error="handleImageError"
+              />
+            </template>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ img }}</span>
           </div>
         </div>
@@ -170,6 +179,7 @@ import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import { getMyPostList, deletePost } from '@/api/postApi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { isVideoUrl } from '@/utils/mediaUtils';
 
 const router = useRouter();
 const route = useRoute();

@@ -312,6 +312,8 @@ async function onConfirmConfirm() {
           ? { ...todo, resultText: '已同意领养申请', showConfirm: false, showReject: false }
           : todo
       );
+      // 重新加载列表以获取最新状态
+      await loadTodos();
     } else {
       errorMessage.value = res.message || '同意领养申请失败，请稍后重试';
       showErrorModal.value = true;
@@ -345,6 +347,8 @@ async function onRejectConfirm() {
           ? { ...todo, resultText: '已婉拒申请', showConfirm: false, showReject: false }
           : todo
       );
+      // 重新加载列表以获取最新状态
+      await loadTodos();
     } else {
       errorMessage.value = res.message || '婉拒申请失败，请稍后重试';
       showErrorModal.value = true;

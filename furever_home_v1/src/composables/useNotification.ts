@@ -77,21 +77,35 @@ const resolveWsUrl = (base?: string) => {
 
 const handleWsMessage = (event: MessageEvent) => {
   try {
+    if (event.data === 'ping' || event.data === 'pong' || event.data === 'heartbeat') {
+      return
+    }
+
     const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
-    // const title = data?.title || '系统通知'
-    // const content = generateNotificationContent(data)
-    
     const data: NotificationData = payload?.data || payload
     
-    // console.log('收到通知消息:', { title, content, data })
+    // 过滤无效数据或空数据
+    if (!data || Object.keys(data).length === 0) {
+      return
+    }
+
+    // 过滤心跳包（如果后端以JSON格式发送心跳）
+    if (data.type === 'heartbeat' || data.type === 'ping') {
+      return
+    }
+
     console.log('收到通知消息:', data)
     
-    // // 显示通知弹窗
-    // showToastMessage(title, content)
-    // 显示通知弹窗，使用固定的内容
-    showToastMessage('系统通知', '您有新的后台系统通知')
+    const title = data.title || '系统通知'
+    const content = generateNotificationContent(data)
+    
+    // 如果生成的内容有效，才显示弹窗
+    if (content) {
+      showToastMessage(title, content)
+    }
   } catch (err) {
-    console.error('解析通知消息失败', err, event.data)
+    // 忽略解析错误（可能是非JSON格式的心跳包等）
+    // console.error('解析通知消息失败', err, event.data)
   }
 }
 

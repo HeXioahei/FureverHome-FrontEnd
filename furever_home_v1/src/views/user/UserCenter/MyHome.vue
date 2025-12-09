@@ -208,8 +208,23 @@ const resolveWsUrl = (base?: string) => {
 
 const handleWsMessage = (event: MessageEvent) => {
   try {
+    if (event.data === 'ping' || event.data === 'pong' || event.data === 'heartbeat') {
+      return;
+    }
+
     const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     const data = payload?.data || payload;
+
+    // 过滤无效数据或空数据
+    if (!data || Object.keys(data).length === 0) {
+      return;
+    }
+
+    // 过滤心跳包
+    if (data.type === 'heartbeat' || data.type === 'ping') {
+      return;
+    }
+
     const title = data?.title || '系统通知';
     const content = generateNotificationContent(data);
     const time = formatDateTime(data?.createTime || data?.time || new Date().toISOString());
@@ -229,7 +244,7 @@ const handleWsMessage = (event: MessageEvent) => {
     currentPage.value = 1;
     // 通知弹窗已移至全局，这里不再显示
   } catch (err) {
-    console.error('解析通知消息失败', err, event.data);
+    // console.error('解析通知消息失败', err, event.data);
   }
 };
 

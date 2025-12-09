@@ -318,14 +318,26 @@
               >
                 {{ post.summary }}
               </div>
-              <!-- 帖子图片展示区 -->
+              <!-- 帖子图片/视频展示区 -->
               <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 my-4">
-                <div class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                  <img 
-                    :src="normalizeImageUrl(post.images[0])" 
-                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
-                    alt="帖子图片" 
-                  />
+                <div
+                  class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
+                >
+                  <template v-if="isVideoUrl(post.images[0])">
+                    <video
+                      :src="post.images[0]"
+                      controls
+                      preload="metadata"
+                      class="w-full h-full object-cover"
+                    ></video>
+                  </template>
+                  <template v-else>
+                    <img 
+                      :src="post.images[0]" 
+                      class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
+                      alt="帖子图片" 
+                    />
+                  </template>
                 </div>
               </div>
             </div>
@@ -667,10 +679,24 @@
               >
                 {{ post.summary }}
               </div>
-              <!-- 图片展示区 -->
+              <!-- 图片/视频展示区 -->
               <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5">
-                 <div v-for="(img, index) in post.images.slice(0, 3)" :key="index" class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                   <img :src="normalizeImageUrl(img)" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="帖子图片" />
+                 <div
+                   v-for="(img, index) in post.images.slice(0, 3)"
+                   :key="index"
+                   class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
+                 >
+                   <template v-if="isVideoUrl(img)">
+                     <video
+                       :src="img"
+                       controls
+                       preload="metadata"
+                       class="w-full h-full object-cover"
+                     ></video>
+                   </template>
+                   <template v-else>
+                     <img :src="img" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="帖子图片" />
+                   </template>
                  </div>
               </div>
             </div>
@@ -793,6 +819,7 @@ import { getUserPosts, type 帖子公开信息 } from '../../api/postApi';
 import { getUserShortAnimals, getUserLongAnimals, type 动物公开信息 } from '../../api/animalApi';
 import { getOthersRatings, getReceivedRatings, addMyRating, updateMyRating, type ReceivedRatingItemDTO } from '../../api/ratingApi';
 import { formatDateTime } from '@/utils/format';
+import { isVideoUrl } from '@/utils/mediaUtils';
 
 const router = useRouter();
 const route = useRoute();
@@ -1347,7 +1374,7 @@ async function loadUserPosts() {
           status: 'approved',
           statusLabel: '已发布',
           colorClass: 'text-orange-500',
-          images,
+          images: images.map(normalizeImageUrl),
           likes: item.likeCount ?? 0,
           comments: item.commentCount ?? 0,
           views: item.viewCount ?? 0
