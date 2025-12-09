@@ -81,3 +81,86 @@ export function getMediaType(url: string): 'video' | 'image' | 'unknown' {
   }
   return 'unknown';
 }
+
+/**
+ * 生成用于请求服务端截图的默认封面地址，时间戳默认 0.5s
+ */
+export function buildSnapshotUrl(url: string, timeMs = 500): string {
+  if (!url) return '';
+  const hasQuery = url.includes('?');
+  const safeTime = Number.isFinite(timeMs) && timeMs >= 0 ? timeMs : 500;
+  return `${url}${hasQuery ? '&' : '?'}x-oss-process=video/snapshot,t_${safeTime},f_jpg,w_800,h_600,m_fast`;
+}
+
+/**
+ * 尝试在浏览器端截取指定时间点的帧作为视频封面
+ * - 返回 base64 图片；失败时返回 undefined
+ * - 默认截取 0.5 秒处的帧
+ */
+export async function generateVideoThumbnail(url: string, timeSeconds = 0.5): Promise<string | undefined> {
+  if (!url) return undefined;
+  if (typeof document === 'undefined') return undefined;
+
+  return new Promise((resolve) => {
+    try {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+
+      const cleanup = () => {
+        video.src = '';
+        video.remove();
+      };
+
+      // 如果 3 秒仍未加载到 metadata，则直接回退
+      const fallbackTimer = window.setTimeout(() => {
+        cleanup();
+        resolve(undefined);
+      }, 3000);
+
+      video.addEventListener('loadedmetadata', () => {
+        const duration = video.duration || 1;
+        const target = Math.max(0, Math.min(timeSeconds, duration - 0.1));
+        video.currentTime = Number.isFinite(target) ? target : 0.5;
+      });
+
+      video.addEventListener('seeked', () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 800;
+        canvas.height = video.videoHeight || 600;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          window.clearTimeout(fallbackTimer);
+          cleanup();
+          resolve(undefined);
+          return;
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg');
+          window.clearTimeout(fallbackTimer);
+          cleanup();
+          resolve(dataUrl);
+        } catch (e) {
+          console.warn('生成视频封面失败: toDataURL', e);
+          window.clearTimeout(fallbackTimer);
+          cleanup();
+          resolve(undefined);
+        }
+      });
+
+      video.addEventListener('error', () => {
+        window.clearTimeout(fallbackTimer);
+        cleanup();
+        resolve(undefined);
+      });
+    } catch (e) {
+      console.warn('生成视频封面异常', e);
+      resolve(undefined);
+    }
+  });
+}
