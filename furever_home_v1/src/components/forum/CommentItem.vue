@@ -55,9 +55,19 @@
 
       <!-- Child Comments (Sub-comments) -->
       <div v-if="comment.children && comment.children.length > 0" class="bg-gray-50 rounded-lg p-4 space-y-4">
+        <!-- Expand Button -->
+        <button 
+          v-if="!isExpanded"
+          @click="toggleExpand"
+          class="text-sm text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
+        >
+          <span>展开 {{ comment.children.length }} 条回复</span>
+          <i class="fa-solid fa-chevron-down text-xs"></i>
+        </button>
+
         <!-- Children List -->
-        <div v-if="visibleRepliesCount > 0" class="space-y-4">
-          <div v-for="child in displayedChildren" :key="child.id" class="flex gap-3">
+        <div v-show="isExpanded" class="space-y-4">
+          <div v-for="child in comment.children" :key="child.id" class="flex gap-3">
             <!-- Child Avatar -->
             <div class="flex-shrink-0">
                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 overflow-hidden">
@@ -113,25 +123,23 @@
               </div>
             </div>
           </div>
+          
+          <!-- Collapse Button -->
+          <button 
+            @click="toggleExpand"
+            class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mt-2"
+          >
+            <span>收起回复</span>
+            <i class="fa-solid fa-chevron-up text-xs"></i>
+          </button>
         </div>
-
-        <!-- Unified Control Button -->
-        <button 
-          @click="handleExpandClick"
-          class="text-sm text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
-        >
-          <span v-if="visibleRepliesCount === 0">展开 {{ comment.children.length }} 条回复</span>
-          <span v-else-if="visibleRepliesCount < comment.children.length">展开更多回复 (剩余 {{ comment.children.length - visibleRepliesCount }})</span>
-          <span v-else>收起回复</span>
-          <i class="fa-solid" :class="visibleRepliesCount >= comment.children.length ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import type { Comment } from '@/api/commentapi';
 
 const props = defineProps<{
@@ -144,20 +152,9 @@ const emit = defineEmits<{
   (e: 'reply', parentId: number, content: string, replyToUser?: string): void;
 }>();
 
-const visibleRepliesCount = ref(0);
-
-const displayedChildren = computed(() => {
-  if (!props.comment.children) return [];
-  return props.comment.children.slice(0, visibleRepliesCount.value);
-});
-
-const handleExpandClick = () => {
-  const total = props.comment.children?.length || 0;
-  if (visibleRepliesCount.value >= total) {
-    visibleRepliesCount.value = 0;
-  } else {
-    visibleRepliesCount.value += 5;
-  }
+const isExpanded = ref(false);
+const toggleExpand = () => {
+  isExpanded.value = !isExpanded.value;
 };
 
 const replyingTo = ref<Comment | null>(null);

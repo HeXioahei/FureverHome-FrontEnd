@@ -1,5 +1,5 @@
 <template>
-  <div class="post-detail-page" ref="containerRef">
+  <div class="post-detail-page">
     <main class="forum-main">
       <!-- 返回按钮 -->
       <button class="back-btn" @click="goBack">
@@ -53,7 +53,6 @@
               controls
               preload="metadata"
               class="w-full h-full object-cover"
-              @play="onVideoPlay($event)"
             ></video>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
           </div>
@@ -152,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, onDeactivated } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
@@ -169,31 +168,6 @@ import CommentItem from '@/components/forum/CommentItem.vue';
 
 const route = useRoute();
 const router = useRouter();
-
-const containerRef = ref<HTMLElement | null>(null);
-
-const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
-  if (!containerRef.value) return;
-  const videos = containerRef.value.querySelectorAll('video');
-  videos.forEach((video) => {
-    if (video !== excludeVideo && !video.paused) {
-      video.pause();
-    }
-  });
-};
-
-const onVideoPlay = (event: Event) => {
-  const target = event.target as HTMLVideoElement;
-  stopAllVideos(target);
-};
-
-onBeforeUnmount(() => {
-  stopAllVideos();
-});
-
-onDeactivated(() => {
-  stopAllVideos();
-});
 
 interface PostDetailData {
   id: number;
@@ -480,7 +454,7 @@ const loadPost = async (id: number) => {
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
       // 兼容不同字段命名，避免昵称为空
-      const authorName =
+      let authorName =
         (p as any).userName ||
         (p as any).username ||
         (p as any).user_name ||
@@ -501,7 +475,7 @@ const loadPost = async (id: number) => {
         userInfo.userNickname ||
         userInfo.user_nickname ||
         '未知用户';
-      const avatarInitial = authorName[0] || '用';
+      let avatarInitial = authorName[0] || '用';
       const avatarUrl =
         (p as any).userAvatar ||
         (p as any).authorAvatar ||
@@ -634,8 +608,8 @@ const loadPost = async (id: number) => {
 const normalizeComments = (list: any[]): Comment[] => {
   if (!Array.isArray(list)) return [];
   return list.map((item: any, index: number) => {
-    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
-    
+    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+
     // 递归处理子评论（如果后端已经返回了嵌套结构）
     let children: Comment[] = [];
     if (Array.isArray(item.children) && item.children.length > 0) {
