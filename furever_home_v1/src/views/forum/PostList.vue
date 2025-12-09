@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="containerRef">
     <main class="forum-main">
       <div class="welcome-header">
         <h1 class="page-title">宠物论坛</h1>
@@ -62,25 +62,16 @@
                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 @error="handleImageError"
               />
-              <div
+              <video
                 v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
-                class="relative w-full h-full bg-black flex items-center justify-center overflow-hidden"
-              >
-                <video
-                  class="w-full h-full object-contain"
-                  :src="normalizeMediaUrl(media)"
-                  :poster="getVideoPoster(media)"
-                  preload="metadata"
-                  playsinline
-                  muted
-                  controls
-                ></video>
-                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span class="bg-black/40 rounded-full w-10 h-10 flex items-center justify-center text-white text-base">
-                    <i class="fa-solid fa-play"></i>
-                  </span>
-                </div>
-              </div>
+                :src="normalizeMediaUrl(media)"
+                controls
+                preload="metadata"
+                class="w-full h-full object-cover"
+                @loadedmetadata="console.log('视频加载成功:', media)"
+                @error="console.error('视频加载失败:', media, $event)"
+                @play="onVideoPlay($event)"
+              ></video>
               <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
             </div>
           </div>
@@ -208,11 +199,28 @@ const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post'>('post');
 const isSearching = ref(false);
+const containerRef = ref<HTMLElement | null>(null);
 const userNameCache = new Map<number, string>();
 const userAvatarCache = new Map<number, string | undefined>();
 const pendingUserFetch = new Map<number, Promise<void>>();
 // 标记是否已经首次加载，避免 onActivated 在首次挂载时重复加载
 const isFirstMount = ref(true);
+
+// 视频播放控制：确保同一时间只有一个视频播放
+const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
+  if (!containerRef.value) return;
+  const videos = containerRef.value.querySelectorAll('video');
+  videos.forEach((video) => {
+    if (video !== excludeVideo && !video.paused) {
+      video.pause();
+    }
+  });
+};
+
+const onVideoPlay = (event: Event) => {
+  const target = event.target as HTMLVideoElement;
+  stopAllVideos(target);
+};
 
 // 分页相关
 const pageSize = 4;
@@ -863,11 +871,12 @@ const normalizeMediaUrl = (url: string | undefined | null): string => {
 
 // 跳转到帖子详情，携带当前页码，便于返回时还原
 const goToPostDetail = (postId: number) => {
+  stopAllVideos(); // 导航前停止所有视频播放
   const targetPost = posts.value.find(p => p.id === postId);
   const likes = targetPost?.likes ?? 0;
   const comments = targetPost?.comments ?? 0;
   const views = targetPost?.views ?? 0;
-  // 记录当前页，便于详情页“返回论坛”时恢复
+  // 记录当前页，便于详情页"返回论坛"时恢复
   sessionStorage.setItem('forumLastPage', currentPage.value.toString());
   router.push({
     name: 'PostDetail',
@@ -1153,6 +1162,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  stopAllVideos();
   window.removeEventListener('forum-post-updated', handlePostUpdate);
 });
 

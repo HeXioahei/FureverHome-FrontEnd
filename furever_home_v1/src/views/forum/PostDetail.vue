@@ -44,8 +44,9 @@
               v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
               :src="media"
               :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
               @error="handleImageError"
+              @click="openImagePreview(index)"
             />
             <video
               v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
@@ -147,6 +148,53 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片预览模态框 -->
+    <div
+      v-if="showImagePreview && previewImages.length > 0"
+      class="image-preview-modal"
+      @click.self="closeImagePreview"
+    >
+      <div class="image-preview-container">
+        <!-- 关闭按钮 -->
+        <button class="image-preview-close" @click="closeImagePreview">
+          <i class="fa-solid fa-times"></i>
+        </button>
+        
+        <!-- 上一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-prev"
+          @click.stop="prevImage"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        
+        <!-- 下一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-next"
+          @click.stop="nextImage"
+        >
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        
+        <!-- 图片显示 -->
+        <div class="image-preview-content">
+          <img
+            :src="previewImages[currentPreviewIndex]"
+            :alt="`图片 ${currentPreviewIndex + 1} / ${previewImages.length}`"
+            class="image-preview-img"
+            @error="handlePreviewImageError"
+          />
+        </div>
+        
+        <!-- 图片索引指示器 -->
+        <div v-if="previewImages.length > 1" class="image-preview-indicator">
+          {{ currentPreviewIndex + 1 }} / {{ previewImages.length }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,6 +260,11 @@ const newComment = ref('');
 const isLiked = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
+
+// 图片预览相关
+const showImagePreview = ref(false);
+const currentPreviewIndex = ref(0);
+const previewImages = ref<string[]>([]);
 // 审核提示（例如：尚未通过审核，仅自己可见）
 const reviewNotice = ref('');
 const canComment = computed(() => !!post.value && !isMockPost.value && !reviewNotice.value);
@@ -1070,6 +1123,101 @@ const handleLikeComment = async (commentId: number) => {
   }
 };
 
+// 打开图片预览
+const openImagePreview = (index: number) => {
+  if (!post.value || !post.value.images) return;
+  
+  // 过滤出所有图片（排除视频）
+  const imageList = post.value.images.filter(
+    (media) => typeof media === 'string' && 
+    (media.startsWith('http') || media.startsWith('/')) && 
+    !isVideoUrl(media)
+  );
+  
+  if (imageList.length === 0) return;
+  
+  // 找到点击的图片在图片列表中的索引
+  let imageIndex = 0;
+  let currentIndex = 0;
+  for (let i = 0; i < post.value.images.length; i++) {
+    const media = post.value.images[i];
+    if (typeof media === 'string' && 
+        (media.startsWith('http') || media.startsWith('/')) && 
+        !isVideoUrl(media)) {
+      if (i === index) {
+        imageIndex = currentIndex;
+        break;
+      }
+      currentIndex++;
+    }
+  }
+  
+  previewImages.value = imageList;
+  currentPreviewIndex.value = imageIndex;
+  showImagePreview.value = true;
+  
+  // 阻止页面滚动
+  document.body.style.overflow = 'hidden';
+  
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handlePreviewKeydown);
+};
+
+// 关闭图片预览
+const closeImagePreview = () => {
+  showImagePreview.value = false;
+  previewImages.value = [];
+  currentPreviewIndex.value = 0;
+  
+  // 恢复页面滚动
+  document.body.style.overflow = '';
+  
+  // 移除键盘事件监听
+  document.removeEventListener('keydown', handlePreviewKeydown);
+};
+
+// 上一张图片
+const prevImage = () => {
+  if (currentPreviewIndex.value > 0) {
+    currentPreviewIndex.value--;
+  } else {
+    currentPreviewIndex.value = previewImages.value.length - 1;
+  }
+};
+
+// 下一张图片
+const nextImage = () => {
+  if (currentPreviewIndex.value < previewImages.value.length - 1) {
+    currentPreviewIndex.value++;
+  } else {
+    currentPreviewIndex.value = 0;
+  }
+};
+
+// 键盘事件处理
+const handlePreviewKeydown = (e: KeyboardEvent) => {
+  if (!showImagePreview.value) return;
+  
+  switch (e.key) {
+    case 'Escape':
+      closeImagePreview();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      prevImage();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      nextImage();
+      break;
+  }
+};
+
+// 预览图片加载错误处理
+const handlePreviewImageError = (e: Event) => {
+  console.error('预览图片加载失败', e);
+};
+
 // 返回
 const goBack = () => {
   // 返回前，保存当前帖子的最新数据到快照，并通知列表页更新
@@ -1544,10 +1692,168 @@ const goToUserProfile = (userId?: number) => {
   box-shadow: 0 6px 12px rgba(255, 140, 0, 0.3);
 }
 
+/* 图片预览模态框 */
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.image-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10000;
+}
+
+.image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.image-preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10000;
+}
+
+.image-preview-nav:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.image-preview-prev {
+  left: 20px;
+}
+
+.image-preview-next {
+  right: 20px;
+}
+
+.image-preview-content {
+  max-width: 90%;
+  max-height: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  animation: zoomIn 0.3s ease-in-out;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.image-preview-indicator {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 10000;
+}
+
 /* 响应式 */
 @media (max-width: 850px) {
   .post-images {
     grid-template-columns: 1fr;
+  }
+  
+  .image-preview-nav {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .image-preview-prev {
+    left: 10px;
+  }
+  
+  .image-preview-next {
+    right: 10px;
+  }
+  
+  .image-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .image-preview-indicator {
+    bottom: 10px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }
 </style>
