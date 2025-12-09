@@ -125,13 +125,14 @@
         </button>
 
         <button
-          v-for="page in totalPages"
-          :key="page"
-          class="w-9 h-9 rounded-lg border text-xs flex items-center justify-center cursor-pointer transition-all"
-          :style="page === currentPage
-            ? 'background-color: #FF8C00; border-color: #FF8C00; color: #FFFFFF;'
-            : 'background-color: #FFFFFF; border-color: #E5E7EB; color: #4B5563;'"
-          @click="goPage(page)"
+          v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
+          :key="index"
+          class="w-9 h-9 rounded-lg border text-xs flex items-center justify-center transition-all"
+          :class="[
+            page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white border-gray-200 text-gray-600',
+            typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+          ]"
+          @click="typeof page === 'number' && goPage(page)"
         >
           {{ page }}
         </button>
@@ -476,8 +477,22 @@ function switchTab(tab: 'short' | 'long') {
   if (tab === 'short' && shortPets.value.length === 0) {
     loadMyShortPets();
   }
-  if (tab === 'long' && longPets.value.length === 0) {
+  if (activeTab.value === 'long' && longPets.value.length === 0) {
     loadMyLongPets();
+  }
+}
+
+function getDisplayedPages(current: number, total: number): (number | string)[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total];
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total];
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total];
   }
 }
 
