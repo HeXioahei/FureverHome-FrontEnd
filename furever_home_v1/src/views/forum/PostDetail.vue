@@ -1,5 +1,5 @@
 <template>
-  <div class="post-detail-page">
+  <div class="post-detail-page" ref="containerRef">
     <main class="forum-main">
       <!-- 帖子详情 -->
       <div v-if="post" class="post-detail">
@@ -47,6 +47,7 @@
               controls
               preload="metadata"
               class="w-full h-full object-cover"
+              @play="onVideoPlay($event)"
             ></video>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
           </div>
@@ -145,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount, onDeactivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
@@ -162,6 +163,31 @@ import CommentItem from '@/components/forum/CommentItem.vue';
 
 const route = useRoute();
 const router = useRouter();
+
+const containerRef = ref<HTMLElement | null>(null);
+
+const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
+  if (!containerRef.value) return;
+  const videos = containerRef.value.querySelectorAll('video');
+  videos.forEach((video) => {
+    if (video !== excludeVideo && !video.paused) {
+      video.pause();
+    }
+  });
+};
+
+const onVideoPlay = (event: Event) => {
+  const target = event.target as HTMLVideoElement;
+  stopAllVideos(target);
+};
+
+onBeforeUnmount(() => {
+  stopAllVideos();
+});
+
+onDeactivated(() => {
+  stopAllVideos();
+});
 
 interface PostDetailData {
   id: number;

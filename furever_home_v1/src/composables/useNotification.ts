@@ -21,37 +21,39 @@ const toastTitle = ref('')
 const toastContent = ref('')
 const wsRef = ref<WebSocket | null>(null)
 
+// 连接管理状态
+let shouldReconnect = true
+let reconnectTimer: any = null
+let heartbeatTimer: any = null
+
+const stopHeartbeat = () => {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
+}
+
+const startHeartbeat = () => {
+  stopHeartbeat()
+  heartbeatTimer = setInterval(() => {
+    if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.value.send('ping')
+      } catch (e) {
+        console.warn('发送心跳失败', e)
+      }
+    }
+  }, 30000)
+}
+
 // 根据通知数据生成消息内容
 function generateNotificationContent(item: NotificationData): string {
-  const targetType = item.targetType || ''
-  const event = item.event || ''
-  
-  if (targetType === 'animal') {
-    const animalName = item.animalName || '未知宠物'
-    return `您的名为"${animalName}"的宠物的发布或修改已被管理员${event}`
-  } else if (targetType === 'post') {
-    const postTitle = item.postTitle || '未知标题'
-    return `您的标题为"${postTitle}"的帖子的发布或修改已被管理员${event}`
-  } else if (targetType === 'adopt') {
-    const animalName = item.animalName || '未知宠物'
-    if (event === '通过') {
-      return `您对名为"${animalName}"的宠物的申请已被管理员通过，已成功发送至被申请者处`
-    } else if (event === '拒绝') {
-      return `您对名为"${animalName}"的宠物的申请已被管理员拒绝，请重新申请`
-    } else if (event === '申请成功') {
-      return `您对名为"${animalName}"的宠物的申请已被对方同意`
-    } else if (event === '申请失败') {
-      return `您对名为"${animalName}"的宠物的申请已被对方拒绝，请重新申请`
-    }
-  } else if (targetType === 'review') {
-    const animalName = item.animalName || '未知宠物'
-    if (event === '新的待办事项') {
-      return `您的名为"${animalName}"的宠物正在被用户"${item.applicantUserName}"申请，请及时处理`
-    }
+  // 用户要求统一显示为"您有新的后台通知"
+  // 为了避免显示无意义的系统消息，这里做一个简单的非空检查
+  if (item.content || item.extraInfo || item.event || item.targetType || item.title) {
+    return '您有新的后台通知'
   }
-  
-  // 默认情况：使用原有的content或event
-  return item.content || item.extraInfo || event || '您有新的通知'
+  return ''
 }
 
 const normalizeTokenValue = (value?: string | null) => {
@@ -117,6 +119,14 @@ const initWs = () => {
     return // 未登录时不连接 WebSocket
   }
 
+  // 清除可能存在的重连定时器
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  
+  shouldReconnect = true
+
   // 如果已经连接，先关闭
   if (wsRef.value) {
     wsRef.value.close()
@@ -137,6 +147,7 @@ const initWs = () => {
     
     ws.onopen = () => {
       console.log('通知 WebSocket 连接成功')
+      startHeartbeat()
     }
     
     ws.onmessage = handleWsMessage
@@ -146,16 +157,35 @@ const initWs = () => {
     }
     
     ws.onclose = () => {
-      // WebSocket 关闭时，可以尝试重连（可选）
       console.log('通知WebSocket连接已关闭')
       wsRef.value = null
+      stopHeartbeat()
+      
+      if (shouldReconnect) {
+        console.log('连接异常断开，5秒后尝试重连...')
+        reconnectTimer = setTimeout(() => {
+          initWs()
+        }, 5000)
+      }
     }
   } catch (err) {
     console.error('通知WebSocket连接失败', err)
+    if (shouldReconnect) {
+      reconnectTimer = setTimeout(() => {
+        initWs()
+      }, 5000)
+    }
   }
 }
 
 const closeWs = () => {
+  shouldReconnect = false
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+  stopHeartbeat()
+
   if (wsRef.value) {
     wsRef.value.close()
     wsRef.value = null

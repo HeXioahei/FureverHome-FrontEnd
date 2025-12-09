@@ -14,7 +14,7 @@
             <div 
               class="w-20 h-20 rounded-full mr-5 flex items-center justify-center font-bold text-gray-600 text-2xl cursor-pointer transition-transform hover:scale-105 overflow-hidden" 
               style="background-color: #FFD700;"
-              @click="router.push({ name: 'UserProfile', params: { userId: viewedUserId } })"
+              @click="openAvatarPreview"
             >
               <img
                 v-if="user.avatarUrl"
@@ -335,7 +335,7 @@
           </div>
         </div>
       </div>
-    </main>
+    </div>
 
     <!-- 评价模态框 -->
     <div 
@@ -450,11 +450,14 @@
               <i class="fa-solid fa-chevron-left"></i>
             </button>
             <button 
-              v-for="page in totalReviewPages" 
-              :key="page"
-              class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              :class="page === currentReviewPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
-              @click="currentReviewPage = page"
+              v-for="(page, index) in getDisplayedPages(currentReviewPage, totalReviewPages)" 
+              :key="index"
+              class="w-10 h-10 rounded-lg border text-base flex items-center justify-center transition-all"
+              :class="[
+                page === currentReviewPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600 border-gray-300',
+                typeof page === 'string' ? 'cursor-default' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+              ]"
+              @click="typeof page === 'number' && (currentReviewPage = page)"
             >
               {{ page }}
             </button>
@@ -498,7 +501,7 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+              <div class="aspect-[4/3] flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
@@ -511,14 +514,57 @@
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
                 <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
                 <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #D1FAE5; color: #059669;">
-                  长期领养
+                  短期寄养
                 </div>
                 <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已长期领养 {{ pet.days }} 天
+                  已短期寄养 {{ pet.days }} 天
                 </div>
               </div>
             </div>
           </div>
+        </div>
+        <!-- 分页 -->
+        <div class="flex justify-center mt-5 mb-5">
+          <div class="flex gap-2.5">
+            <button
+              v-if="currentShortTermPage > 1"
+              class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+              style="color: #6B7280;"
+              @click="currentShortTermPage--"
+            >
+              <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button
+            v-for="(page, index) in getDisplayedPages(currentShortTermPage, totalShortTermPages)"
+            :key="index"
+            class="w-10 h-10 rounded-lg border border-gray-300 text-base flex items-center justify-center transition-all"
+            :class="[
+              page === currentShortTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600',
+              typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+            ]"
+            @click="typeof page === 'number' && (currentShortTermPage = page)"
+          >
+            {{ page }}
+          </button>
+            <button
+              v-if="currentShortTermPage < totalShortTermPages"
+              class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+              style="color: #6B7280;"
+              @click="currentShortTermPage++"
+            >
+              <i class="fa-solid fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="flex justify-end mt-5">
+          <button
+            type="button"
+            class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
+            style="background-color: #FF8C42;"
+            @click="showShortTermPetsModal = false"
+          >
+            关闭
+          </button>
         </div>
       </div>
     </div>
@@ -540,7 +586,7 @@
               class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+              <div class="aspect-[4/3] flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
@@ -574,14 +620,17 @@
               <i class="fa-solid fa-chevron-left"></i>
             </button>
             <button
-              v-for="page in totalLongTermPages"
-              :key="page"
-              class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              :class="page === currentLongTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
-              @click="currentLongTermPage = page"
-            >
-              {{ page }}
-            </button>
+            v-for="(page, index) in getDisplayedPages(currentLongTermPage, totalLongTermPages)"
+            :key="index"
+            class="w-10 h-10 rounded-lg border border-gray-300 text-base flex items-center justify-center transition-all"
+            :class="[
+              page === currentLongTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600',
+              typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+            ]"
+            @click="typeof page === 'number' && (currentLongTermPage = page)"
+          >
+            {{ page }}
+          </button>
             <button
               v-if="currentLongTermPage < totalLongTermPages"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
@@ -665,14 +714,17 @@
               <i class="fa-solid fa-chevron-left"></i>
             </button>
             <button
-              v-for="page in totalPostPages"
-              :key="page"
-              class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              :class="page === currentPostPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
-              @click="currentPostPage = page"
-            >
-              {{ page }}
-            </button>
+            v-for="(page, index) in getDisplayedPages(currentPostPage, totalPostPages)"
+            :key="index"
+            class="w-10 h-10 rounded-lg border border-gray-300 text-base flex items-center justify-center transition-all"
+            :class="[
+              page === currentPostPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600',
+              typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+            ]"
+            @click="typeof page === 'number' && (currentPostPage = page)"
+          >
+            {{ page }}
+          </button>
             <button
               v-if="currentPostPage < totalPostPages"
               class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
@@ -735,7 +787,7 @@
       </div>
     </footer>
 
-    <!-- 爱宠证明大图预览 -->
+    <!-- 图片大图预览 -->
     <div
       v-if="showProofPreview"
       class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center"
@@ -752,7 +804,7 @@
         <img
           v-if="previewProofUrl"
           :src="normalizeImageUrl(previewProofUrl)"
-          alt="爱宠证明预览"
+          alt="图片预览"
           class="max-w-[90vw] max-h-[90vh] object-contain block"
         />
       </div>
@@ -1104,6 +1156,13 @@ const reviewText = ref('');
 const showProofPreview = ref(false);
 const previewProofUrl = ref<string | null>(null);
 
+function openAvatarPreview() {
+  if (user.value.avatarUrl) {
+    previewProofUrl.value = user.value.avatarUrl;
+    showProofPreview.value = true;
+  }
+}
+
 // 分页相关状态
 const reviewsPerPage = 5; // 评论每页显示5条
 const petsPerPage = 6; // 宠物每页显示6条
@@ -1372,9 +1431,9 @@ async function loadUserLongAnimals() {
         const name = item.animalName ?? '';
         const gender = item.gender ?? '';
         const species = item.species ?? '';
-        const ageText = item.animalAge != null ? `${item.animalAge}岁` : '';
+        const ageText = item.animalAge != null ? formatAge(item.animalAge as number) : '';
         const sterilizedText = item.isSterilized ?? '';
-        const descParts = [species, ageText, sterilizedText].filter(Boolean);
+        const descParts = [species, ageText].filter(Boolean);
         const desc = descParts.join(' · ');
         const days = item.adoptionDays ?? 0;
         // 解析 photoUrls（可能是数组或 JSON 字符串）
@@ -1432,6 +1491,19 @@ onMounted(() => {
     loadUserRatings();
   });
 });
+
+// 分页逻辑：如果页码超过5个，显示省略号
+function getDisplayedPages(current: number, total: number): (number | string)[] {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total];
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total];
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  }
+}
 
 // 监听：路由参数变化，当userId变化时重新加载所有数据
 watch(

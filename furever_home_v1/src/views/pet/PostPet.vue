@@ -411,7 +411,7 @@ const closeErrorModal = () => {
           <div class="mb-8 pb-5 border-b border-[#E5E7EB]">
             <h2 class="text-xl font-bold mb-5 text-[#333333] flex items-center gap-2.5">
               <i class="fa-solid fa-image text-[#FF8C00]"></i>
-              照片/视频上传
+              照片上传
             </h2>
             <div
               class="border-2 border-dashed border-[#E5E7EB] rounded-xl p-10 text-center cursor-pointer transition-all hover:border-[#FF8C00] hover:bg-[rgba(255,140,0,0.05)]"

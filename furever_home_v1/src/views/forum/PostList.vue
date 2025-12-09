@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="containerRef">
     <main class="forum-main">
       <div class="welcome-header">
         <h1 class="page-title">宠物论坛</h1>
@@ -71,6 +71,7 @@
                 class="w-full h-full object-cover"
                 @loadedmetadata="console.log('视频加载成功:', media)"
                 @error="console.error('视频加载失败:', media, $event)"
+                @play="onVideoPlay($event)"
               ></video>
               <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
             </div>
@@ -162,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated } from 'vue';
 
 defineOptions({
   name: 'PostList'
@@ -198,6 +199,24 @@ const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post'>('post');
 const isSearching = ref(false);
+const containerRef = ref<HTMLElement | null>(null);
+
+// 视频播放控制：确保同一时间只有一个视频播放
+const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
+  if (!containerRef.value) return;
+  const videos = containerRef.value.querySelectorAll('video');
+  videos.forEach((video) => {
+    if (video !== excludeVideo && !video.paused) {
+      video.pause();
+    }
+  });
+};
+
+const onVideoPlay = (event: Event) => {
+  const target = event.target as HTMLVideoElement;
+  stopAllVideos(target);
+};
+
 const userNameCache = new Map<number, string>();
 const userAvatarCache = new Map<number, string | undefined>();
 const pendingUserFetch = new Map<number, Promise<void>>();
@@ -755,6 +774,7 @@ const getAllPostsForSearch = async (): Promise<any[]> => {
 
 // 跳转到帖子详情，携带当前页码，便于返回时还原
 const goToPostDetail = (postId: number) => {
+  stopAllVideos(); // 导航前停止所有视频播放
   const targetPost = posts.value.find(p => p.id === postId);
   const likes = targetPost?.likes ?? 0;
   const comments = targetPost?.comments ?? 0;
@@ -997,6 +1017,14 @@ const toggleLike = async (post: Post, event?: Event) => {
     console.error('点赞失败:', error);
   }
 };
+
+onBeforeUnmount(() => {
+  stopAllVideos();
+});
+
+onDeactivated(() => {
+  stopAllVideos();
+});
 
 onMounted(async () => {
   // 先加载当前用户信息
