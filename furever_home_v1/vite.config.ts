@@ -16,7 +16,7 @@ export default defineConfig({
     proxy: {
       // 代理前台的 /api 接口到后端测试环境
       '/api': {
-        target: 'http://xd6325a9.natappfree.cc',
+        target: 'http://colltar.natapp1.cc',
         changeOrigin: true,
         secure: false,
         ws: true, // 开启 WebSocket 代理，支持 /api/ws/*
@@ -57,7 +57,7 @@ export default defineConfig({
       },
       // 代理后台的 /admin 接口到后端测试环境
       '/admin': {
-        target: 'http://xd6325a9.natappfree.cc',
+        target: 'http://colltar.natapp1.cc',
         changeOrigin: true,
         secure: false,
         ws: true, // 开启 WebSocket 代理

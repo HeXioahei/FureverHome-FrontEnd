@@ -213,11 +213,23 @@
             </div>
             <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <p class="text-gray-500 dark:text-gray-400">领养者：</p>
-              <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
-                {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+              <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <img
+                  v-if="pet.ownerAvatar"
+                  :src="pet.ownerAvatar"
+                  :alt="pet.publisher"
+                  class="size-7 rounded-full object-cover shrink-0"
+                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                />
+                <div
+                  v-if="!pet.ownerAvatar || !pet.ownerAvatar.trim()"
+                  class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+                >
+                  {{ pet.publisher?.charAt(0) || '领' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+                </div>
               </div>
             </div>
             <div class="flex items-center gap-2 justify-end">
@@ -308,11 +320,23 @@
             </div>
             <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <p class="text-gray-500 dark:text-gray-400">领养者：</p>
-              <div class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0">
-                {{ pet.adopterAvatar || pet.publisher?.charAt(0) || '领' }}
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+              <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <img
+                  v-if="pet.ownerAvatar"
+                  :src="pet.ownerAvatar"
+                  :alt="pet.publisher"
+                  class="size-7 rounded-full object-cover shrink-0"
+                  @error="(e: any) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }"
+                />
+                <div
+                  v-if="!pet.ownerAvatar || !pet.ownerAvatar.trim()"
+                  class="size-7 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center text-xs font-medium shrink-0"
+                >
+                  {{ pet.publisher?.charAt(0) || '领' }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-gray-900 dark:text-white font-medium truncate">{{ pet.adopterName || pet.publisher || '未知领养者' }}</p>
+                </div>
               </div>
             </div>
             <div class="flex items-center gap-2 justify-end">
@@ -486,9 +510,11 @@ interface Pet {
 // 规范化图片 URL：如果是完整 URL 直接返回，否则补 /api/storage/image/ 前缀
 function normalizeImageUrl(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/api/')) return url;
-  return `/api/storage/image/${url.replace(/^\/+/, '')}`;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/api/')) return trimmed;
+  return `/api/storage/image/${trimmed.replace(/^\/+/, '')}`;
 }
 
 const route = useRoute();
@@ -599,11 +625,11 @@ function mapAnimalToPet(item: AdminAnimalSummaryDto, petType: 'shortTerm' | 'lon
     category: `${item.species ?? ''}  ${item.breed ?? ''}`.trim(),
     publisher: item.ownerName ?? '未知发布者',
     cover,
-    ownerAvatar: item.ownerAvatar,
+    ownerAvatar: normalizeImageUrl(item.ownerAvatar),
     publishedAt: createdAt,
     updatedAt,
     adopterName: item.ownerName,
-    adopterAvatar: item.ownerAvatar,
+    adopterAvatar: normalizeImageUrl(item.ownerAvatar),
     petType
   };
 }
@@ -733,10 +759,10 @@ async function handleViewDetail(pet: Pet) {
         name: data.animalName ?? pet.name,
         category: `${data.species ?? ''}  ${data.breed ?? ''}`.trim() || pet.category,
         publisher: data.ownerName ?? pet.publisher,
-        ownerAvatar: data.ownerAvatar ?? pet.ownerAvatar,
+        ownerAvatar: normalizeImageUrl(data.ownerAvatar ?? pet.ownerAvatar),
         publishedAt: formatDateTime(data.createdAt) || pet.publishedAt,
         adopterName: data.ownerName,
-        adopterAvatar: data.ownerAvatar,
+        adopterAvatar: normalizeImageUrl(data.ownerAvatar),
         petType: pet.petType
       };
       selectedPetDetail.value = data;

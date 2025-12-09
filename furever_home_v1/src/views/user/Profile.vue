@@ -46,7 +46,7 @@
           <!-- 联系TA按钮（仅在他人主页显示） -->
           <RouterLink 
             v-if="!isOwnProfile"
-            :to="{ name: 'Communication', query: { userId: viewedUserId } }" 
+            :to="{ name: 'Communication', query: { userId: viewedUserId, userName: user.name, userAvatar: user.avatarUrl } }" 
             class="block w-full px-4 py-2.5 mb-5 text-center text-white font-semibold rounded-2xl transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
             style="background-color: #FF8C42;"
           >
@@ -109,7 +109,11 @@
           <div class="flex items-center mb-5">
             <div class="text-4xl font-bold mr-4" style="color: #FF8C42;">{{ rating.score.toFixed(1) }}</div>
             <div>
-              <div class="text-yellow-400 text-xl mb-1">★★★★★</div>
+              <div class="text-yellow-400 text-xl mb-1">
+                <span v-for="i in 5" :key="i">
+                  {{ i <= Math.round(rating.score) ? '★' : '☆' }}
+                </span>
+              </div>
               <div class="text-gray-600 text-sm">基于{{ rating.total }}条评价</div>
             </div>
           </div>
@@ -195,32 +199,40 @@
             </button>
           </div>
           <div v-if="shortTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
-          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             <div 
-              v-for="pet in shortTermAdoptions.slice(0, 2)" 
+              v-for="pet in shortTermAdoptions.slice(0, 3)" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+              <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
                   :alt="pet.name"
                   class="w-full h-full object-cover"
                 />
-                <span v-else>
-                  {{ pet.name }}的照片
-                </span>
+                <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
               </div>
-              <div class="p-4">
-                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
-                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
-                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
-                  短期领养
-                </div>
-                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已短期领养 {{ pet.days }} 天
+              <div class="p-5">
+                <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
+                <div class="text-sm text-[#666] mb-2.5">{{ pet.desc }}</div>
+                <!-- <div class="text-xs text-[#666] mt-1.5">
+                  {{ pet.statusLabel === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer || '未填写' }}
+                </div> -->
+                <span
+                  :class="[
+                    'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
+                    pet.statusLabel === '短期领养'
+                      ? 'bg-[#FFF3CD] text-[#856404]'
+                      : 'bg-[#D1FAE5] text-[#059669]'
+                  ]"
+                >
+                  {{ pet.statusLabel }}
+                </span>
+                <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
+                  已{{ pet.statusLabel }} {{ pet.days }} 天
                 </div>
               </div>
             </div>
@@ -238,32 +250,40 @@
             </button>
           </div>
           <div v-if="longTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
-          <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-5 mb-8">
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
             <div 
-              v-for="pet in longTermAdoptions.slice(0, 2)" 
+              v-for="pet in longTermAdoptions.slice(0, 3)" 
               :key="pet.id" 
-              class="bg-white rounded-2xl overflow-hidden shadow-md transition-transform hover:-translate-y-1 cursor-pointer"
+              class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="h-38 flex items-center justify-center text-gray-600 overflow-hidden" style="background-color: #FFE4B5;">
+              <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
                   :alt="pet.name"
                   class="w-full h-full object-cover"
                 />
-                <span v-else>
-                  {{ pet.name }}的照片
-                </span>
+                <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
               </div>
-              <div class="p-4">
-                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
-                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
-                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #D1FAE5; color: #059669;">
-                  长期领养
-                </div>
-                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已长期领养 {{ pet.days }} 天
+              <div class="p-5">
+                <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
+                <div class="text-sm text-[#666] mb-2.5">{{ pet.desc }}</div>
+                <!-- <div class="text-xs text-[#666] mt-1.5">
+                  {{ pet.statusLabel === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer || '未填写' }}
+                </div> -->
+                <span
+                  :class="[
+                    'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
+                    pet.statusLabel === '短期领养'
+                      ? 'bg-[#FFF3CD] text-[#856404]'
+                      : 'bg-[#D1FAE5] text-[#059669]'
+                  ]"
+                >
+                  {{ pet.statusLabel }}
+                </span>
+                <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
+                  已{{ pet.statusLabel }} {{ pet.days }} 天
                 </div>
               </div>
             </div>
@@ -292,7 +312,12 @@
             >
               <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
               <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
-              <div class="text-gray-600 leading-relaxed mb-4">{{ post.summary }}</div>
+              <div
+                class="text-gray-600 leading-relaxed mb-4"
+                style="display: -webkit-box; line-clamp: 4; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+              >
+                {{ post.summary }}
+              </div>
               <!-- 帖子图片展示区 -->
               <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 my-4">
                 <div class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
@@ -636,7 +661,12 @@
             >
               <h3 class="text-lg mb-2.5" style="color: #FF8C42;">{{ post.title }}</h3>
               <div class="text-gray-500 text-sm mb-2.5">{{ post.date }}</div>
-              <div class="text-gray-600 leading-relaxed mb-4">{{ post.summary }}</div>
+              <div
+                class="text-gray-600 leading-relaxed mb-4"
+                style="display: -webkit-box; line-clamp: 4; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;"
+              >
+                {{ post.summary }}
+              </div>
               <!-- 图片展示区 -->
               <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5">
                  <div v-for="(img, index) in post.images.slice(0, 3)" :key="index" class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
@@ -798,6 +828,7 @@ interface AdoptionPet {
   reason?: string;
   // 宠物封面图（photoUrls 的第一张或 animalPhoto）
   photoUrl?: string;
+  fosterer?: string;
 }
 interface Post {
   id: number;
@@ -980,9 +1011,9 @@ async function loadUserShortAnimals() {
         const name = item.animalName ?? '';
         const gender = item.gender ?? '';
         const species = item.species ?? '';
-        const ageText = item.animalAge != null ? `${item.animalAge}岁` : '';
+        const ageText = item.animalAge != null ? `${item.animalAge}个月` : '';
         const sterilizedText = item.isSterilized ?? '';
-        const descParts = [species, ageText, sterilizedText].filter(Boolean);
+        const descParts = [species, ageText].filter(Boolean);
         const desc = descParts.join(' · ');
         const days = item.adoptionDays ?? 0;
         // 解析 photoUrls（可能是数组或 JSON 字符串）
@@ -999,9 +1030,10 @@ async function loadUserShortAnimals() {
             // ignore
           }
         }
-        const photoUrl: string | undefined =
+        const rawPhoto: string | undefined =
           (item as any).animalPhoto ||
           (photos.length > 0 ? photos[0] : undefined);
+        const photoUrl = rawPhoto ? normalizeImageUrl(rawPhoto) : '';
         return {
           id,
           name,
@@ -1014,6 +1046,7 @@ async function loadUserShortAnimals() {
           titleClass: '',
           reason: '',
           photoUrl,
+          fosterer: item.ownerName || '',
         } as AdoptionPet;
       });
       shortTermAdoptions.value = mapped;
@@ -1383,9 +1416,10 @@ async function loadUserLongAnimals() {
             // ignore
           }
         }
-        const photoUrl: string | undefined =
+        const rawPhoto: string | undefined =
           (item as any).animalPhoto ||
           (photos.length > 0 ? photos[0] : undefined);
+        const photoUrl = rawPhoto ? normalizeImageUrl(rawPhoto) : '';
         return {
           id,
           name,
@@ -1398,6 +1432,7 @@ async function loadUserLongAnimals() {
           titleClass: '',
           reason: '',
           photoUrl,
+          fosterer: item.ownerName || '',
         } as AdoptionPet;
       });
       longTermAdoptions.value = mapped;

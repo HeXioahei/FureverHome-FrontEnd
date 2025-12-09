@@ -28,10 +28,15 @@
         <div class="flex justify-between items-start">
           <div class="flex items-center gap-3">
             <div 
-              class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
-              :style="{ backgroundColor: review.avatarBg, color: review.avatarColor }"
+              class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold overflow-hidden bg-[#F3C697]"
             >
-              <i :class="review.avatarIcon"></i>
+              <img
+                v-if="review.avatarUrl"
+                :src="review.avatarUrl"
+                alt="avatar"
+                class="w-full h-full object-cover"
+              />
+              <span v-else>{{ review.name?.charAt(0) || '用' }}</span>
             </div>
             <div class="flex flex-col">
               <span 
@@ -104,6 +109,15 @@ import { useRouter } from 'vue-router';
 import { getReceivedRatings } from '@/api/ratingApi';
 import { getCurrentUser } from '@/api/userApi';
 
+const normalizeImageUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+  const trimmed = String(url).trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/api/')) return trimmed;
+  return `/api/storage/image/${trimmed.replace(/^\/+/, '')}`;
+};
+
 const router = useRouter();
 
 interface Review {
@@ -113,9 +127,7 @@ interface Review {
   time: string;
   stars: number;
   content: string;
-  avatarBg: string;
-  avatarColor: string;
-  avatarIcon: string;
+  avatarUrl?: string;
 }
 
 const reviews = ref<Review[]>([]);
@@ -143,7 +155,7 @@ async function loadReviews(page = 1) {
         const time = item.createTime || '';
         const stars = item.score ?? 0;
         const content = item.content || '';
-        // 头像样式暂时简单处理
+        const avatarUrl = normalizeImageUrl(item.otherUserAvatar);
         return {
           id,
           name,
@@ -151,9 +163,7 @@ async function loadReviews(page = 1) {
           time,
           stars,
           content,
-          avatarBg: '#F3C697',
-          avatarColor: 'white',
-          avatarIcon: 'fa-regular fa-circle'
+          avatarUrl
         } as Review;
       });
     } else {

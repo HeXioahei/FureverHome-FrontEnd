@@ -354,6 +354,16 @@ const pickString = (...values: Array<unknown>): string => {
   return ''
 }
 
+// 规范化头像地址，支持 http/https、/api/ 开头或裸路径
+const normalizeAvatarUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined
+  const trimmed = url.trim()
+  if (!trimmed) return undefined
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('/api/')) return trimmed
+  return `/api/storage/image/${trimmed.replace(/^\/+/, '')}`
+}
+
 const scrollMessagesToBottom = (options?: { smooth?: boolean }) => {
   const container = messageListRef.value
   if (!container) return
@@ -627,13 +637,14 @@ const mapConversationsToContacts = (list: ConversationDto[]): Contact[] => {
         (item as any).nickname,
         (item as any).contactName
       ) || '用户'
-    const avatarUrl =
+    const avatarUrl = normalizeAvatarUrl(
       pickString(
         (item as any).targetUserAvatar,
         (item as any).avatarUrl,
         (item as any).avatar,
         (item as any).targetAvatar
-      ) || undefined
+      )
+    )
     const lastMessage = pickString(
       (item as any).lastMessage,
       (item as any).latestMessage,
@@ -1185,7 +1196,8 @@ watch(
     if (!Number.isNaN(parsed) && parsed > 0) {
       pendingTargetUserId.value = parsed
       pendingTargetUserName.value = typeof userNameParam === 'string' ? userNameParam : ''
-      pendingTargetUserAvatar.value = typeof userAvatarParam === 'string' ? userAvatarParam : ''
+      pendingTargetUserAvatar.value =
+        typeof userAvatarParam === 'string' ? normalizeAvatarUrl(userAvatarParam) || '' : ''
       trySelectConversationByUser(parsed)
     }
   },

@@ -91,9 +91,9 @@
         <div class="relative max-w-[500px]">
           <input 
             type="email" 
-            v-model="formData.email"
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-md bg-gray-50 text-sm outline-none transition-colors focus:border-[#FF8C00] focus:bg-white"
-            style="color: #111;"
+            :value="formData.email"
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-md bg-gray-50 text-sm text-gray-500 cursor-not-allowed outline-none"
+            disabled
           />
         </div>
 

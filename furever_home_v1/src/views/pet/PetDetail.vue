@@ -69,7 +69,8 @@ const contactFosterer = () => {
     name: 'Communication',
     query: {
       userId,
-      userName: currentPet.value?.publisher.username || ''
+      userName: currentPet.value?.publisher.username || '',
+      userAvatar: normalizeImageUrl(currentPet.value?.publisher.avatar_url)
     }
   })
 }
