@@ -1072,6 +1072,21 @@ const handleLikeComment = async (commentId: number) => {
 
 // 返回
 const goBack = () => {
+  // 返回前，保存当前帖子的最新数据到快照，并通知列表页更新
+  if (post.value) {
+    sessionStorage.setItem(
+      `forumPostSnapshot_${post.value.id}`,
+      JSON.stringify({
+        likes: post.value.likes ?? 0,
+        comments: post.value.comments ?? 0,
+        views: post.value.views ?? 0,
+        liked: isLiked.value
+      })
+    );
+    // 触发事件通知列表页更新
+    window.dispatchEvent(new CustomEvent('forum-post-updated'));
+  }
+  
   // 优先处理来源路由
   if (route.query.from === 'myPosts') {
     const myPostsPage = route.query.fromMyPostsPage || sessionStorage.getItem('myPostsLastPage');

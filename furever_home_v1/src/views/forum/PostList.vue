@@ -211,6 +211,8 @@ const isSearching = ref(false);
 const userNameCache = new Map<number, string>();
 const userAvatarCache = new Map<number, string | undefined>();
 const pendingUserFetch = new Map<number, Promise<void>>();
+// 标记是否已经首次加载，避免 onActivated 在首次挂载时重复加载
+const isFirstMount = ref(true);
 
 // 分页相关
 const pageSize = 4;
@@ -493,7 +495,7 @@ const mergeSnapshotsIntoPosts = () => {
   try {
     const keys = Object.keys(sessionStorage).filter(k => k.startsWith('forumPostSnapshot_'));
     if (!keys.length) return;
-    const map = new Map<number, { likes?: number; comments?: number; views?: number; liked?: boolean }>();
+    const map = new Map<number, { likes?: number; comments?: number; views?: number | string; liked?: boolean }>();
     keys.forEach(k => {
       try {
         const val = JSON.parse(sessionStorage.getItem(k) || '{}');
@@ -513,7 +515,7 @@ const mergeSnapshotsIntoPosts = () => {
         ...p,
         likes: snap.likes ?? p.likes,
         comments: snap.comments ?? p.comments,
-        views: snap.views ?? p.views,
+        views: (snap.views !== undefined ? String(snap.views) : p.views),
         isLiked: typeof snap.liked === 'boolean' ? snap.liked : p.isLiked
       };
     });
@@ -1115,6 +1117,8 @@ const toggleLike = async (post: Post, event?: Event) => {
 };
 
 onMounted(async () => {
+  console.log('[PostList] onMounted 触发');
+  
   // 先加载当前用户信息
   await loadCurrentUser();
 
@@ -1130,11 +1134,13 @@ onMounted(async () => {
       if (pageNum <= totalPages.value && pageNum >= 1) {
         currentPage.value = pageNum;
       }
+      console.log('[PostList] onMounted 完成（带页码）');
       return;
     }
   }
 
-  loadPosts();
+  await loadPosts();
+  console.log('[PostList] onMounted 完成');
 });
 
 // 监听自定义事件，详情页操作后立即通知列表页更新
@@ -1150,9 +1156,35 @@ onUnmounted(() => {
   window.removeEventListener('forum-post-updated', handlePostUpdate);
 });
 
-// 组件被激活（KeepAlive 返回）时，合并详情页的最新快照，保证返回后数据最新
-onActivated(() => {
+// 组件被激活（KeepAlive 返回）时，重新加载帖子列表以获取最新的浏览数等数据
+onActivated(async () => {
+  console.log('[PostList] onActivated 触发, isFirstMount:', isFirstMount.value);
+  
+  // 首次挂载时不重复加载（onMounted 已经加载过了）
+  if (isFirstMount.value) {
+    isFirstMount.value = false;
+    console.log('[PostList] 首次挂载，跳过加载');
+    return;
+  }
+  
+  console.log('[PostList] 从其他页面返回，重新加载帖子列表');
+  
+  // 从详情页返回时，保存当前页码
+  const savedPage = currentPage.value;
+  
+  // 重新加载帖子列表，获取最新的浏览数、点赞数、评论数
+  await loadPosts();
+  
+  // 恢复之前的页码（loadPosts 会重置为第1页）
+  await nextTick();
+  if (savedPage > 0 && savedPage <= totalPages.value) {
+    currentPage.value = savedPage;
+  }
+  
+  // 再合并详情页的快照数据（如果有的话），确保数据一致性
   mergeSnapshotsIntoPosts();
+  
+  console.log('[PostList] 帖子列表已更新');
 });
 
 // 监听路由变化，当从详情页返回时立即更新
