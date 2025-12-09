@@ -203,18 +203,32 @@
             <div
               v-for="pet in shortTermAdoptions.slice(0, 3)"
               :key="pet.id"
+            <div
+              v-for="pet in shortTermAdoptions.slice(0, 3)"
+              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
+              <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
               <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
                   :alt="pet.name"
                   class="absolute inset-0 w-full h-full object-cover"
+                  class="absolute inset-0 w-full h-full object-cover"
                 />
                 <span v-else>{{ pet.name }}的照片</span>
+                <span v-else>{{ pet.name }}的照片</span>
               </div>
+              <div class="p-4">
+                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
+                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
+                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
+                  短期领养
+                </div>
+                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
+                  已短期领养 {{ pet.days }} 天
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
                 <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
@@ -228,6 +242,7 @@
             </div>
           </div>
 
+          <!-- 长期领养 -->
           <!-- 长期领养 -->
           <div class="flex justify-between items-center mb-2">
             <h3 class="font-semibold text-gray-700">长期领养</h3>
