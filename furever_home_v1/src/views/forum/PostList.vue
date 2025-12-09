@@ -381,7 +381,7 @@ const mapPosts = (list: any[]): Post[] => {
       userInfo.nickName ||
       userInfo.userNickname ||
       userInfo.user_nickname;
-    let authorName =
+    const authorName =
       p.userName ||
       p.username ||
       p.user_name ||
@@ -402,7 +402,7 @@ const mapPosts = (list: any[]): Post[] => {
       userInfo.userNickname ||
       userInfo.user_nickname ||
       '未知用户';
-    let avatarInitial = authorName[0] || '用';
+    const avatarInitial = authorName[0] || '用';
     let avatarUrl =
       p.userAvatar ||
       p.authorAvatar ||
@@ -541,7 +541,7 @@ const handleSearch = async () => {
             userInfo.nickName ||
             userInfo.userNickname ||
             userInfo.user_nickname;
-          let authorName =
+          const authorName =
             p.userName ||
             p.username ||
             p.user_name ||
@@ -562,7 +562,7 @@ const handleSearch = async () => {
             userInfo.userNickname ||
             userInfo.user_nickname ||
             '未知用户';
-          let avatarInitial = authorName[0] || '用';
+          const avatarInitial = authorName[0] || '用';
           let avatarUrl =
             p.userAvatar ||
             p.authorAvatar ||

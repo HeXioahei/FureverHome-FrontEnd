@@ -164,7 +164,7 @@ const emit = defineEmits<{
 const normalizeComments = (list: any[]): Comment[] => {
   if (!Array.isArray(list)) return [];
   return list.map((item: any, index: number) => {
-    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
     
     let children: Comment[] = [];
     if (Array.isArray(item.children) && item.children.length > 0) {

@@ -467,7 +467,7 @@ const loadPost = async (id: number) => {
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
       // 兼容不同字段命名，避免昵称为空
-      let authorName =
+      const authorName =
         (p as any).userName ||
         (p as any).username ||
         (p as any).user_name ||
@@ -488,7 +488,7 @@ const loadPost = async (id: number) => {
         userInfo.userNickname ||
         userInfo.user_nickname ||
         '未知用户';
-      let avatarInitial = authorName[0] || '用';
+      const avatarInitial = authorName[0] || '用';
       const avatarUrl =
         (p as any).userAvatar ||
         (p as any).authorAvatar ||
@@ -598,7 +598,7 @@ const loadPost = async (id: number) => {
 const normalizeComments = (list: any[]): Comment[] => {
   if (!Array.isArray(list)) return [];
   return list.map((item: any, index: number) => {
-    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
     
     // 递归处理子评论（如果后端已经返回了嵌套结构）
     let children: Comment[] = [];

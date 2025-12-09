@@ -203,46 +203,41 @@
             <div
               v-for="pet in shortTermAdoptions.slice(0, 3)"
               :key="pet.id"
-            <div
-              v-for="pet in shortTermAdoptions.slice(0, 3)"
-              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
               <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
-              <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
-                  :src="pet.photoUrl"
+                  :src="normalizeImageUrl(pet.photoUrl)"
                   :alt="pet.name"
-                  class="absolute inset-0 w-full h-full object-cover"
-                  class="absolute inset-0 w-full h-full object-cover"
+                  class="w-full h-full object-cover"
                 />
-                <span v-else>{{ pet.name }}的照片</span>
-                <span v-else>{{ pet.name }}的照片</span>
+                <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
               </div>
-              <div class="p-4">
-                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
-                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
-                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
-                  短期领养
+              <div class="p-5">
+                <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
+                <div class="text-sm text-[#666] mb-2.5">{{ pet.desc }}</div>
+                <div class="text-xs text-[#666] mt-1.5">
+                  {{ pet.statusLabel === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer || '未填写' }}
                 </div>
-                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已短期领养 {{ pet.days }} 天
-              <div class="p-4">
-                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
-                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
-                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
-                  短期领养
-                </div>
-                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已短期领养 {{ pet.days }} 天
+                <span
+                  :class="[
+                    'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
+                    pet.statusLabel === '短期领养'
+                      ? 'bg-[#FFF3CD] text-[#856404]'
+                      : 'bg-[#D1FAE5] text-[#059669]'
+                  ]"
+                >
+                  {{ pet.statusLabel }}
+                </span>
+                <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
+                  已{{ pet.statusLabel }} {{ pet.days }} 天
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 长期领养 -->
           <!-- 长期领养 -->
           <div class="flex justify-between items-center mb-2">
             <h3 class="font-semibold text-gray-700">长期领养</h3>
@@ -327,23 +322,26 @@
               <!-- 帖子图片/视频展示区 -->
               <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 my-4">
                 <div
+                  v-for="(media, index) in post.images.slice(0, 3)"
+                  :key="index"
                   class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
                 >
-                  <template v-if="isVideoUrl(post.images[0])">
-                    <video
-                      :src="post.images[0]"
-                      controls
-                      preload="metadata"
-                      class="w-full h-full object-cover"
-                    ></video>
-                  </template>
-                  <template v-else>
-                    <img 
-                      :src="post.images[0]" 
-                      class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" 
-                      alt="帖子图片" 
-                    />
-                  </template>
+                  <img
+                    v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
+                    :src="normalizeImageUrl(media)"
+                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                    alt="帖子图片"
+                  />
+                  <video
+                    v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
+                    :src="normalizeImageUrl(media)"
+                    controls
+                    preload="metadata"
+                    class="w-full h-full object-cover"
+                  ></video>
+                  <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">
+                    {{ media }}
+                  </span>
                 </div>
               </div>
             </div>
