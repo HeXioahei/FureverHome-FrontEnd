@@ -984,19 +984,61 @@ async function loadUserRatings() {
   }
 }
 
-// 规范化图片URL，确保相对路径添加正确的API前缀
-const normalizeImageUrl = (url: string | undefined | null): string => {
+// 规范化媒体 URL，区分图片/视频
+const normalizeMediaUrl = (url: string | undefined | null): string => {
   if (!url) return '';
-  // 如果已经是完整的URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  // 如果已经以/api开头，直接返回
-  if (url.startsWith('/api/')) {
-    return url;
-  }
-  // 否则添加/api/storage/image/前缀
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/')) return url;
+  const clean = url.replace(/^\/+/, '');
+  return isVideoUrl(clean) ? `/api/storage/video/${clean}` : `/api/storage/image/${clean}`;
+};
+
+// 兼容旧调用名
+const normalizeImageUrl = (url: string | undefined | null): string => normalizeMediaUrl(url);
+
+// 视频封面缓存，避免重复截帧
+const videoPosterCache = new Map<string, string>();
+const videoPosterGenerating = new Map<string, Promise<void>>();
+
+// poster 优先走图片域，避免部分存储视频路径不支持 snapshot
+const normalizePosterUrl = (url: string | undefined | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/')) return url;
   return `/api/storage/image/${url.replace(/^\/+/, '')}`;
+};
+
+const getVideoPoster = (url: string) => {
+  if (!url) return '';
+  const normalized = normalizeMediaUrl(url);
+  const posterBase = normalizePosterUrl(url);
+
+  // 已有缓存则直接返回
+  const cached = videoPosterCache.get(normalized);
+  if (cached) return cached;
+
+  // 先给一个基于接口的兜底封面
+  const fallback = buildSnapshotUrl(posterBase, 500);
+  videoPosterCache.set(normalized, fallback);
+
+  // 异步尝试在 0.5s 处截帧生成更清晰的封面
+  if (!videoPosterGenerating.has(normalized)) {
+    const promise = generateVideoThumbnail(normalized, 0.5)
+      .then((thumb) => {
+        if (thumb) {
+          videoPosterCache.set(normalized, thumb);
+        }
+      })
+      .catch((err) => {
+        console.warn('生成视频封面失败(Profile)', err);
+      })
+      .finally(() => {
+        videoPosterGenerating.delete(normalized);
+      });
+    videoPosterGenerating.set(normalized, promise);
+  }
+
+  return fallback;
 };
 
 function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean }) {
@@ -1385,6 +1427,8 @@ async function loadUserPosts() {
             images = [rawItem.mediaUrls];
           }
         }
+
+        images = images.map(normalizeMediaUrl);
 
         return {
           id: item.postId ?? index + 1,
