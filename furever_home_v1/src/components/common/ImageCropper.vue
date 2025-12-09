@@ -7,7 +7,7 @@
     <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
       <!-- 标题栏 -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <h3 class="text-xl font-bold text-gray-800">裁剪图片</h3>
+        <h3 class="text-xl font-bold text-gray-800">裁剪图片（4:3 比例）</h3>
         <button
           type="button"
           class="text-gray-400 hover:text-gray-600 text-2xl leading-none"
@@ -35,7 +35,7 @@
         <div class="mt-4 text-sm text-gray-600 space-y-1">
           <p>• 拖动图片调整位置</p>
           <p>• 滚动鼠标滚轮缩放图片</p>
-          <p>• 裁剪框固定为 {{ aspectRatioText }} 比例</p>
+          <p>• 裁剪框固定为 4:3 比例</p>
         </div>
       </div>
 
@@ -61,12 +61,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 
 interface Props {
   visible: boolean
   imageFile: File | null
-  aspectRatio?: number
 }
 
 interface Emits {
@@ -75,9 +74,7 @@ interface Emits {
   (e: 'cancel'): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  aspectRatio: 4 / 3
-})
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -95,18 +92,10 @@ const dragStartY = ref(0)
 const dragStartOffsetX = ref(0)
 const dragStartOffsetY = ref(0)
 
-// 裁剪框尺寸（根据比例计算）
+// 裁剪框尺寸（4:3 比例）
 const cropWidth = ref(600)
-const cropHeight = ref(450)
+const cropHeight = ref(450) // 600 * 3/4 = 450
 const minScale = ref(1) // 最小缩放比例，确保图片始终覆盖裁剪框
-
-const aspectRatioText = computed(() => {
-  const r = props.aspectRatio
-  if (Math.abs(r - 1) < 0.01) return '1:1'
-  if (Math.abs(r - 4/3) < 0.01) return '4:3'
-  if (Math.abs(r - 16/9) < 0.01) return '16:9'
-  return '固定'
-})
 
 const loadImage = async () => {
   if (!props.imageFile || !canvasRef.value) return
@@ -131,9 +120,9 @@ const initCanvas = () => {
   const canvas = canvasRef.value
   const img = image.value
 
-  // 设置裁剪框尺寸（最大 800，根据比例计算高度）
+  // 设置裁剪框尺寸（最大 600x450，保持 4:3）
   const maxWidth = Math.min(800, window.innerWidth - 100)
-  const maxHeight = maxWidth / props.aspectRatio
+  const maxHeight = maxWidth * 0.75 // 4:3 比例
 
   cropWidth.value = maxWidth
   cropHeight.value = maxHeight

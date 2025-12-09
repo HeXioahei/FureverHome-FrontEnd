@@ -92,15 +92,12 @@
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         <button 
-          v-for="(page, index) in getDisplayedPages(currentPage, totalPages)" 
-          :key="index"
-          class="w-11 h-11 rounded-lg border border-gray-300 text-base flex items-center justify-center transition-all"
-          :class="[
-            page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600',
-            typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
-          ]"
+          v-for="page in totalPages" 
+          :key="page"
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
-          @click="typeof page === 'number' && (currentPage = page, loadApplications())"
+          @click="currentPage = page; loadApplications()"
         >
           {{ page }}
         </button>
@@ -458,20 +455,6 @@ watch(() => route.query.refresh, (refresh) => {
 onMounted(() => {
   loadApplications();
 });
-
-function getDisplayedPages(current: number, total: number): (number | string)[] {
-  if (total <= 5) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  if (current <= 3) {
-    return [1, 2, 3, 4, '...', total];
-  } else if (current >= total - 2) {
-    return [1, '...', total - 3, total - 2, total - 1, total];
-  } else {
-    return [1, '...', current - 1, current, current + 1, '...', total];
-  }
-}
 </script>
 
 <style scoped>
