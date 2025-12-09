@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onActivated, onUnmounted, watch, nextTick } from 'vue';
 
 defineOptions({
   name: 'PostList'
@@ -485,6 +485,40 @@ const loadPosts = async () => {
     totalCount.value = posts.value.length;
     // 重置到第一页
     currentPage.value = 1;
+  }
+};
+
+// 将详情页记录在 sessionStorage 的最新点赞/评论/浏览同步回列表
+const mergeSnapshotsIntoPosts = () => {
+  try {
+    const keys = Object.keys(sessionStorage).filter(k => k.startsWith('forumPostSnapshot_'));
+    if (!keys.length) return;
+    const map = new Map<number, { likes?: number; comments?: number; views?: number; liked?: boolean }>();
+    keys.forEach(k => {
+      try {
+        const val = JSON.parse(sessionStorage.getItem(k) || '{}');
+        const id = Number(k.replace('forumPostSnapshot_', ''));
+        if (Number.isFinite(id)) {
+          map.set(id, val);
+        }
+      } catch (e) {
+        // ignore parse error
+      }
+    });
+    if (!map.size) return;
+    posts.value = posts.value.map(p => {
+      const snap = map.get(Number(p.id));
+      if (!snap) return p;
+      return {
+        ...p,
+        likes: snap.likes ?? p.likes,
+        comments: snap.comments ?? p.comments,
+        views: snap.views ?? p.views,
+        isLiked: typeof snap.liked === 'boolean' ? snap.liked : p.isLiked
+      };
+    });
+  } catch (e) {
+    console.warn('合并帖子快照失败', e);
   }
 };
 
@@ -1102,6 +1136,32 @@ onMounted(async () => {
 
   loadPosts();
 });
+
+// 监听自定义事件，详情页操作后立即通知列表页更新
+const handlePostUpdate = () => {
+  mergeSnapshotsIntoPosts();
+};
+
+onMounted(() => {
+  window.addEventListener('forum-post-updated', handlePostUpdate);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('forum-post-updated', handlePostUpdate);
+});
+
+// 组件被激活（KeepAlive 返回）时，合并详情页的最新快照，保证返回后数据最新
+onActivated(() => {
+  mergeSnapshotsIntoPosts();
+});
+
+// 监听路由变化，当从详情页返回时立即更新
+watch(() => route.path, (newPath, oldPath) => {
+  // 如果是从详情页返回到列表页，立即合并快照
+  if (newPath === '/forum' && oldPath && oldPath.startsWith('/forum/')) {
+    mergeSnapshotsIntoPosts();
+  }
+}, { immediate: false });
 </script>
 
 <style scoped>
