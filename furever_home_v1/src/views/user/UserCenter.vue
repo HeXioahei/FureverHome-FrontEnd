@@ -154,9 +154,19 @@ function handleMenuClick(item: MenuItem) {
   router.push({ path: '/user-center', query: { menu: item.key } });
 }
 
+function clearAuthCache() {
+  // 前台和后台可能使用的 token 均清理
+  localStorage.removeItem('token');
+  localStorage.removeItem('saTokenValue');
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('avatarUrl');
+}
+
 function confirmLogout() {
-  router.push('/login');
+  clearAuthCache();
   showLogoutConfirmModal.value = false;
+  router.push({ name: 'Login' });
 }
 
 function closeLogoutConfirm() {

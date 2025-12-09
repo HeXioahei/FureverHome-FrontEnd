@@ -206,4 +206,35 @@ const router = createRouter({
   }
 })
 
+// 需要登录的页面与免登录白名单
+const authWhitelist: string[] = [
+  'Login',
+  'LoginPassword',
+  'LoginEmailEnter',
+  'LoginEmail',
+  'Register',
+  'ResetPasswordRequest',
+  'ResetPasswordNew',
+  'ResetPasswordSuccess',
+  'LoginSuccess'
+]
+
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token') || localStorage.getItem('saTokenValue')
+  const isAuthed = Boolean(token)
+  const isWhitelisted = authWhitelist.includes(to.name as string)
+
+  // 未登录：只能访问登录/注册/忘记密码相关页面
+  if (!isAuthed && !isWhitelisted) {
+    return next({ name: 'Login', query: { redirect: to.fullPath } })
+  }
+
+  // 已登录：访问登录/注册/忘记密码时，跳回主页
+  if (isAuthed && isWhitelisted) {
+    return next({ name: 'Home' })
+  }
+
+  return next()
+})
+
 export default router

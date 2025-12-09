@@ -437,6 +437,13 @@ const loadPost = async (id: number) => {
     if (res.data) {
       const p = res.data as 帖子详情DTO;
       const createdAt = formatDateTime(p.createTime);
+      const updatedAt = formatDateTime((p as any).updateTime || (p as any).editTime);
+      const routeTime =
+        (route.query.time as string) ||
+        (route.query.publishDate as string) ||
+        (route.query.timeAgo as string) ||
+        '';
+      const displayTime = routeTime || updatedAt || createdAt || '';
       
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
@@ -513,6 +520,20 @@ const loadPost = async (id: number) => {
         reviewNotice.value = '';
       }
       
+      // 若路由携带了最新的点赞/浏览快照，取较大值避免列表与详情不一致
+      const queryLikes = Number(route.query.likes) || 0;
+      const queryComments = Number(route.query.comments) || 0;
+      const queryViews = Number(route.query.views) || 0;
+      if (queryLikes > 0) {
+        post.value.likes = Math.max(post.value.likes || 0, queryLikes);
+      }
+      if (queryComments > 0) {
+        post.value.comments = Math.max(post.value.comments || 0, queryComments);
+      }
+      if (queryViews > 0) {
+        post.value.views = Math.max(Number(post.value.views) || 0, queryViews);
+      }
+
       // 如仍未知昵称，尝试请求用户信息补全
       if (post.value.author === '未知用户' && post.value.userId) {
         await ensureAuthorFromUser(post.value.userId);
@@ -524,8 +545,17 @@ const loadPost = async (id: number) => {
         isLiked.value = (p as any).liked;
       } else {
         // 如果接口没有返回点赞状态，从本地存储读取
-        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
-        isLiked.value = likedPosts.includes(p.postId ?? id);
+        const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+          .map(val => normalizeId(val))
+          .filter((n: number) => Number.isFinite(n));
+        isLiked.value = likedPosts.includes(normalizeId(p.postId ?? id));
+      }
+
+      // 路由如果带了 liked 快照，则强制为已点赞，避免列表/详情状态不一致
+      const likedFromRoute = route.query.liked === '1' || route.query.liked === 'true';
+      if (likedFromRoute) {
+        isLiked.value = true;
+        updateLikedPostsStorage(post.value.id, true);
       }
     } else {
       // 接口返回空数据，如果是示例 id（1 或 2），使用示例数据
@@ -770,15 +800,23 @@ const ensureAuthorFromUser = async (userId: number) => {
 };
 
 // 更新本地存储的点赞状态
-const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+const normalizeId = (id: number | string): number => {
+  const n = typeof id === 'string' ? Number(id) : id;
+  return Number.isFinite(n) ? n : 0;
+};
+
+const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
   try {
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    const idNum = normalizeId(postId);
+    const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+      .map(val => normalizeId(val))
+      .filter(Boolean);
     if (liked) {
-      if (!likedPosts.includes(postId)) {
-        likedPosts.push(postId);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
-      const index = likedPosts.indexOf(postId);
+      const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
       }
@@ -803,6 +841,11 @@ const toggleLike = async () => {
   const previousLiked = isLiked.value;
   const previousLikes = post.value.likes || 0;
   const postId = post.value.id;
+
+  // 如果已是点赞状态且只是想确认，直接返回避免重复调用
+  if (isLiked.value && previousLiked) {
+    return;
+  }
 
   // 乐观更新UI
   isLiked.value = !isLiked.value;
