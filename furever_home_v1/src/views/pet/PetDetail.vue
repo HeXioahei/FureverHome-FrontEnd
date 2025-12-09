@@ -190,19 +190,24 @@ onMounted(() => {
       <!-- 宠物档案卡片 -->
       <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8 flex flex-col lg:flex-row">
         <!-- 左侧图片区域 -->
-        <div 
-          class="flex-1 lg:min-w-[380px] bg-[#FFE4B5] flex items-center justify-center p-8 cursor-pointer"
-          @click="openImageViewer(mainImage)"
-        >
-          <img
-            v-if="currentPet.photo_urls[mainImage]"
-            :src="currentPet.photo_urls[mainImage]"
-            :alt="currentPet.animal_name"
-            class="w-full h-[300px] object-cover rounded-xl"
-          />
-          <div v-else class="text-[#999] text-center">
-            <i class="fa-solid fa-image text-6xl mb-4"></i>
-            <p>暂无照片</p>
+        <div class="w-full lg:w-[480px] flex flex-col items-center justify-center bg-white p-8">
+          <!-- 图片容器 -->
+          <div 
+            class="relative w-full aspect-[4/3] bg-[#FFE4B5] cursor-pointer overflow-hidden rounded-xl"
+            @click="openImageViewer(mainImage)"
+          >
+            <img
+              v-if="currentPet.photo_urls[mainImage]"
+              :src="currentPet.photo_urls[mainImage]"
+              :alt="currentPet.animal_name"
+              class="absolute inset-0 w-full h-full object-cover"
+            />
+            <div v-else class="absolute inset-0 flex items-center justify-center text-[#999] text-center">
+              <div>
+                <i class="fa-solid fa-image text-6xl mb-4"></i>
+                <p>暂无照片</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -295,16 +300,22 @@ onMounted(() => {
           <div
             v-for="(url, index) in currentPet.photo_urls"
             :key="index"
-            class="h-[150px] bg-[#f0f0f0] rounded-xl flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+            class="bg-[#f0f0f0] rounded-xl overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
             @click="openImageViewer(index)"
           >
-            <img
+            <div
               v-if="url"
-              :src="url"
-              :alt="`照片${index + 1}`"
-              class="w-full h-full object-cover"
-            />
-            <span v-else class="text-[#999] text-sm">照片{{ index + 1 }}</span>
+              class="relative w-full aspect-[4/3] overflow-hidden"
+            >
+              <img
+                :src="url"
+                :alt="`照片${index + 1}`"
+                class="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
+            <div v-else class="relative w-full aspect-[4/3] flex items-center justify-center overflow-hidden">
+              <span class="text-[#999] text-sm">照片{{ index + 1 }}</span>
+            </div>
           </div>
         </div>
       </div>

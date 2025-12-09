@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen" style="background-color: #FFF9F0;">
-    <main class="max-w-6xl mx-auto px-5 py-8">
+    <div class="max-w-6xl mx-auto px-5 py-8">
       <!-- 返回按钮 -->
       <!-- <RouterLink to="/" class="inline-flex items-center gap-2 px-4 py-2 mb-5 text-white font-medium rounded-full transition-all hover:opacity-90 hover:-translate-y-0.5" style="background-color: #FF8C42;">
         ← 返回
@@ -200,44 +200,35 @@
           </div>
           <div v-if="shortTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            <div 
-              v-for="pet in shortTermAdoptions.slice(0, 3)" 
-              :key="pet.id" 
+            <div
+              v-for="pet in shortTermAdoptions.slice(0, 3)"
+              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
+              <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
                   :alt="pet.name"
-                  class="w-full h-full object-cover"
+                  class="absolute inset-0 w-full h-full object-cover"
                 />
-                <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
+                <span v-else>{{ pet.name }}的照片</span>
               </div>
-              <div class="p-5">
-                <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
-                <div class="text-sm text-[#666] mb-2.5">{{ pet.desc }}</div>
-                <!-- <div class="text-xs text-[#666] mt-1.5">
-                  {{ pet.statusLabel === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer || '未填写' }}
-                </div> -->
-                <span
-                  :class="[
-                    'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
-                    pet.statusLabel === '短期领养'
-                      ? 'bg-[#FFF3CD] text-[#856404]'
-                      : 'bg-[#D1FAE5] text-[#059669]'
-                  ]"
-                >
-                  {{ pet.statusLabel }}
-                </span>
-                <div class="bg-[#FFF9F0] p-2 rounded text-center text-sm mt-2.5">
-                  已{{ pet.statusLabel }} {{ pet.days }} 天
+              <div class="p-4">
+                <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
+                <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
+                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
+                  短期领养
+                </div>
+                <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
+                  已短期领养 {{ pet.days }} 天
                 </div>
               </div>
             </div>
           </div>
 
+          <!-- 长期领养 -->
           <div class="flex justify-between items-center mb-2">
             <h3 class="font-semibold text-gray-700">长期领养</h3>
             <button 
@@ -251,13 +242,13 @@
           </div>
           <div v-if="longTermAdoptions.length === 0" class="text-gray-400 text-sm text-center py-4 mb-8">暂无内容</div>
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            <div 
-              v-for="pet in longTermAdoptions.slice(0, 3)" 
-              :key="pet.id" 
+            <div
+              v-for="pet in longTermAdoptions.slice(0, 3)"
+              :key="pet.id"
               class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
               @click="router.push({ name: 'PetDetail', params: { id: pet.id } })"
             >
-              <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
+              <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
                 <img
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
@@ -519,55 +510,15 @@
               <div class="p-4">
                 <div class="text-lg mb-1" style="color: #FF8C42;">{{ pet.name }}</div>
                 <div class="text-gray-600 mb-2.5 text-sm">{{ pet.desc }}</div>
-                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #FFF3CD; color: #856404;">
-                  短期领养
+                <div class="inline-block px-3 py-1 rounded-2xl text-xs font-bold mb-2.5" style="background-color: #D1FAE5; color: #059669;">
+                  长期领养
                 </div>
                 <div class="text-center text-sm py-2 px-2 rounded" style="background-color: #FFF9F0; margin-top: 10px;">
-                  已短期领养 {{ pet.days }} 天
+                  已长期领养 {{ pet.days }} 天
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <!-- 分页 -->
-        <div class="flex justify-center mt-5 mb-5">
-          <div class="flex gap-2.5">
-            <button
-              v-if="currentShortTermPage > 1"
-              class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              style="color: #6B7280;"
-              @click="currentShortTermPage--"
-            >
-              <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <button
-              v-for="page in totalShortTermPages"
-              :key="page"
-              class="w-10 h-10 rounded-lg border border-gray-300 text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              :class="page === currentShortTermPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white text-gray-600'"
-              @click="currentShortTermPage = page"
-            >
-              {{ page }}
-            </button>
-            <button
-              v-if="currentShortTermPage < totalShortTermPages"
-              class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-              style="color: #6B7280;"
-              @click="currentShortTermPage++"
-            >
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
-          </div>
-        </div>
-        <div class="flex justify-end mt-5">
-          <button
-            type="button"
-            class="px-5 py-2.5 text-white font-bold rounded-2xl cursor-pointer transition-all hover:opacity-90 hover:-translate-y-0.5 hover:shadow-md"
-            style="background-color: #FF8C42;"
-            @click="showShortTermPetsModal = false"
-          >
-            关闭
-          </button>
         </div>
       </div>
     </div>
@@ -594,7 +545,7 @@
                   v-if="pet.photoUrl"
                   :src="pet.photoUrl"
                   :alt="pet.name"
-                  class="w-full h-full object-cover"
+                  class="max-w-full max-h-full object-contain"
                 />
                 <span v-else>{{ pet.name }}的照片</span>
               </div>
@@ -783,28 +734,28 @@
         <p>2025 FUREVERHOME流浪动物领养平台 - 让每个生命都有温暖的家</p>
       </div>
     </footer>
-  </div>
 
-  <!-- 爱宠证明大图预览 -->
-  <div
-    v-if="showProofPreview"
-    class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center"
-    @click.self="closeProofPreview"
-  >
-    <div class="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden shadow-xl">
-      <button
-        type="button"
-        class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center text-lg cursor-pointer"
-        @click="closeProofPreview"
-      >
-        ×
-      </button>
-      <img
-        v-if="previewProofUrl"
-        :src="normalizeImageUrl(previewProofUrl)"
-        alt="爱宠证明预览"
-        class="max-w-[90vw] max-h-[90vh] object-contain block"
-      />
+    <!-- 爱宠证明大图预览 -->
+    <div
+      v-if="showProofPreview"
+      class="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center"
+      @click.self="closeProofPreview"
+    >
+      <div class="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg overflow-hidden shadow-xl">
+        <button
+          type="button"
+          class="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center text-lg cursor-pointer"
+          @click="closeProofPreview"
+        >
+          ×
+        </button>
+        <img
+          v-if="previewProofUrl"
+          :src="normalizeImageUrl(previewProofUrl)"
+          alt="爱宠证明预览"
+          class="max-w-[90vw] max-h-[90vh] object-contain block"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -873,14 +824,11 @@ interface Post {
 interface Badge { id: number; name: string; }
 
 const user = ref({
-  name: '用户',
+  name: '',
   avatarUrl: '',
-  title: '爱心铲屎官',
-  bio: '大家好！我是一名大学生，也是一名热爱动物的志愿者。我致力于校园流浪动物的救助与临时寄养，希望成为这些小生命寻找温暖的家。',
-  stats: [
-    { key: 'helpTimes', label: '帮助次数', value: 96 },
-    { key: 'rescues', label: '救助宠物', value: 5 }
-  ] as Stat[]
+  title: '',
+  bio: '',
+  stats: [] as Stat[]
 });
 
 interface BaseInfo {
@@ -897,22 +845,11 @@ const baseInfo = ref<BaseInfo[]>([
   { label: '注册时间', value: '-' }
 ]);
 
-const badges = ref<Badge[]>([
-  { id: 1, name: '爱心救助者' },
-  { id: 2, name: '优秀志愿者' },
-  { id: 3, name: '长期贡献者' }
-]);
+const badges = ref<Badge[]>([]);
 
-const experiences = ref<Experience[]>([
-  { id: 1, text: '2021-2023年 饲养金毛犬"旺财" - 负责任照顾，包括日常护理、定期带去宠物医院体检' },
-  { id: 2, text: '2020-至今 救助并寄养校园流浪猫狗 - 跨校区协作，协助它们寻找合适的领养家庭' }
-]);
+const experiences = ref<Experience[]>([]);
 
-const proofs = ref<Proof[]>([
-  { id: 1, title: '护宠证书照片', status: 'approved' },
-  { id: 2, title: '宠物饲养保证书', status: 'approved' },
-  { id: 3, title: '动物救助服务证书', status: 'approved' }
-]);
+const proofs = ref<Proof[]>([]);
 
 const proofIntro = ref<string>('');
 
@@ -1025,6 +962,17 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
   }
 }
 
+// 月龄转换为“X岁Y个月”展示
+function formatAge(ageInMonths: number | null | undefined): string {
+  if (ageInMonths == null || isNaN(ageInMonths as number)) return '';
+  const months = Math.max(0, Math.floor(ageInMonths as number));
+  const years = Math.floor(months / 12);
+  const restMonths = months % 12;
+  if (years === 0) return `${restMonths}个月`;
+  if (restMonths === 0) return `${years}岁`;
+  return `${years}岁${restMonths}个月`;
+}
+
 // 加载他人短期领养宠物列表
 async function loadUserShortAnimals() {
   const userId = viewedUserId.value;
@@ -1038,7 +986,7 @@ async function loadUserShortAnimals() {
         const name = item.animalName ?? '';
         const gender = item.gender ?? '';
         const species = item.species ?? '';
-        const ageText = item.animalAge != null ? `${item.animalAge}个月` : '';
+        const ageText = item.animalAge != null ? formatAge(item.animalAge as number) : '';
         const sterilizedText = item.isSterilized ?? '';
         const descParts = [species, ageText].filter(Boolean);
         const desc = descParts.join(' · ');
