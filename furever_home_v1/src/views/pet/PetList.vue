@@ -165,18 +165,6 @@ const goToPetDetail = (id: number) => {
   router.push({ name: 'PetDetail', params: { id } })
 }
 
-const getDisplayedPages = (current: number, total: number): (number | string)[] => {
-  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
-
-  if (current <= 3) {
-    return [1, 2, 3, 4, '...', total]
-  } else if (current >= total - 2) {
-    return [1, '...', total - 3, total - 2, total - 1, total]
-  } else {
-    return [1, '...', current - 1, current, current + 1, '...', total]
-  }
-}
-
 onMounted(() => {
   loadPets()
 })
@@ -317,18 +305,15 @@ onMounted(() => {
           上一页
         </button>
         <button
-          v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
-          :key="index"
+          v-for="page in totalPages"
+          :key="page"
           :class="[
-            'px-4 py-2 border rounded-lg transition-all',
-            page === currentPage
+            'px-4 py-2 border rounded-lg cursor-pointer transition-all',
+            currentPage === page
               ? 'bg-[#FF8C42] text-white border-[#FF8C42]'
-              : 'border-[#ddd] bg-white text-[#666]',
-            typeof page === 'string'
-              ? 'cursor-default border-transparent'
-              : 'cursor-pointer hover:border-[#FF8C42] hover:text-[#FF8C42]'
+              : 'border-[#ddd] bg-white hover:border-[#FF8C42] hover:text-[#FF8C42]'
           ]"
-          @click="typeof page === 'number' && goToPage(page)"
+          @click="goToPage(page)"
         >
           {{ page }}
         </button>
