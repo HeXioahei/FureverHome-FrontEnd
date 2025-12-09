@@ -163,7 +163,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated, onUnmounted, onActivated, watch } from 'vue';
-import { ref, computed, onMounted, onActivated, onUnmounted, watch, nextTick } from 'vue';
 
 defineOptions({
   name: 'PostList'
