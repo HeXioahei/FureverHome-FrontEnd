@@ -36,12 +36,12 @@
         style="border-color: #F3F4F6;"
         @click="viewDetail(pet)"
       >
-        <div class="relative h-48 bg-[#FFEFD5]">
+        <div class="relative w-full aspect-[4/3] bg-[#FFEFD5] overflow-hidden">
           <img
             v-if="pet.cover"
             :src="pet.cover"
             :alt="pet.name"
-            class="w-full h-full object-cover"
+            class="absolute inset-0 w-full h-full object-cover"
           />
           <div
             v-else
@@ -374,6 +374,15 @@
         />
       </div>
     </div>
+
+    <!-- 图片裁剪器 -->
+    <ImageCropper
+      :visible="showCropper"
+      :image-file="currentCropFile"
+      @confirm="handleCropConfirm"
+      @cancel="handleCropCancel"
+      @update:visible="showCropper = $event"
+    />
   </div>
 </template>
 
@@ -383,6 +392,7 @@ import { useRouter, useRoute } from 'vue-router';
 import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import RegionCascader from '../../../components/common/RegionCascader.vue';
+import ImageCropper from '../../../components/common/ImageCropper.vue';
 import { getMyShortAnimals, getMyLongAnimals, deleteAnimal, updateAnimal, ReviewStatus } from '@/api/animalApi';
 import { uploadImage, deleteImage } from '@/api/storageApi';
 
@@ -423,6 +433,17 @@ const activeTab = ref<'short' | 'long'>('short');
 // 每页展示 3 条宠物卡片
 const pageSize = 3;
 const currentPage = ref(1);
+
+// 月龄转换为“X岁Y个月”展示
+function formatAge(ageInMonths: number | null | undefined): string {
+  if (ageInMonths == null || isNaN(ageInMonths as number)) return '';
+  const months = Math.max(0, Math.floor(ageInMonths as number));
+  const years = Math.floor(months / 12);
+  const restMonths = months % 12;
+  if (years === 0) return `${restMonths}个月`;
+  if (restMonths === 0) return `${years}岁`;
+  return `${years}岁${restMonths}个月`;
+}
 
 const currentList = computed(() => (activeTab.value === 'short' ? shortPets.value : longPets.value));
 const currentTotal = computed(() => (activeTab.value === 'short' ? shortTotal.value : longTotal.value));
@@ -501,7 +522,7 @@ async function loadMyShortPets() {
             : item.isSterilized === '否'
               ? '未绝育'
               : item.isSterilized || '未知';
-        const ageLabel = item.animalAge != null ? `${item.animalAge}个月` : '';
+        const ageLabel = item.animalAge != null ? formatAge(item.animalAge as number) : '';
         const species = item.species || '';
         // 处理 photoUrls 既可能是数组，也可能是 JSON 字符串的情况
         let photos: string[] = [];
@@ -564,7 +585,7 @@ async function loadMyLongPets() {
             : item.isSterilized === '否'
               ? '未绝育'
               : item.isSterilized || '未知';
-        const ageLabel = item.animalAge != null ? `${item.animalAge}个月` : '';
+        const ageLabel = item.animalAge != null ? formatAge(item.animalAge as number) : '';
         const species = item.species || '';
         let photos: string[] = [];
         if (Array.isArray(item.photoUrls)) {
@@ -708,14 +729,34 @@ function triggerPhotoUpload() {
   photoInputRef.value?.click();
 }
 
+// 图片裁剪相关
+const showCropper = ref(false);
+const currentCropFile = ref<File | null>(null);
+
 async function onPhotoSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
 
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    successModal.title = '错误';
+    successModal.message = '请选择图片文件';
+    successModal.visible = true;
+    if (photoInputRef.value) photoInputRef.value.value = '';
+    return;
+  }
+
+  // 打开裁剪弹窗
+  currentCropFile.value = file;
+  showCropper.value = true;
+  if (photoInputRef.value) photoInputRef.value.value = '';
+}
+
+async function handleCropConfirm(croppedFile: File) {
   try {
     isUploading.value = true;
-    const res = await uploadImage(file);
+    const res = await uploadImage(croppedFile);
     if ((res.code === 0 || res.code === 200) && res.data) {
       editPhotos.value.push(res.data);
     } else {
@@ -730,8 +771,12 @@ async function onPhotoSelected(event: Event) {
     successModal.visible = true;
   } finally {
     isUploading.value = false;
-    if (photoInputRef.value) photoInputRef.value.value = '';
+    currentCropFile.value = null;
   }
+}
+
+function handleCropCancel() {
+  currentCropFile.value = null;
 }
 
 async function removePhoto(url: string) {
