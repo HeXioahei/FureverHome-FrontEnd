@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="visible"
-    class="fixed inset-0 bg-black/80 z-[4000] flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/90 z-[4000] flex items-center justify-center p-4"
     @click="handleClose"
   >
     <div class="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center" @click.stop>
