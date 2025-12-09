@@ -6,7 +6,6 @@ defineOptions({
 })
 
 import { useRouter } from 'vue-router'
-import ImageViewer from '../../components/common/ImageViewer.vue'
 import { getAnimalList, type AdoptionStatus, type Gender, type Species } from '@/api/animalApi'
 import RegionCascader from '../../components/common/RegionCascader.vue'
 
@@ -166,30 +165,6 @@ const goToPetDetail = (id: number) => {
   router.push({ name: 'PetDetail', params: { id } })
 }
 
-const showImageViewer = ref(false)
-const imageViewerIndex = ref(0)
-const currentImageList = ref<string[]>([])
-
-const openImageViewer = (imageUrl: string, event?: Event) => {
-  if (event) {
-    event.stopPropagation()
-  }
-  // 获取所有宠物的图片URL列表
-  const allImages = pets.value
-    .map((p: Pet) => p.photo_url)
-    .filter((url: string) => Boolean(url))
-  const index = allImages.indexOf(imageUrl)
-  if (index > -1) {
-    currentImageList.value = allImages
-    imageViewerIndex.value = index
-    showImageViewer.value = true
-  }
-}
-
-const closeImageViewer = () => {
-  showImageViewer.value = false
-}
-
 onMounted(() => {
   loadPets()
 })
@@ -283,13 +258,12 @@ onMounted(() => {
           class="bg-white rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.06)] cursor-pointer transition-transform hover:-translate-y-1"
           @click="goToPetDetail(pet.id)"
         >
-          <div class="w-full h-[200px] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
+          <div class="relative w-full aspect-[4/3] bg-[#FFE4B5] flex items-center justify-center overflow-hidden">
             <img
               v-if="pet.photo_url"
               :src="pet.photo_url"
               :alt="pet.name"
-              class="w-full h-full object-cover cursor-pointer"
-              @click="openImageViewer(pet.photo_url, $event)"
+              class="absolute inset-0 w-full h-full object-cover cursor-pointer"
             />
             <span v-else class="text-[#999] font-bold">{{ pet.name }}的照片</span>
           </div>
@@ -379,12 +353,5 @@ onMounted(() => {
       </div>
     </footer> -->
 
-    <!-- 图片查看器 -->
-    <ImageViewer
-      :visible="showImageViewer"
-      :images="currentImageList"
-      :initial-index="imageViewerIndex"
-      @close="closeImageViewer"
-    />
   </div>
 </template>
