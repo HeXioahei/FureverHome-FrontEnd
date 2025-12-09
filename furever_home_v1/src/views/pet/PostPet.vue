@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import SuccessModal from '../../components/common/SuccessModal.vue'
 import ErrorModal from '../../components/common/ErrorModal.vue'
 import ImageViewer from '../../components/common/ImageViewer.vue'
+import ImageCropper from '../../components/common/ImageCropper.vue'
 import { provinceCityOptions } from '@/constants/regions'
 import { createAnimal, AdoptionStatus, Gender, IsSterilized, Species } from '@/api/animalApi'
 import { uploadImage } from '@/api/storageApi'
@@ -62,6 +63,10 @@ const showErrorModal = ref(false)
 const showFileLimitModal = ref(false)
 const errorMessage = ref('')
 
+// 图片裁剪相关
+const showCropper = ref(false)
+const currentCropFile = ref<File | null>(null)
+
 watch(
   () => form.value.province,
   () => {
@@ -71,17 +76,40 @@ watch(
 
 const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
-  if (target.files) {
-    const newFiles = Array.from(target.files)
-    if (uploadedFiles.value.length + newFiles.length > 5) {
-      showFileLimitModal.value = true
-      return
-    }
-    newFiles.forEach(file => {
-      const preview = URL.createObjectURL(file)
-      uploadedFiles.value.push({ file, preview })
-    })
+  if (!target.files || target.files.length === 0) return
+  
+  const file = target.files[0]
+  if (!file) return
+  
+  // 检查文件数量限制
+  if (uploadedFiles.value.length >= 5) {
+    showFileLimitModal.value = true
+    target.value = '' // 清空 input
+    return
   }
+  
+  // 检查文件类型
+  if (!file.type.startsWith('image/')) {
+    errorMessage.value = '请选择图片文件'
+    showErrorModal.value = true
+    target.value = ''
+    return
+  }
+  
+  // 打开裁剪弹窗
+  currentCropFile.value = file
+  showCropper.value = true
+  target.value = '' // 清空 input，允许重复选择同一文件
+}
+
+const handleCropConfirm = (croppedFile: File) => {
+  const preview = URL.createObjectURL(croppedFile)
+  uploadedFiles.value.push({ file: croppedFile, preview })
+  currentCropFile.value = null
+}
+
+const handleCropCancel = () => {
+  currentCropFile.value = null
 }
 
 const removeFile = (index: number) => {
@@ -400,20 +428,20 @@ const closeErrorModal = () => {
               <div class="text-[40px] mb-2.5 text-[#666666]">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
               </div>
-              <div class="text-[#666666] mb-2.5">点击上传或拖拽文件到这里</div>
+              <div class="text-[#666666] mb-2.5">点击上传文件到这里</div>
               <div class="text-sm text-[#9CA3AF]">支持 JPG、JPEG、PNG、WEBP 格式，最多5张照片</div>
             </div>
             <div v-if="uploadedFiles.length > 0" class="mt-4 flex flex-wrap gap-3">
               <div
                 v-for="(file, index) in uploadedFiles"
                 :key="index"
-                class="relative w-24 h-24 rounded-lg overflow-hidden border border-[#E5E7EB] cursor-pointer"
+                class="relative w-32 aspect-[4/3] rounded-lg overflow-hidden border border-[#E5E7EB] cursor-pointer"
                 @click="openImageViewer(index)"
               >
                 <img
                   :src="getFileUrl(file)"
                   :alt="file.file.name"
-                  class="w-full h-full object-cover"
+                  class="absolute inset-0 w-full h-full object-cover"
                 />
                 <button
                   type="button"
@@ -517,6 +545,15 @@ const closeErrorModal = () => {
       :images="getImageUrls()"
       :initial-index="imageViewerIndex"
       @close="closeImageViewer"
+    />
+
+    <!-- 图片裁剪器 -->
+    <ImageCropper
+      :visible="showCropper"
+      :image-file="currentCropFile"
+      @confirm="handleCropConfirm"
+      @cancel="handleCropCancel"
+      @update:visible="showCropper = $event"
     />
   </div>
 </template>
