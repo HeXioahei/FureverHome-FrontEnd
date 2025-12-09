@@ -62,9 +62,9 @@
                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 @error="handleImageError"
               />
-              <div
+              <video
                 v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
-                :src="media"
+                :src="normalizeMediaUrl(media)"
                 controls
                 preload="metadata"
                 class="w-full h-full object-cover"
@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated } from 'vue';
+import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated, onUnmounted, onActivated, watch } from 'vue';
 
 defineOptions({
   name: 'PostList'
@@ -1206,7 +1206,7 @@ onActivated(async () => {
 });
 
 // 监听路由变化，当从详情页返回时立即更新
-watch(() => route.path, (newPath, oldPath) => {
+watch(() => route.path, (newPath: string, oldPath: string | undefined) => {
   // 如果是从详情页返回到列表页，立即合并快照
   if (newPath === '/forum' && oldPath && oldPath.startsWith('/forum/')) {
     mergeSnapshotsIntoPosts();
