@@ -45,27 +45,13 @@
             </p>
           </div>
           <div v-if="postData?.images && postData.images.length > 0" class="grid grid-cols-2 gap-3">
-            <div
+            <img
               v-for="(img, index) in postData.images"
               :key="index"
-              class="rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-40"
-            >
-              <template v-if="isVideoUrl(img)">
-                <video
-                  :src="img"
-                  controls
-                  preload="metadata"
-                  class="w-full h-full object-cover"
-                ></video>
-              </template>
-              <template v-else>
-                <img
-                  class="object-cover w-full h-full"
-                  :src="img"
-                  :alt="`post image ${index + 1}`"
-                />
-              </template>
-            </div>
+              class="rounded-xl object-cover w-full h-40"
+              :src="img"
+              :alt="`post image ${index + 1}`"
+            />
           </div>
           <!-- 评论列表 -->
           <div class="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-5">
@@ -136,7 +122,6 @@ import { getPostComments, type AdminCommentDto } from '../../api/adminApi';
 import { formatDateTime } from '@/utils/format';
 import CommentItem from '@/components/forum/CommentItem.vue';
 import type { Comment } from '@/api/commentapi';
-import { isVideoUrl } from '@/utils/mediaUtils';
 
 interface PostData {
   id?: number;
@@ -164,7 +149,7 @@ const emit = defineEmits<{
 const normalizeComments = (list: any[]): Comment[] => {
   if (!Array.isArray(list)) return [];
   return list.map((item: any, index: number) => {
-    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
     
     let children: Comment[] = [];
     if (Array.isArray(item.children) && item.children.length > 0) {

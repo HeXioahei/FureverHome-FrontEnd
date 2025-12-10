@@ -1,6 +1,12 @@
 <template>
-  <div class="post-detail-page" ref="containerRef">
+  <div class="post-detail-page">
     <main class="forum-main">
+      <!-- 返回按钮 -->
+      <button class="back-btn" @click="goBack">
+        <i class="fa-solid fa-arrow-left"></i>
+        返回
+      </button>
+
       <!-- 帖子详情 -->
       <div v-if="post" class="post-detail">
         <div class="post-header">
@@ -34,12 +40,13 @@
             :key="index"
             class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
-            <img 
+            <img
               v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
-              :src="media" 
+              :src="media"
               :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
               @error="handleImageError"
+              @click="openImagePreview(index)"
             />
             <video
               v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
@@ -47,7 +54,6 @@
               controls
               preload="metadata"
               class="w-full h-full object-cover"
-              @play="onVideoPlay($event)"
             ></video>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
           </div>
@@ -97,9 +103,9 @@
           <div v-if="displayedComments.length === 0" class="no-comments py-8 text-center text-gray-500">
              暂无评论，快来抢沙发吧！
           </div>
-          <CommentItem 
-            v-for="c in displayedComments" 
-            :key="c.id" 
+          <CommentItem
+            v-for="c in displayedComments"
+            :key="c.id"
             :comment="c"
             @like="handleLikeComment"
             @reply="handleReplyComment"
@@ -108,8 +114,8 @@
 
         <!-- Pagination -->
         <div v-if="totalPages > 1" class="pagination-controls flex justify-center items-center gap-4 mt-6">
-          <button 
-            @click="changePage(currentPage - 1)" 
+          <button
+            @click="changePage(currentPage - 1)"
             :disabled="currentPage === 1"
             class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -118,8 +124,8 @@
           <span class="text-gray-600">
             第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
           </span>
-          <button 
-            @click="changePage(currentPage + 1)" 
+          <button
+            @click="changePage(currentPage + 1)"
             :disabled="currentPage === totalPages"
             class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -142,11 +148,58 @@
         </div>
       </div>
     </div>
+
+    <!-- 图片预览模态框 -->
+    <div
+      v-if="showImagePreview && previewImages.length > 0"
+      class="image-preview-modal"
+      @click.self="closeImagePreview"
+    >
+      <div class="image-preview-container">
+        <!-- 关闭按钮 -->
+        <button class="image-preview-close" @click="closeImagePreview">
+          <i class="fa-solid fa-times"></i>
+        </button>
+        
+        <!-- 上一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-prev"
+          @click.stop="prevImage"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        
+        <!-- 下一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-next"
+          @click.stop="nextImage"
+        >
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        
+        <!-- 图片显示 -->
+        <div class="image-preview-content">
+          <img
+            :src="previewImages[currentPreviewIndex]"
+            :alt="`图片 ${currentPreviewIndex + 1} / ${previewImages.length}`"
+            class="image-preview-img"
+            @error="handlePreviewImageError"
+          />
+        </div>
+        
+        <!-- 图片索引指示器 -->
+        <div v-if="previewImages.length > 1" class="image-preview-indicator">
+          {{ currentPreviewIndex + 1 }} / {{ previewImages.length }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, onDeactivated } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
@@ -163,31 +216,6 @@ import CommentItem from '@/components/forum/CommentItem.vue';
 
 const route = useRoute();
 const router = useRouter();
-
-const containerRef = ref<HTMLElement | null>(null);
-
-const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
-  if (!containerRef.value) return;
-  const videos = containerRef.value.querySelectorAll('video');
-  videos.forEach((video) => {
-    if (video !== excludeVideo && !video.paused) {
-      video.pause();
-    }
-  });
-};
-
-const onVideoPlay = (event: Event) => {
-  const target = event.target as HTMLVideoElement;
-  stopAllVideos(target);
-};
-
-onBeforeUnmount(() => {
-  stopAllVideos();
-});
-
-onDeactivated(() => {
-  stopAllVideos();
-});
 
 interface PostDetailData {
   id: number;
@@ -232,6 +260,11 @@ const newComment = ref('');
 const isLiked = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
+
+// 图片预览相关
+const showImagePreview = ref(false);
+const currentPreviewIndex = ref(0);
+const previewImages = ref<string[]>([]);
 // 审核提示（例如：尚未通过审核，仅自己可见）
 const reviewNotice = ref('');
 const canComment = computed(() => !!post.value && !isMockPost.value && !reviewNotice.value);
@@ -463,11 +496,18 @@ const loadPost = async (id: number) => {
     if (res.data) {
       const p = res.data as 帖子详情DTO;
       const createdAt = formatDateTime(p.createTime);
-      
+      const updatedAt = formatDateTime((p as any).updateTime || (p as any).editTime);
+      const routeTime =
+        (route.query.time as string) ||
+        (route.query.publishDate as string) ||
+        (route.query.timeAgo as string) ||
+        '';
+      const displayTime = routeTime || updatedAt || createdAt || '';
+
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
       // 兼容不同字段命名，避免昵称为空
-      const authorName =
+      let authorName =
         (p as any).userName ||
         (p as any).username ||
         (p as any).user_name ||
@@ -488,7 +528,7 @@ const loadPost = async (id: number) => {
         userInfo.userNickname ||
         userInfo.user_nickname ||
         '未知用户';
-      const avatarInitial = authorName[0] || '用';
+      let avatarInitial = authorName[0] || '用';
       const avatarUrl =
         (p as any).userAvatar ||
         (p as any).authorAvatar ||
@@ -497,7 +537,7 @@ const loadPost = async (id: number) => {
         userInfo.avatarUrl ||
         userInfo.userAvatar ||
         userInfo.avatar;
-      
+
       post.value = {
         id: p.postId ?? id,
         userId: p.userId,
@@ -538,7 +578,21 @@ const loadPost = async (id: number) => {
       } else {
         reviewNotice.value = '';
       }
-      
+
+      // 若路由携带了最新的点赞/浏览快照，取较大值避免列表与详情不一致
+      const queryLikes = Number(route.query.likes) || 0;
+      const queryComments = Number(route.query.comments) || 0;
+      const queryViews = Number(route.query.views) || 0;
+      if (queryLikes > 0) {
+        post.value.likes = Math.max(post.value.likes || 0, queryLikes);
+      }
+      if (queryComments > 0) {
+        post.value.comments = Math.max(post.value.comments || 0, queryComments);
+      }
+      if (queryViews > 0) {
+        post.value.views = Math.max(Number(post.value.views) || 0, queryViews);
+      }
+
       // 如仍未知昵称，尝试请求用户信息补全
       if (post.value.author === '未知用户' && post.value.userId) {
         await ensureAuthorFromUser(post.value.userId);
@@ -550,8 +604,17 @@ const loadPost = async (id: number) => {
         isLiked.value = (p as any).liked;
       } else {
         // 如果接口没有返回点赞状态，从本地存储读取
-        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
-        isLiked.value = likedPosts.includes(p.postId ?? id);
+        const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+          .map(val => normalizeId(val))
+          .filter((n: number) => Number.isFinite(n));
+        isLiked.value = likedPosts.includes(normalizeId(p.postId ?? id));
+      }
+
+      // 路由如果带了 liked 快照，则强制为已点赞，避免列表/详情状态不一致
+      const likedFromRoute = route.query.liked === '1' || route.query.liked === 'true';
+      if (likedFromRoute) {
+        isLiked.value = true;
+        updateLikedPostsStorage(post.value.id, true);
       }
     } else {
       // 接口返回空数据，如果是示例 id（1 或 2），使用示例数据
@@ -598,8 +661,8 @@ const loadPost = async (id: number) => {
 const normalizeComments = (list: any[]): Comment[] => {
   if (!Array.isArray(list)) return [];
   return list.map((item: any, index: number) => {
-    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
-    
+    let authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
+
     // 递归处理子评论（如果后端已经返回了嵌套结构）
     let children: Comment[] = [];
     if (Array.isArray(item.children) && item.children.length > 0) {
@@ -634,7 +697,7 @@ const loadComments = async (postId: number) => {
     // 3) data: { list: Comment[] } / { records: Comment[] }
     let rawList: any[] = [];
     const d: any = res.data;
-    
+
     // 尝试提取总数
     if (d && d.total !== undefined) {
       totalComments.value = Number(d.total);
@@ -660,7 +723,7 @@ const loadComments = async (postId: number) => {
     } else {
       // 检查是否已经是树形结构（如果有 children 且 children 不为空）
       const hasChildren = flatComments.some(c => c.children && c.children.length > 0);
-      
+
       if (hasChildren) {
         // 已经是树形结构，直接使用
         comments.value = flatComments;
@@ -684,7 +747,7 @@ const loadComments = async (postId: number) => {
               if (!c.replyTo) {
                  c.replyTo = parent.authorName;
               }
-              
+
               // 关键逻辑：找到顶级父评论（Root Ancestor）
               // 如果 parent 已经是顶级（没有 parentId），则 parent 就是 Root
               // 如果 parent 也有 parentId，则需要向上追溯
@@ -702,11 +765,11 @@ const loadComments = async (postId: number) => {
                 }
                 depth++;
               }
-              
+
               // 将该评论添加到顶级父评论的 children 中
               root.children = root.children || [];
               root.children.push(c);
-              
+
             } else {
               // 如果找不到父评论，作为根评论处理
               roots.push(c);
@@ -716,7 +779,7 @@ const loadComments = async (postId: number) => {
             roots.push(c);
           }
         });
-        
+
         // 3. 对子评论按时间排序（可选）
         roots.forEach(root => {
           if (root.children && root.children.length > 0) {
@@ -796,15 +859,23 @@ const ensureAuthorFromUser = async (userId: number) => {
 };
 
 // 更新本地存储的点赞状态
-const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+const normalizeId = (id: number | string): number => {
+  const n = typeof id === 'string' ? Number(id) : id;
+  return Number.isFinite(n) ? n : 0;
+};
+
+const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
   try {
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    const idNum = normalizeId(postId);
+    const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+      .map(val => normalizeId(val))
+      .filter(Boolean);
     if (liked) {
-      if (!likedPosts.includes(postId)) {
-        likedPosts.push(postId);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
-      const index = likedPosts.indexOf(postId);
+      const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
       }
@@ -825,7 +896,7 @@ const toggleLike = async () => {
     showErrorModal.value = true;
     return;
   }
-  
+
   const previousLiked = isLiked.value;
   const previousLikes = post.value.likes || 0;
   const postId = post.value.id;
@@ -839,12 +910,26 @@ const toggleLike = async () => {
     // 如果之前已点赞，现在取消点赞，数量-1
     post.value.likes = Math.max(0, (post.value.likes || 0) - 1);
   }
-  
+
   // 更新本地存储
   updateLikedPostsStorage(postId, isLiked.value);
 
   try {
     await likePostApi(postId);
+    // 将最新的点赞/评论/浏览数写入 sessionStorage，列表返回时可同步
+    if (post.value) {
+      sessionStorage.setItem(
+        `forumPostSnapshot_${postId}`,
+        JSON.stringify({
+          likes: post.value.likes,
+          comments: post.value.comments,
+          views: post.value.views,
+          liked: isLiked.value
+        })
+      );
+      // 立即通知列表页更新
+      window.dispatchEvent(new CustomEvent('forum-post-updated'));
+    }
   } catch (error: any) {
     // 回滚UI状态
     isLiked.value = previousLiked;
@@ -871,7 +956,7 @@ const handleReplyComment = async (rootId: number, content: string, replyToUser?:
 // 统一提交逻辑
 const doSubmitComment = async (content: string, parentId?: number, replyTo?: string) => {
   if (!post.value) return;
-  
+
   // 乐观更新：构建本地评论对象
   const localComment: Comment = {
     id: Date.now(), // 临时ID
@@ -917,7 +1002,7 @@ const doSubmitComment = async (content: string, parentId?: number, replyTo?: str
 
     if (root) {
       root.children = root.children || [];
-      
+
       // 如果没有指定 replyTo，则尝试从目标父评论获取
       if (!localComment.replyTo && targetParent) {
         localComment.replyTo = targetParent.authorName;
@@ -935,7 +1020,7 @@ const doSubmitComment = async (content: string, parentId?: number, replyTo?: str
       const normalizedList = normalizeComments([res.data]);
       if (normalizedList.length > 0) {
         const serverComment = normalizedList[0];
-        
+
         // 安全合并：如果后端返回的数据缺失（如content为空），则保留本地乐观数据
         // 这解决了"后端只返回ID导致前端显示空白评论"的问题
         const mergedComment: Comment = {
@@ -979,6 +1064,20 @@ const doSubmitComment = async (content: string, parentId?: number, replyTo?: str
           }
         }
       }
+    }
+    // 提交评论成功后，更新快照并通知列表页
+    if (post.value) {
+      sessionStorage.setItem(
+        `forumPostSnapshot_${post.value.id}`,
+        JSON.stringify({
+          likes: post.value.likes ?? 0,
+          comments: (post.value.comments ?? comments.value.length) || 0,
+          views: post.value.views ?? 0,
+          liked: isLiked.value
+        })
+      );
+      // 立即通知列表页更新
+      window.dispatchEvent(new CustomEvent('forum-post-updated'));
     }
   } catch (error: any) {
     const msg =
@@ -1024,8 +1123,118 @@ const handleLikeComment = async (commentId: number) => {
   }
 };
 
+// 打开图片预览
+const openImagePreview = (index: number) => {
+  if (!post.value || !post.value.images) return;
+  
+  // 过滤出所有图片（排除视频）
+  const imageList = post.value.images.filter(
+    (media) => typeof media === 'string' && 
+    (media.startsWith('http') || media.startsWith('/')) && 
+    !isVideoUrl(media)
+  );
+  
+  if (imageList.length === 0) return;
+  
+  // 找到点击的图片在图片列表中的索引
+  let imageIndex = 0;
+  let currentIndex = 0;
+  for (let i = 0; i < post.value.images.length; i++) {
+    const media = post.value.images[i];
+    if (typeof media === 'string' && 
+        (media.startsWith('http') || media.startsWith('/')) && 
+        !isVideoUrl(media)) {
+      if (i === index) {
+        imageIndex = currentIndex;
+        break;
+      }
+      currentIndex++;
+    }
+  }
+  
+  previewImages.value = imageList;
+  currentPreviewIndex.value = imageIndex;
+  showImagePreview.value = true;
+  
+  // 阻止页面滚动
+  document.body.style.overflow = 'hidden';
+  
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handlePreviewKeydown);
+};
+
+// 关闭图片预览
+const closeImagePreview = () => {
+  showImagePreview.value = false;
+  previewImages.value = [];
+  currentPreviewIndex.value = 0;
+  
+  // 恢复页面滚动
+  document.body.style.overflow = '';
+  
+  // 移除键盘事件监听
+  document.removeEventListener('keydown', handlePreviewKeydown);
+};
+
+// 上一张图片
+const prevImage = () => {
+  if (currentPreviewIndex.value > 0) {
+    currentPreviewIndex.value--;
+  } else {
+    currentPreviewIndex.value = previewImages.value.length - 1;
+  }
+};
+
+// 下一张图片
+const nextImage = () => {
+  if (currentPreviewIndex.value < previewImages.value.length - 1) {
+    currentPreviewIndex.value++;
+  } else {
+    currentPreviewIndex.value = 0;
+  }
+};
+
+// 键盘事件处理
+const handlePreviewKeydown = (e: KeyboardEvent) => {
+  if (!showImagePreview.value) return;
+  
+  switch (e.key) {
+    case 'Escape':
+      closeImagePreview();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      prevImage();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      nextImage();
+      break;
+  }
+};
+
+// 预览图片加载错误处理
+const handlePreviewImageError = (e: Event) => {
+  console.error('预览图片加载失败', e);
+};
+
 // 返回
 const goBack = () => {
+  // 返回前，保存当前帖子的最新数据到快照，并通知列表页更新
+  if (post.value) {
+    sessionStorage.setItem(
+      `forumPostSnapshot_${post.value.id}`,
+      JSON.stringify({
+        likes: post.value.likes ?? 0,
+        comments: post.value.comments ?? 0,
+        views: post.value.views ?? 0,
+        liked: isLiked.value
+      })
+    );
+    // 触发事件通知列表页更新
+    window.dispatchEvent(new CustomEvent('forum-post-updated'));
+  }
+  
   // 优先处理来源路由
   if (route.query.from === 'myPosts') {
     const myPostsPage = route.query.fromMyPostsPage || sessionStorage.getItem('myPostsLastPage');
@@ -1483,10 +1692,168 @@ const goToUserProfile = (userId?: number) => {
   box-shadow: 0 6px 12px rgba(255, 140, 0, 0.3);
 }
 
+/* 图片预览模态框 */
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.image-preview-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10000;
+}
+
+.image-preview-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.image-preview-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 10000;
+}
+
+.image-preview-nav:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.image-preview-prev {
+  left: 20px;
+}
+
+.image-preview-next {
+  right: 20px;
+}
+
+.image-preview-content {
+  max-width: 90%;
+  max-height: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  animation: zoomIn 0.3s ease-in-out;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.image-preview-indicator {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 10000;
+}
+
 /* 响应式 */
 @media (max-width: 850px) {
   .post-images {
     grid-template-columns: 1fr;
+  }
+  
+  .image-preview-nav {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .image-preview-prev {
+    left: 10px;
+  }
+  
+  .image-preview-next {
+    right: 10px;
+  }
+  
+  .image-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .image-preview-indicator {
+    bottom: 10px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }
 </style>
