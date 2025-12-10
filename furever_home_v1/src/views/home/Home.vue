@@ -60,28 +60,40 @@
         核心功能
       </h2>
       <div class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-8">
-        <div class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00]">
+        <div 
+          class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] cursor-pointer"
+          @click="goToPetList"
+        >
           <div class="text-5xl mb-4 inline-block p-4 bg-[rgba(255,140,0,0.1)] rounded-full text-[#FF8C00]">
             <i class="fa-solid fa-list"></i>
           </div>
           <h3 class="text-xl mb-2.5 text-[#333333]">宠物列表</h3>
           <p class="text-[15px] text-[#666666]">浏览待领养/已领养宠物，支持多维度筛选与搜索，找到最适合你的小伙伴</p>
         </div>
-        <div class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00]">
+        <div 
+          class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] cursor-pointer"
+          @click="router.push('/communication')"
+        >
           <div class="text-5xl mb-4 inline-block p-4 bg-[rgba(255,140,0,0.1)] rounded-full text-[#FF8C00]">
             <i class="fa-solid fa-comments"></i>
           </div>
           <h3 class="text-xl mb-2.5 text-[#333333]">沟通对接</h3>
           <p class="text-[15px] text-[#666666]">实时聊天、领养申请、进度通知，一键完成领养流程</p>
         </div>
-        <div class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00]">
+        <div 
+          class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] cursor-pointer"
+          @click="router.push('/forum')"
+        >
           <div class="text-5xl mb-4 inline-block p-4 bg-[rgba(255,140,0,0.1)] rounded-full text-[#FF8C00]">
             <i class="fa-solid fa-users"></i>
           </div>
           <h3 class="text-xl mb-2.5 text-[#333333]">宠物论坛</h3>
           <p class="text-[15px] text-[#666666]">分享日常、求助答疑、点赞评价，共建有爱社区</p>
         </div>
-        <div class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00]">
+        <div 
+          class="bg-white rounded-xl p-8 shadow-sm text-center transition-transform hover:-translate-y-1.5 relative overflow-hidden before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-1 before:bg-[#FF8C00] cursor-pointer"
+          @click="goToPostPet"
+        >
           <div class="text-5xl mb-4 inline-block p-4 bg-[rgba(255,140,0,0.1)] rounded-full text-[#FF8C00]">
             <i class="fa-solid fa-paw"></i>
           </div>

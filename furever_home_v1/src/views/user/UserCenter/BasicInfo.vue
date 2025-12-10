@@ -242,6 +242,16 @@
         />
       </div>
     </div>
+
+    <!-- 图片裁剪器 -->
+    <ImageCropper
+      :visible="showCropper"
+      :image-file="currentCropFile"
+      :aspect-ratio="cropAspectRatio"
+      @confirm="handleCropConfirm"
+      @cancel="handleCropCancel"
+      @update:visible="showCropper = $event"
+    />
   </div>
 </template>
 
@@ -250,6 +260,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import ErrorModal from '../../../components/common/ErrorModal.vue';
+import ImageCropper from '../../../components/common/ImageCropper.vue';
 import {
   getCurrentUser,
   updateCurrentUser,
@@ -291,6 +302,12 @@ const showPreview = ref(false);
 const previewUrl = ref<string | null>(null);
 const removedProofs = ref<string[]>([]); // 记录待删除但未提交的证明图片
 
+// 图片裁剪相关
+const showCropper = ref(false);
+const currentCropFile = ref<File | null>(null);
+const cropAspectRatio = ref(4 / 3);
+const isAvatarCrop = ref(false);
+
 function mapSexToGender(sex?: Sex): 'male' | 'female' | 'secret' {
   if (sex === Sex.男) return 'male';
   if (sex === Sex.女) return 'female';
@@ -317,6 +334,11 @@ async function loadCurrentUser() {
       formData.value.petProofIntro = data.proofText || '';
       avatarUrl.value = data.avatarUrl || '';
       proofPhotos.value = data.proofPhoto || [];
+
+      // 更新本地缓存
+      localStorage.setItem('currentUser', JSON.stringify(data));
+      if (data.userName) localStorage.setItem('userName', data.userName);
+      if (data.avatarUrl) localStorage.setItem('avatarUrl', data.avatarUrl);
     }
   } catch (error) {
     console.error('获取当前用户信息失败', error);
@@ -353,60 +375,82 @@ function triggerAvatarSelect() {
   avatarInputRef.value?.click();
 }
 
-async function onAvatarSelected(event: Event) {
+function onAvatarSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
 
-  try {
-    isLoading.value = true;
-    const res = await uploadImage(file);
-    if ((res.code === 0 || res.code === 200) && res.data) {
-      avatarUrl.value = res.data;
-    } else {
-      alert(res.message || '头像上传失败，请稍后重试');
-    }
-  } catch (error) {
-    console.error('上传头像失败', error);
-    alert('头像上传失败，请稍后重试');
-  } finally {
-    isLoading.value = false;
-    if (avatarInputRef.value) avatarInputRef.value.value = '';
-  }
+  currentCropFile.value = file;
+  cropAspectRatio.value = 1;
+  isAvatarCrop.value = true;
+  showCropper.value = true;
+  
+  input.value = '';
 }
 
 function triggerProofSelect() {
   proofInputRef.value?.click();
 }
 
-async function onProofSelected(event: Event) {
+function onProofSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
 
   if (proofPhotos.value.length >= 3) {
     showErrorModal.value = true;
-    if (proofInputRef.value) proofInputRef.value.value = '';
+    input.value = '';
     return;
   }
 
-  try {
-    isLoading.value = true;
-    const res = await uploadImage(file);
-    if ((res.code === 0 || res.code === 200) && res.data) {
-      proofPhotos.value.push(res.data);
-    } else {
-      errorMessage.value = res.message || '爱宠证明上传失败，请稍后重试';
-      showErrorModal.value = true;
+  currentCropFile.value = file;
+  cropAspectRatio.value = 4 / 3;
+  isAvatarCrop.value = false;
+  showCropper.value = true;
+
+  input.value = '';
+}
+
+async function handleCropConfirm(croppedFile: File) {
+  if (isAvatarCrop.value) {
+    try {
+      isLoading.value = true;
+      const res = await uploadImage(croppedFile);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        avatarUrl.value = res.data;
+      } else {
+        alert(res.message || '头像上传失败，请稍后重试');
+      }
+    } catch (error) {
+      console.error('上传头像失败', error);
+      alert('头像上传失败，请稍后重试');
+    } finally {
+      isLoading.value = false;
     }
-  } catch (error) {
-    console.error('上传爱宠证明失败', error);
-    errorMessage.value = '爱宠证明上传失败，请稍后重试';
-    showErrorModal.value = true;
-  } finally {
-    isLoading.value = false;
-    if (proofInputRef.value) proofInputRef.value.value = '';
+  } else {
+    try {
+      isLoading.value = true;
+      const res = await uploadImage(croppedFile);
+      if ((res.code === 0 || res.code === 200) && res.data) {
+        proofPhotos.value.push(res.data);
+      } else {
+        errorMessage.value = res.message || '爱宠证明上传失败，请稍后重试';
+        showErrorModal.value = true;
+      }
+    } catch (error) {
+      console.error('上传爱宠证明失败', error);
+      errorMessage.value = '爱宠证明上传失败，请稍后重试';
+      showErrorModal.value = true;
+    } finally {
+      isLoading.value = false;
+    }
   }
+  
+  currentCropFile.value = null;
+}
+
+function handleCropCancel() {
+  currentCropFile.value = null;
 }
 
 async function handleSave() {
@@ -441,6 +485,11 @@ async function handleSave() {
           removedProofs.value = [];
         }
       }
+
+      // 重新获取用户信息以更新本地缓存，并通知其他组件更新
+      await loadCurrentUser();
+      window.dispatchEvent(new Event('current-user-updated'));
+
       showSuccessModal.value = true;
     } else {
       alert(res.message || '保存失败，请稍后重试');
