@@ -4,9 +4,18 @@
       <main
         class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
       >
+        <button
+          class="absolute left-4 top-4 flex items-center gap-1 text-sm transition-colors font-bold"
+          style="color: #FF8C00 !important;"
+          @click="goBack"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-[18px] leading-none">arrow_back</span>
+          返回
+        </button>
         <div class="flex flex-col items-center gap-2 text-center mb-8">
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
-            欢迎使用 FUREVER<br />HOME!
+            欢迎使用<br />FUREVER HOME!
           </h1>
         </div>
 
@@ -163,6 +172,16 @@ function goRegister() {
 
 function goResetPassword() {
   router.push({ name: 'ResetPasswordRequest', query: { email: account.value } });
+}
+
+function goBack() {
+  // 有浏览历史时回退，否则回到登录入口
+  if (window.history.length > 1) {
+    router.back();
+    return;
+  }
+  const isFromAdmin = route.query.from === 'admin';
+  router.push({ name: 'Login', query: isFromAdmin ? { from: 'admin' } : {} });
 }
 
 async function handleLogin() {

@@ -103,15 +103,12 @@
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         <button 
-          v-for="(page, index) in getDisplayedPages(currentPage, totalPages)" 
-          :key="index"
-          class="w-11 h-11 rounded-lg border text-base flex items-center justify-center transition-all"
-          :class="[
-            page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'bg-white border-gray-300 text-gray-600',
-            typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
-          ]"
+          v-for="page in totalPages" 
+          :key="page"
+          class="w-11 h-11 rounded-lg border border-gray-300 bg-white text-base cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
+          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00]' : 'text-gray-600'"
           style="color: #6B7280;"
-          @click="typeof page === 'number' && goPage(page)"
+          @click="goPage(page)"
         >
           {{ page }}
         </button>
@@ -221,20 +218,6 @@ const pagedTodos = computed(() => {
   return todos.value.slice(start, start + pageSize);
 });
 
-function getDisplayedPages(current: number, total: number): (number | string)[] {
-  if (total <= 5) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  if (current <= 3) {
-    return [1, 2, 3, 4, '...', total];
-  } else if (current >= total - 2) {
-    return [1, '...', total - 3, total - 2, total - 1, total];
-  } else {
-    return [1, '...', current - 1, current, current + 1, '...', total];
-  }
-}
-
 function goPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
@@ -329,8 +312,6 @@ async function onConfirmConfirm() {
           ? { ...todo, resultText: '已同意领养申请', showConfirm: false, showReject: false }
           : todo
       );
-      // 重新加载列表以获取最新状态
-      await loadTodos();
     } else {
       errorMessage.value = res.message || '同意领养申请失败，请稍后重试';
       showErrorModal.value = true;
@@ -364,8 +345,6 @@ async function onRejectConfirm() {
           ? { ...todo, resultText: '已婉拒申请', showConfirm: false, showReject: false }
           : todo
       );
-      // 重新加载列表以获取最新状态
-      await loadTodos();
     } else {
       errorMessage.value = res.message || '婉拒申请失败，请稍后重试';
       showErrorModal.value = true;

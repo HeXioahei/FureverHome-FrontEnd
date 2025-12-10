@@ -171,19 +171,14 @@ function generateNotificationContent(item: any): string {
   const targetType = item.targetType || '';
   const event = item.event || '';
   
-  // 辅助函数：尝试获取宠物名称
-  const getPetName = (data: any) => data.animalName || data.petName || data.targetName || '未知宠物';
-  // 辅助函数：尝试获取帖子标题
-  const getPostTitle = (data: any) => data.postTitle || data.title || '未知标题';
-  
   if (targetType === 'animal') {
-    const animalName = getPetName(item);
+    const animalName = item.animalName || '未知宠物';
     return `您的名为"${animalName}"的宠物的发布或修改已被管理员${event}`;
   } else if (targetType === 'post') {
-    const postTitle = getPostTitle(item);
+    const postTitle = item.postTitle || '未知标题';
     return `您的标题为"${postTitle}"的帖子的发布或修改已被管理员${event}`;
   } else if (targetType === 'adopt') {
-    const animalName = getPetName(item);
+    const animalName = item.animalName || '未知宠物';
     if (event === '通过') {
       return `您对名为"${animalName}"的宠物的申请已被管理员通过，已成功发送至被申请者处`;
     } else if (event === '拒绝') {
@@ -194,15 +189,14 @@ function generateNotificationContent(item: any): string {
       return `您对名为"${animalName}"的宠物的申请已被对方拒绝，请重新申请`;
     }
   } else if (targetType === 'review') {
-    const animalName = getPetName(item);
+    const animalName = item.animalName || '未知宠物';
     if (event === '新的待办事项') {
       return `您的名为"${animalName}"的宠物正在被用户"${item.applicantUserName}"申请，请及时处理`;
     }
   }
   
   // 默认情况：使用原有的content或event
-  // 如果没有足够的信息，返回空字符串
-  return item.content || item.extraInfo || event || '';
+  return item.content || item.extraInfo || event || '您有新的通知';
 }
 
 const resolveWsUrl = (base?: string) => {
@@ -214,29 +208,10 @@ const resolveWsUrl = (base?: string) => {
 
 const handleWsMessage = (event: MessageEvent) => {
   try {
-    if (event.data === 'ping' || event.data === 'pong' || event.data === 'heartbeat') {
-      return;
-    }
-
     const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
     const data = payload?.data || payload;
-
-    // 过滤无效数据或空数据
-    if (!data || Object.keys(data).length === 0) {
-      return;
-    }
-
-    // 过滤心跳包
-    if (data.type === 'heartbeat' || data.type === 'ping') {
-      return;
-    }
-
     const title = data?.title || '系统通知';
     const content = generateNotificationContent(data);
-    
-    // 如果没有有效内容，忽略该消息
-    if (!content) return;
-
     const time = formatDateTime(data?.createTime || data?.time || new Date().toISOString());
     const newItem: NotificationItem = {
       id: data?.activityId ?? data?.id ?? Date.now(),
@@ -248,18 +223,13 @@ const handleWsMessage = (event: MessageEvent) => {
       iconColor: '#2563EB'
     };
 
-    // 简单去重：如果列表中已存在相同ID的消息，则忽略
-    if (notifications.value.some(n => n.id == newItem.id)) {
-      return;
-    }
-
     // 刷新第一页数据，让最新通知可见
     notifications.value = [newItem, ...notifications.value].slice(0, pageSize);
     total.value += 1;
     currentPage.value = 1;
     // 通知弹窗已移至全局，这里不再显示
   } catch (err) {
-    // console.error('解析通知消息失败', err, event.data);
+    console.error('解析通知消息失败', err, event.data);
   }
 };
 
