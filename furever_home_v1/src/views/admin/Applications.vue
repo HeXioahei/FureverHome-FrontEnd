@@ -117,11 +117,14 @@
             上一页
           </button>
           <button
-            v-for="page in totalPages"
-            :key="page"
+            v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
+            :key="index"
             class="px-3 py-1 border border-gray-300 dark:border-gray-700 rounded-lg text-sm transition-colors"
-            :class="page === currentPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'"
-            @click="currentPage = page"
+            :class="[
+              page === currentPage ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800',
+              typeof page === 'string' ? 'cursor-default border-transparent hover:bg-transparent' : 'cursor-pointer'
+            ]"
+            @click="typeof page === 'number' && (currentPage = page)"
           >
             {{ page }}
           </button>
@@ -489,6 +492,20 @@ watch(search, () => {
     loadApplications();
   }, 500);
 });
+
+function getDisplayedPages(current: number, total: number): (number | string)[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total];
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total];
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  }
+}
 </script>
 
 <style scoped>

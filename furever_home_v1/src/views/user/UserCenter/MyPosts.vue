@@ -52,20 +52,29 @@
           {{ post.content }}
         </div>
 
-        <!-- 图片区域 -->
+        <!-- 图片/视频区域 -->
         <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2.5 mb-4">
           <div
             v-for="(img, index) in post.images.slice(0, 3)"
             :key="index"
             class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
-            <img
-              v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))"
-              :src="img"
-              :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-              @error="handleImageError"
-            />
+            <template v-if="typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))">
+              <video
+                v-if="isVideoUrl(img)"
+                :src="img"
+                controls
+                preload="metadata"
+                class="w-full h-full object-cover"
+              ></video>
+              <img
+                v-else
+                :src="img"
+                :alt="`帖子图片 ${index + 1}`"
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                @error="handleImageError"
+              />
+            </template>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ img }}</span>
           </div>
         </div>
@@ -123,12 +132,15 @@
           <i class="fa-solid fa-chevron-left"></i>
         </button>
         <button
-          v-for="page in totalPages"
-          :key="page"
-          class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm cursor-pointer flex items-center justify-center transition-all hover:border-[#FF8C00] hover:text-[#FF8C00]"
-          :class="page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00] active-page' : 'text-gray-600'"
+          v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
+          :key="index"
+          class="w-10 h-10 rounded-lg border border-gray-300 bg-white text-sm flex items-center justify-center transition-all"
+          :class="[
+            page === currentPage ? 'bg-[#FF8C00] text-white border-[#FF8C00] active-page' : 'text-gray-600',
+            typeof page === 'string' ? 'cursor-default border-transparent' : 'cursor-pointer hover:border-[#FF8C00] hover:text-[#FF8C00]'
+          ]"
           style="color: #6B7280;"
-          @click="goPage(page)"
+          @click="typeof page === 'number' && goPage(page)"
         >
           {{ page }}
         </button>
@@ -170,6 +182,7 @@ import ConfirmModal from '../../../components/common/ConfirmModal.vue';
 import SuccessModal from '../../../components/common/SuccessModal.vue';
 import { getMyPostList, deletePost } from '@/api/postApi';
 import { getCurrentUser, type CurrentUserInfo } from '@/api/userApi';
+import { isVideoUrl } from '@/utils/mediaUtils';
 
 const router = useRouter();
 const route = useRoute();
@@ -504,6 +517,20 @@ function getReviewStatusClass(status: string) {
   }
   // 默认：待审核 或 其它未知状态
   return 'bg-yellow-50 text-yellow-600';
+}
+
+function getDisplayedPages(current: number, total: number): (number | string)[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total];
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total];
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  }
 }
 </script>
 
