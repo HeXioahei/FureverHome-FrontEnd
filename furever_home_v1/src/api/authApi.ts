@@ -147,3 +147,13 @@ export function confirmResetPassword(data: ResetPasswordConfirmRequest) {
   return httpClient.post<boolean>('/auth/password/reset', data)
 }
 
+// ===================== 退出登录 =====================
+
+/**
+ * 退出登录
+ * POST /api/auth/logout
+ */
+export function userLogout() {
+  return httpClient.post<void>('/auth/logout')
+}
+

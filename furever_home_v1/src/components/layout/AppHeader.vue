@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="logo" @click="$router.push('/')">
-      <i class="fa-solid fa-paw"></i> FUREVERHOME
+      <img src="@/assets/icons/logo.svg" alt="FUREVERHOME" style="height: 40px;" />
     </div>
     <nav>
       <ul>

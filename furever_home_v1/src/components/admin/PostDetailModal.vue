@@ -40,6 +40,16 @@
           </div>
           <div class="space-y-3">
             <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{{ postData?.title || '无标题' }}</h3>
+            <!-- <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+              <span class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">visibility</span>
+                {{ postData?.views || 0 }} 浏览
+              </span>
+              <span class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">thumb_up</span>
+                {{ postData?.likes || 0 }} 点赞
+              </span>
+            </div> -->
             <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               {{ postData?.content || postData?.excerpt || '暂无内容' }}
             </p>
@@ -67,10 +77,20 @@
               </template>
             </div>
           </div>
+          <div class="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">visibility</span>
+              {{ postData?.views || 0 }} 浏览
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">thumb_up</span>
+              {{ postData?.likes || 0 }} 点赞
+            </span>
+          </div>
           <!-- 评论列表 -->
           <div class="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-5">
             <h4 class="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-base">chat</span>评论 ({{ commentsTotal }})
+              <span class="material-symbols-outlined text-base">chat</span>评论 ({{ postData?.commentCount ?? commentsTotal }})
             </h4>
             <div v-if="loadingComments" class="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
               加载中...
@@ -87,7 +107,7 @@
             <!-- 评论分页 -->
             <div v-if="commentTotalPages > 1" class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
               <p class="text-xs text-slate-500 dark:text-slate-400">
-                显示 {{ (commentPage - 1) * pageSize + 1 }} 到 {{ Math.min(commentPage * pageSize, comments.length) }} 条，共 {{ comments.length }} 条
+                显示 {{ (commentPage - 1) * pageSize + 1 }} 到 {{ Math.min(commentPage * pageSize, commentsTotal) }} 条，共 {{ commentsTotal }} 条
               </p>
               <div class="flex gap-2">
                 <button
@@ -132,10 +152,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { getPostComments, type AdminCommentDto } from '../../api/adminApi';
+import { getPostComments, type Comment } from '@/api/commentapi';
+import { normalizeComments } from '@/utils/commentUtils';
 import { formatDateTime } from '@/utils/format';
 import CommentItem from '@/components/forum/CommentItem.vue';
-import type { Comment } from '@/api/commentapi';
 import { isVideoUrl } from '@/utils/mediaUtils';
 
 interface PostData {
@@ -147,6 +167,9 @@ interface PostData {
   authorAvatar?: string;
   time?: string;
   images?: string[];
+  likes?: number;
+  views?: number;
+  commentCount?: number;
 }
 
 const pageSize = ref(5);
@@ -160,46 +183,14 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-// 统一映射为 Comment 结构
-const normalizeComments = (list: any[]): Comment[] => {
-  if (!Array.isArray(list)) return [];
-  return list.map((item: any, index: number) => {
-    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
-    
-    let children: Comment[] = [];
-    if (Array.isArray(item.children) && item.children.length > 0) {
-       children = normalizeComments(item.children);
-    } else if (Array.isArray(item.replies) && item.replies.length > 0) {
-       children = normalizeComments(item.replies);
-    }
-
-    return {
-      id: item.id ?? item.commentId ?? index + 1,
-      content: item.content ?? item.commentContent ?? item.text ?? item.body ?? item.message ?? '',
-      authorName: authorName,
-      authorAvatar: item.authorAvatar ?? item.avatar ?? item.userAvatar ?? '',
-      date: formatDateTime(item.createTime || item.date) || item.timeAgo || '刚刚',
-      likes: item.likes ?? item.likeCount ?? 0,
-      isLiked: item.isLiked ?? item.liked ?? false,
-      parentId: item.parentId ?? item.parentCommentId ?? item.parent_id ?? null,
-      replyTo: item.replyTo ?? item.replyToUser ?? item.reply_to_user_name ?? undefined,
-      children: children
-    };
-  });
-};
-
 const comments = ref<Comment[]>([]);
 const commentsTotal = ref(0);
 const commentPage = ref(1);
 const loadingComments = ref(false);
 
-const displayedComments = computed(() => {
-  const start = (commentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return comments.value.slice(start, end);
-});
+const displayedComments = computed(() => comments.value);
 
-const commentTotalPages = computed(() => Math.ceil(comments.value.length / pageSize.value));
+const commentTotalPages = computed(() => Math.ceil(commentsTotal.value / pageSize.value));
 
 async function loadComments() {
   if (!props.postData?.id) return;
@@ -207,92 +198,63 @@ async function loadComments() {
   try {
     loadingComments.value = true;
     const res = await getPostComments(props.postData.id, {
-      page: 1,
-      pageSize: 1000
+      page: commentPage.value,
+      pageSize: pageSize.value,
+      sortBy: 'TIME',
+      order: 'DESC'
     });
     
     let rawList: any[] = [];
-    if ((res.code === 0 || res.code === 200) && res.data) {
-       const d: any = res.data;
-       if (Array.isArray(d)) {
-          rawList = d;
-       } else if (d && Array.isArray(d.data)) {
-          rawList = d.data;
-       } else if (d && Array.isArray(d.list)) {
-          rawList = d.list;
-       } else if (d && Array.isArray(d.records)) {
-          rawList = d.records;
-       }
-       
-       commentsTotal.value = res.data.total ?? rawList.length;
+    const d: any = res.data;
+    
+    // 尝试提取总数
+    if (d && d.total !== undefined) {
+      commentsTotal.value = Number(d.total);
+    } else if ((res as any).total !== undefined) {
+      commentsTotal.value = Number((res as any).total);
     }
 
-    const flatComments = normalizeComments(rawList);
-    
-    const hasChildren = flatComments.some(c => c.children && c.children.length > 0);
-    
-    if (hasChildren) {
-       comments.value = flatComments;
-    } else {
-        const commentMap = new Map<number, Comment>();
-        const roots: Comment[] = [];
-
-        flatComments.forEach((c: Comment) => {
-          c.children = []; 
-          commentMap.set(c.id, c);
-        });
-
-        flatComments.forEach((c: Comment) => {
-          if (c.parentId) {
-            const parent = commentMap.get(c.parentId);
-            if (parent) {
-              if (!c.replyTo) {
-                 c.replyTo = parent.authorName;
-              }
-              let root = parent;
-              let current = parent;
-              let depth = 0;
-              while (current.parentId && depth < 20) {
-                const p = commentMap.get(current.parentId);
-                if (p) {
-                  current = p;
-                  root = p;
-                } else {
-                  break;
-                }
-                depth++;
-              }
-              root.children = root.children || [];
-              root.children.push(c);
-            } else {
-              roots.push(c);
-            }
-          } else {
-            roots.push(c);
-          }
-        });
-        
-        roots.forEach(root => {
-          if (root.children && root.children.length > 0) {
-            root.children.sort((a, b) => a.id - b.id);
-          }
-        });
-
-        comments.value = roots;
+    if (Array.isArray(d)) {
+      rawList = d;
+    } else if (d && Array.isArray(d.data)) {
+      rawList = d.data;
+    } else if (d && Array.isArray(d.list)) {
+      rawList = d.list;
+    } else if (d && Array.isArray(d.records)) {
+      rawList = d.records;
     }
+
+    comments.value = normalizeComments(rawList);
+    
+    // 如果没有获取到 total，尝试用当前列表长度兜底
+    if (!commentsTotal.value && rawList.length > 0) {
+        if (commentPage.value === 1 && rawList.length < pageSize.value) {
+            commentsTotal.value = rawList.length;
+        }
+    }
+
   } catch (error) {
     console.error('获取评论列表异常', error);
     comments.value = [];
-    commentsTotal.value = 0;
+    if (commentPage.value === 1) {
+      commentsTotal.value = 0;
+    }
   } finally {
     loadingComments.value = false;
   }
 }
 
+watch(() => commentPage.value, () => {
+  loadComments();
+});
+
 watch([() => props.visible, () => props.postData?.id], ([newVisible, newId]) => {
   if (newVisible && newId) {
-    commentPage.value = 1;
-    loadComments();
+    if (commentPage.value !== 1) {
+        commentPage.value = 1;
+    } else {
+        loadComments();
+    }
   }
 });
 

@@ -7,7 +7,7 @@
         <!-- 标题 -->
         <div class="flex flex-col items-center gap-2 text-center mb-8">
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
-            欢迎使用 FUREVER<br />HOME!
+            欢迎使用<br/>FUREVERHOME!
           </h1>
           <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
             请选择登录方式

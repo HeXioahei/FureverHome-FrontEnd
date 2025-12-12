@@ -12,14 +12,25 @@ export interface Comment {
   likes: number
   isLiked: boolean
   children?: Comment[]
+  replyCount?: number // 子评论总数
 }
 
 /**
- * 获取帖子评论列表
+ * 获取帖子评论列表 (父评论)
  * @param postId 帖子ID
+ * @param params 分页和排序参数
  */
-export const getPostComments = (postId: number): Promise<ApiResponse<Comment[]>> => {
-  return request.get<Comment[]>(`/post/${postId}/comments`)
+export const getPostComments = (postId: number, params?: { page?: number; pageSize?: number; sortBy?: string; order?: string }): Promise<ApiResponse<any>> => {
+  return request.get<any>(`/post/${postId}/comments`, { params })
+}
+
+/**
+ * 获取评论的子评论列表
+ * @param commentId 父评论ID
+ * @param params 分页参数
+ */
+export const getCommentReplies = (commentId: number, params?: { page?: number; pageSize?: number; sortBy?: string; order?: string }): Promise<ApiResponse<any>> => {
+  return request.get<any>(`/post/comments/${commentId}/replies`, { params })
 }
 
 /**
@@ -27,7 +38,7 @@ export const getPostComments = (postId: number): Promise<ApiResponse<Comment[]>>
  * @param postId 帖子ID
  * @param payload 评论内容
  */
-export const submitComment = (postId: number, payload: { content: string, parentId?: number, replyTo?: string }): Promise<ApiResponse<Comment>> => {
+export const submitComment = (postId: number, payload: { content: string, parentId?: number, rootId?: number, replyTo?: string }): Promise<ApiResponse<Comment>> => {
   // 兼容后端可能接受的字段名（驼峰或下划线）
   const data = {
     ...payload,
@@ -35,7 +46,8 @@ export const submitComment = (postId: number, payload: { content: string, parent
     parentCommentId: payload.parentId,
     // 兼容其他命名习惯
     parent_id: payload.parentId,
-    root_parent_id: payload.parentId,
+    // 如果指定了 rootId 则使用 rootId，否则使用 parentId (兼容旧逻辑)
+    root_parent_id: payload.rootId ?? payload.parentId,
     reply_comment_id: payload.parentId,
     reply_to: payload.replyTo,
     reply_to_user: payload.replyTo,

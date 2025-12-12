@@ -4,6 +4,18 @@
       <main
         class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
       >
+        <!-- 返回按钮 -->
+        <div class="w-full flex justify-start mb-2">
+          <button 
+            @click="router.back()" 
+            class="flex items-center gap-1 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+            title="返回"
+          >
+            <i class="fa-solid fa-arrow-left text-lg"></i>
+            <span class="font-medium">返回</span>
+          </button>
+        </div>
+
         <!-- 标题 -->
         <div class="flex flex-col items-center gap-2 text-center mb-8">
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
@@ -45,7 +57,7 @@
           </button>
 
           <!-- 返回登录 -->
-          <div class="text-center pt-2">
+          <!-- <div class="text-center pt-2">
             <button
               type="button"
               class="text-sm font-bold text-primary hover:text-primary-hover flex items-center justify-center gap-1"
@@ -54,7 +66,7 @@
               <span class="material-symbols-outlined text-base">arrow_back</span>
               返回登录
             </button>
-          </div>
+          </div> -->
         </div>
 
         <div class="mt-8 text-center">

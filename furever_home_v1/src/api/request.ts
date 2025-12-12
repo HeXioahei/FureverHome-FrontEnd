@@ -24,7 +24,7 @@ class HttpClient {
   private timeout: number
   private static globalPendingCount = 0
 
-  constructor(baseURL: string, timeout: number = 10000) {
+  constructor(baseURL: string, timeout: number = 30000) {
     this.baseURL = baseURL
     this.timeout = timeout
   }
@@ -34,7 +34,7 @@ class HttpClient {
     saTokenName: string | null
     saTokenValue: string | null
   } {
-    // 浼樺厛璇诲彇宸茬粡甯?Bearer 鍓嶇紑鐨?Authorization锛岄伩鍏嶅墠缂€涓㈠け
+    // 优先读取已经带 Bearer 前缀的 Authorization，避免前缀丢失
     const storedAuth = localStorage.getItem('Authorization') || sessionStorage.getItem('Authorization')
     const bearerToken =
       storedAuth ||
@@ -82,7 +82,7 @@ class HttpClient {
       } catch (e) {
         const text = await response.text()
         console.error('JSON parse failed, raw response:', text)
-        throw new Error(`鍝嶅簲瑙ｆ瀽澶辫触: ${text}`)
+        throw new Error(`响应解析失败: ${text}`)
       }
     } else {
       data = await response.text()
@@ -177,7 +177,7 @@ class HttpClient {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        throw new Error('璇锋眰瓒呮椂')
+        throw new Error('请求超时')
       }
       throw error
     } finally {
@@ -285,7 +285,7 @@ class HttpClient {
     } catch (error: any) {
       clearTimeout(timeoutId)
       if (error.name === 'AbortError') {
-        throw new Error('涓婁紶瓒呮椂')
+        throw new Error('上传超时')
       }
       throw error
     }

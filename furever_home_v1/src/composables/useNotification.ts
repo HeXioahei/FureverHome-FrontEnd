@@ -129,6 +129,9 @@ const initWs = () => {
 
   // 如果已经连接，先关闭
   if (wsRef.value) {
+    // 防止触发旧连接的重连逻辑
+    wsRef.value.onclose = null
+    wsRef.value.onerror = null
     wsRef.value.close()
     wsRef.value = null
   }

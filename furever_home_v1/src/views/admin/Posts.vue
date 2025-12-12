@@ -260,7 +260,10 @@
         author: selectedPost.author,
         authorAvatar: selectedPost.authorAvatar,
         time: selectedPost.time,
-        images: selectedPostDetail?.images ?? selectedPostDetail?.mediaUrls ?? []
+        images: selectedPostDetail?.images ?? selectedPostDetail?.mediaUrls ?? [],
+        likes: selectedPostDetail?.likeCount,
+        views: selectedPostDetail?.viewCount,
+        commentCount: selectedPostDetail?.commentCount
       } : undefined"
       @close="showPostDetailModal = false"
     />

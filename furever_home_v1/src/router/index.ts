@@ -29,6 +29,7 @@ import LoginEntry from '../views/user/LoginEntry.vue'
 import LoginEmailEnter from '../views/user/LoginEmailEnter.vue'
 import LoginEmail from '../views/user/LoginEmail.vue'
 import LoginSuccess from '../views/user/LoginSuccess.vue';
+import LoginPassword from '../views/user/LoginPassword.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -170,7 +171,7 @@ const routes: RouteRecordRaw[] = [
     // 密码登录页面（复用原来的 Login.vue，已接好登录接口）
     path: '/login/password',
     name: 'LoginPassword',
-    component: Login
+    component: LoginPassword
   },
   {
     path: '/reset-password',

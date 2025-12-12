@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="relative flex min-h-screen w-full flex-col items-center justify-center bg-[#F6F6F8] dark:bg-[#101622] overflow-x-hidden"
   >
@@ -6,11 +6,12 @@
       <div
         class="flex flex-col gap-8 rounded-xl border border-slate-200/60 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900/60"
       >
-        <div class="flex flex-col items-center">
+        <div class="flex flex-col items-center gap-4">
+          <img src="@/assets/icons/logo.svg" alt="FUREVER HOME" class="h-20 w-auto" />
           <h1
             class="text-[#111318] dark:text-white text-[24px] font-bold leading-tight text-center tracking-tight"
           >
-            FUREVER HOME - 绠＄悊鍚庡彴
+            管理后台
           </h1>
         </div>
 

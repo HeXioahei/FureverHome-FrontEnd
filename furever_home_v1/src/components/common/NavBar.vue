@@ -82,8 +82,8 @@ onUnmounted(() => {
 
 <template>
   <header class="h-[60px] flex items-center justify-between px-[10%] shadow-md sticky top-0 z-[100]" style="background-color: #FF8C00; color: white;">
-    <RouterLink to="/home" class="font-extrabold text-xl flex items-center gap-2 hover:opacity-90 transition-opacity">
-      <i class="fa-solid fa-paw"></i> FUREVERHOME
+    <RouterLink to="/home" class="flex items-center gap-2 hover:opacity-90 transition-opacity">
+      <img src="@/assets/icons/logo.svg" alt="FUREVERHOME" class="h-10 w-auto rounded-md" />
     </RouterLink>
     <nav>
       <ul class="flex gap-8 text-base">

@@ -1,7 +1,19 @@
 <template>
   <div class="flex flex-col h-screen bg-[#F8F9FB]">
+    <!-- 返回按钮 -->
+    <div class="max-w-[1200px] w-full mx-auto px-5 pt-5">
+      <button 
+        @click="router.back()" 
+        class="flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+        <span class="font-medium">返回</span>
+      </button>
+    </div>
+
     <!-- 主要内容区域 -->
-    <main class="flex-1 max-w-[1200px] w-full mx-auto my-5 px-5 flex gap-5 h-[calc(100vh-160px)]">
+    <main class="flex-1 max-w-[1200px] w-full mx-auto mt-2 mb-5 px-5 flex gap-5 min-h-0">
       <!-- 左侧：联系人列表 -->
       <aside class="w-80 bg-white rounded-xl shadow-sm flex flex-col overflow-hidden">
         <div class="p-5 pb-2.5">

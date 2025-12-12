@@ -6,7 +6,7 @@
       >
         <div class="flex flex-col items-center gap-2 text-center mb-8">
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
-            欢迎使用 FUREVER<br />HOME!
+            欢迎使用<br/>FUREVERHOME!
           </h1>
         </div>
 

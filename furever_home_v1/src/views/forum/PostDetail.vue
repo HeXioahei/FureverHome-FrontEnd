@@ -1,6 +1,16 @@
 <template>
   <div class="post-detail-page" ref="containerRef">
     <main class="forum-main">
+      <!-- 返回按钮 -->
+      <button 
+        @click="router.back()" 
+        class="mb-4 flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+        <span class="font-medium">返回</span>
+      </button>
+
       <!-- 帖子详情 -->
       <div v-if="post" class="post-detail">
         <div class="post-header">
@@ -40,6 +50,7 @@
               :alt="`帖子图片 ${index + 1}`"
               class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               @error="handleImageError"
+              @click="openImagePreview(index)"
             />
             <video
               v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
@@ -53,6 +64,16 @@
           </div>
         </div>
 
+        <!-- 图片预览大图 -->
+        <div v-if="showImagePreview" class="image-preview-mask" @click.self="closeImagePreview">
+          <button class="nav-btn left" @click.stop="prevImage"><i class="fa-solid fa-chevron-left"></i></button>
+          <div class="image-wrapper">
+            <img :src="currentPreviewImage" alt="预览" @error="handlePreviewImageError" />
+          </div>
+          <button class="nav-btn right" @click.stop="nextImage"><i class="fa-solid fa-chevron-right"></i></button>
+          <button class="close-btn" @click="closeImagePreview"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
         <div class="post-stats">
           <div
             class="stat-item"
@@ -62,7 +83,7 @@
             <i class="fa-solid fa-thumbs-up"></i> {{ post.likes || 0 }}
           </div>
           <div class="stat-item">
-            <i class="fa-solid fa-comment"></i> {{ post.comments || comments.length || 0 }}
+            <i class="fa-solid fa-comment"></i> {{ post.comments || 0 }}
           </div>
           <div class="stat-item">
             <i class="fa-solid fa-eye"></i> {{ post.views || 0 }}
@@ -72,7 +93,7 @@
 
       <!-- 评论区域 -->
       <div class="comments-section" v-if="post">
-        <h2 class="section-title">评论 ({{ totalComments || post?.comments || comments.length || 0 }})</h2>
+        <h2 class="section-title">评论 ({{ post.comments || 0 }})</h2>
 
         <div class="comment-form">
           <textarea
@@ -94,34 +115,51 @@
         </div>
 
         <div class="comments-list space-y-4">
-          <div v-if="displayedComments.length === 0" class="no-comments py-8 text-center text-gray-500">
+          <div v-if="comments.length === 0" class="no-comments py-8 text-center text-gray-500">
              暂无评论，快来抢沙发吧！
           </div>
           <CommentItem 
-            v-for="c in displayedComments" 
+            v-for="c in comments" 
             :key="c.id" 
             :comment="c"
+            :postId="post?.id"
+            :currentUser="currentUser"
             @like="handleLikeComment"
-            @reply="handleReplyComment"
+            @update-count="handleUpdateCount"
           />
         </div>
 
         <!-- Pagination -->
-        <div v-if="totalPages > 1" class="pagination-controls flex justify-center items-center gap-4 mt-6">
+        <div v-if="totalPages > 1" class="pagination-controls flex justify-center items-center gap-2 mt-6">
           <button 
             @click="changePage(currentPage - 1)" 
             :disabled="currentPage === 1"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             上一页
           </button>
-          <span class="text-gray-600">
-            第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
-          </span>
+          
+          <button
+            v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
+            :key="index"
+            :class="[
+              'px-4 py-2 border rounded-md transition-all',
+              page === currentPage
+                ? 'bg-[#FF8C42] text-white border-[#FF8C42]'
+                : 'border-gray-300 bg-white text-gray-600',
+              typeof page === 'string'
+                ? 'cursor-default border-transparent'
+                : 'cursor-pointer hover:border-[#FF8C42] hover:text-[#FF8C42]'
+            ]"
+            @click="typeof page === 'number' && changePage(page)"
+          >
+            {{ page }}
+          </button>
+
           <button 
             @click="changePage(currentPage + 1)" 
             :disabled="currentPage === totalPages"
-            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-4 py-2 bg-white border border-gray-300 rounded-md hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             下一页
           </button>
@@ -146,7 +184,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onBeforeUnmount, onDeactivated } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, onDeactivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { getPostDetail, type 帖子详情DTO } from '@/api/postApi';
 import {
@@ -154,11 +192,13 @@ import {
   submitComment as submitCommentApi,
   likePost as likePostApi,
   likeComment as likeCommentApi,
+  incrementPostViews,
   type Comment
 } from '@/api/commentapi';
 import { getCurrentUser, getUserInfo, type CurrentUserInfo } from '@/api/userApi';
 import { isVideoUrl } from '@/utils/mediaUtils';
 import { formatDateTime } from '@/utils/format';
+import { normalizeComments } from '@/utils/commentUtils';
 import CommentItem from '@/components/forum/CommentItem.vue';
 
 const route = useRoute();
@@ -181,8 +221,65 @@ const onVideoPlay = (event: Event) => {
   stopAllVideos(target);
 };
 
+// 图片预览状态
+const showImagePreview = ref(false);
+const previewImages = ref<string[]>([]);
+const currentPreviewIndex = ref(0);
+
+const refreshPreviewList = () => {
+  if (!post.value || !post.value.images) {
+    previewImages.value = [];
+    return;
+  }
+  previewImages.value = post.value.images.filter(
+    (media) => typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)
+  );
+};
+
+const currentPreviewImage = computed(() => previewImages.value[currentPreviewIndex.value] || '');
+
+const openImagePreview = (index: number) => {
+  refreshPreviewList();
+  if (!previewImages.value.length) return;
+  const media = post.value?.images?.[index];
+  const targetIndex = media ? previewImages.value.indexOf(media as string) : -1;
+  currentPreviewIndex.value = targetIndex >= 0 ? targetIndex : Math.min(index, previewImages.value.length - 1);
+  showImagePreview.value = true;
+  document.addEventListener('keydown', handleKeyDown);
+};
+
+const closeImagePreview = () => {
+  showImagePreview.value = false;
+  document.removeEventListener('keydown', handleKeyDown);
+};
+
+const prevImage = () => {
+  if (!previewImages.value.length) return;
+  currentPreviewIndex.value = (currentPreviewIndex.value - 1 + previewImages.value.length) % previewImages.value.length;
+};
+
+const nextImage = () => {
+  if (!previewImages.value.length) return;
+  currentPreviewIndex.value = (currentPreviewIndex.value + 1) % previewImages.value.length;
+};
+
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (!showImagePreview.value) return;
+  if (e.key === 'Escape') closeImagePreview();
+  if (e.key === 'ArrowLeft') prevImage();
+  if (e.key === 'ArrowRight') nextImage();
+};
+
+const handlePreviewImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement;
+  if (target) {
+    target.alt = '图片加载失败';
+  }
+};
+
 onBeforeUnmount(() => {
   stopAllVideos();
+  document.removeEventListener('keydown', handleKeyDown);
 });
 
 onDeactivated(() => {
@@ -210,21 +307,31 @@ const post = ref<PostDetailData | undefined>(undefined);
 // 是否为前端示例帖子（如"李同学""王医生"），示例帖子在后端并不存在
 const isMockPost = ref(false);
 const comments = ref<Comment[]>([]);
+const loadingComments = ref(false);
 const totalComments = ref(0);
 const currentPage = ref(1);
-const pageSize = ref(4);
+const pageSize = ref(5);
 
-const displayedComments = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return comments.value.slice(start, end);
-});
+const totalPages = computed(() => Math.ceil(totalComments.value / pageSize.value));
 
-const totalPages = computed(() => Math.ceil(comments.value.length / pageSize.value));
+const getDisplayedPages = (current: number, total: number): (number | string)[] => {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total]
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total]
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total]
+  }
+}
 
 const changePage = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page;
+    if (post.value) {
+      loadComments(post.value.id);
+    }
   }
 };
 
@@ -457,13 +564,48 @@ const loadCurrentUser = async () => {
 };
 
 // 加载帖子详情
+const updateSnapshot = () => {
+  if (!post.value) return;
+  sessionStorage.setItem(
+    `forumPostSnapshot_${post.value.id}`,
+    JSON.stringify({
+      likes: post.value.likes ?? 0,
+      comments: post.value.comments ?? 0,
+      views: post.value.views ?? 0,
+      liked: isLiked.value
+    })
+  );
+  window.dispatchEvent(new CustomEvent('forum-post-updated'));
+};
+
 const loadPost = async (id: number) => {
   try {
-    const res = await getPostDetail(id);
+    // 并行请求：浏览数增加、详情获取、评论获取
+    // 浏览数增加不阻塞主流程，但为了更新本地视图，我们会等待其结果
+    const incrementTask = incrementPostViews(id)
+      .then(() => true)
+      .catch((e) => {
+        console.warn('增加浏览数失败，不阻塞详情加载', e);
+        return false;
+      });
+
+    // 详情请求
+    const detailTask = getPostDetail(id);
+    // 评论请求（非阻塞）
+    const commentsTask = loadComments(id);
+
+    const res = await detailTask;
     if (res.data) {
       const p = res.data as 帖子详情DTO;
       const createdAt = formatDateTime(p.createTime);
-      
+      const updatedAt = formatDateTime((p as any).updateTime || (p as any).editTime);
+      const routeTime =
+        (route.query.time as string) ||
+        (route.query.publishDate as string) ||
+        (route.query.timeAgo as string) ||
+        '';
+      const displayTime = routeTime || updatedAt || createdAt || '';
+
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
       // 兼容不同字段命名，避免昵称为空
@@ -505,8 +647,8 @@ const loadPost = async (id: number) => {
         author: authorName,
         avatarInitial: avatarInitial,
         avatarUrl,
-        timeAgo: displayTime,
-        publishDate: displayTime,
+        timeAgo: displayTime || createdAt,
+        publishDate: displayTime || createdAt,
         content: p.content || '',
         fullContent: p.content
           ? p.content
@@ -549,10 +691,35 @@ const loadPost = async (id: number) => {
       } else if (typeof (p as any).liked === 'boolean') {
         isLiked.value = (p as any).liked;
       } else {
-        // 如果接口没有返回点赞状态，从本地存储读取
-        const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
-        isLiked.value = likedPosts.includes(p.postId ?? id);
+      // 如果接口没有返回点赞状态，从本地存储读取
+      const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+        .map((val) => normalizeId(val))
+        .filter((n) => Number.isFinite(n));
+      isLiked.value = likedPosts.includes(normalizeId(p.postId ?? id));
       }
+
+    // 路由快照：避免列表与详情不同步
+    const likedFromRoute = route.query.liked === '1' || route.query.liked === 'true';
+    if (likedFromRoute) {
+      isLiked.value = true;
+      updateLikedPostsStorage(post.value.id, true);
+    }
+    const queryLikes = Number(route.query.likes) || 0;
+    const queryComments = Number(route.query.comments) || 0;
+    const queryViews = Number(route.query.views) || 0;
+    if (queryLikes > 0) post.value.likes = Math.max(post.value.likes || 0, queryLikes);
+    if (queryComments > 0) post.value.comments = Math.max(post.value.comments || 0, queryComments);
+    if (queryViews > 0) post.value.views = Math.max(Number(post.value.views) || 0, queryViews);
+
+    // 检查浏览数增加结果
+    const incremented = await incrementTask;
+    if (incremented && post.value) {
+      // 手动增加浏览数，确保用户看到的数字是即时更新的
+      post.value.views = Number(post.value.views || 0) + 1;
+    }
+    // 更新快照，确保返回列表时数据一致
+    updateSnapshot();
+
     } else {
       // 接口返回空数据，如果是示例 id（1 或 2），使用示例数据
       const example = getExamplePost(id);
@@ -569,9 +736,16 @@ const loadPost = async (id: number) => {
         showErrorModal.value = true;
       }
     }
-    // 这里原本会调用 incrementPostViews(id) 增加浏览数。
-    // 由于后端暂未提供 /post/{id}/view 接口，暂时不再调用，避免 404。
-    await loadComments(id);
+    
+    // 等待评论加载完成
+    await commentsTask;
+
+    // 如果评论接口返回了总数，同步更新帖子显示的评论数
+    if (totalComments.value > 0 && post.value) {
+        // 取最大值，避免详情接口和评论接口数据不一致导致减少
+        post.value.comments = Math.max(post.value.comments || 0, totalComments.value);
+        updateSnapshot();
+    }
   } catch (error) {
     console.error('加载帖子失败:', error);
     // 接口失败，如果是示例 id（1 或 2），使用示例数据
@@ -594,39 +768,20 @@ const loadPost = async (id: number) => {
   }
 };
 
-// 统一映射为 Comment 结构
-const normalizeComments = (list: any[]): Comment[] => {
-  if (!Array.isArray(list)) return [];
-  return list.map((item: any, index: number) => {
-    const authorName = item.authorName ?? item.userName ?? item.nickName ?? item.nickname ?? '用户';
-    
-    // 递归处理子评论（如果后端已经返回了嵌套结构）
-    let children: Comment[] = [];
-    if (Array.isArray(item.children) && item.children.length > 0) {
-       children = normalizeComments(item.children);
-    } else if (Array.isArray(item.replies) && item.replies.length > 0) {
-       children = normalizeComments(item.replies);
-    }
 
-    return {
-      id: item.id ?? item.commentId ?? index + 1,
-      content: item.content ?? item.commentContent ?? item.text ?? item.body ?? item.message ?? '',
-      authorName: authorName,
-      authorAvatar: item.authorAvatar ?? item.avatar ?? item.userAvatar ?? '',
-      date: formatDateTime(item.createTime || item.date) || item.timeAgo || '刚刚',
-      likes: item.likes ?? item.likeCount ?? 0,
-      isLiked: item.isLiked ?? item.liked ?? false,
-      parentId: item.parentId ?? item.parentCommentId ?? item.parent_id ?? null,
-      replyTo: item.replyTo ?? item.replyToUser ?? item.reply_to_user_name ?? undefined,
-      children: children
-    };
-  });
-};
 
 // 获取评论列表
 const loadComments = async (postId: number) => {
+  if (loadingComments.value) return;
+  loadingComments.value = true;
   try {
-    const res = await getPostComments(postId);
+    const params = {
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      sortBy: 'TIME',
+      order: 'DESC'
+    };
+    const res = await getPostComments(postId, params);
 
     // 后端返回格式可能是：
     // 1) data: Comment[]
@@ -641,6 +796,8 @@ const loadComments = async (postId: number) => {
     } else if ((res as any).total !== undefined) {
       totalComments.value = Number((res as any).total);
     }
+
+    // 注意：不再同步更新 post.value.comments，因为 totalComments 仅代表根评论总数，而非全贴总评论数（含子评论）
 
     if (Array.isArray(d)) {
       rawList = d;
@@ -657,83 +814,23 @@ const loadComments = async (postId: number) => {
     // 如果接口返回空数据，仅对内置示例帖子使用示例评论
     if (flatComments.length === 0 && isMockPost.value) {
       comments.value = getExampleComments(postId);
+      // 示例数据总数
+      totalComments.value = comments.value.length; 
     } else {
-      // 检查是否已经是树形结构（如果有 children 且 children 不为空）
-      const hasChildren = flatComments.some(c => c.children && c.children.length > 0);
-      
-      if (hasChildren) {
-        // 已经是树形结构，直接使用
-        comments.value = flatComments;
-      } else {
-        // 构建树形结构
-        const commentMap = new Map<number, Comment>();
-        const roots: Comment[] = [];
-
-        // 1. 建立映射
-        flatComments.forEach((c: Comment) => {
-          c.children = []; // 初始化子评论数组
-          commentMap.set(c.id, c);
-        });
-
-        // 2. 组装树结构，同时处理回复关系
-        flatComments.forEach((c: Comment) => {
-          if (c.parentId) {
-            const parent = commentMap.get(c.parentId);
-            if (parent) {
-              // 找到直接父评论，设置回复对象
-              if (!c.replyTo) {
-                 c.replyTo = parent.authorName;
-              }
-              
-              // 关键逻辑：找到顶级父评论（Root Ancestor）
-              // 如果 parent 已经是顶级（没有 parentId），则 parent 就是 Root
-              // 如果 parent 也有 parentId，则需要向上追溯
-              let root = parent;
-              let current = parent;
-              // 防止死循环，设置最大深度
-              let depth = 0;
-              while (current.parentId && depth < 20) {
-                const p = commentMap.get(current.parentId);
-                if (p) {
-                  current = p;
-                  root = p;
-                } else {
-                  break;
-                }
-                depth++;
-              }
-              
-              // 将该评论添加到顶级父评论的 children 中
-              root.children = root.children || [];
-              root.children.push(c);
-              
-            } else {
-              // 如果找不到父评论，作为根评论处理
-              roots.push(c);
-            }
-          } else {
-            // 没有 parentId，则是顶级评论
-            roots.push(c);
-          }
-        });
-        
-        // 3. 对子评论按时间排序（可选）
-        roots.forEach(root => {
-          if (root.children && root.children.length > 0) {
-            // 这里假设 id 越大越新，或者可以用 date 比较
-            root.children.sort((a, b) => a.id - b.id);
-          }
-        });
-
-        comments.value = roots;
-      }
+       // 直接赋值，因为后端现在返回的就是分页的根评论列表
+       comments.value = flatComments;
     }
   } catch (error) {
     console.error('加载评论失败:', error);
-    // 接口失败，仅在示例帖子时使用示例评论
-    comments.value = isMockPost.value ? getExampleComments(postId) : [];
+    // 失败时不覆盖现有评论，除非是第一次加载
+    if (comments.value.length === 0) {
+       // 可以在这里设置错误状态
+    }
+  } finally {
+    loadingComments.value = false;
   }
 };
+
 
 // 通过 userId 请求用户信息，补全作者昵称/头像
 const ensureAuthorFromUser = async (userId: number) => {
@@ -795,16 +892,24 @@ const ensureAuthorFromUser = async (userId: number) => {
   await fetchPromise;
 };
 
+const normalizeId = (id: number | string): number => {
+  const n = typeof id === 'string' ? Number(id) : id;
+  return Number.isFinite(n) ? n : 0;
+};
+
 // 更新本地存储的点赞状态
-const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
   try {
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    const idNum = normalizeId(postId);
+    const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+      .map((val) => normalizeId(val))
+      .filter(Boolean);
     if (liked) {
-      if (!likedPosts.includes(postId)) {
-        likedPosts.push(postId);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
-      const index = likedPosts.indexOf(postId);
+      const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
       }
@@ -845,6 +950,8 @@ const toggleLike = async () => {
 
   try {
     await likePostApi(postId);
+    // 记录最新快照，供列表页同步
+    updateSnapshot();
   } catch (error: any) {
     // 回滚UI状态
     isLiked.value = previousLiked;
@@ -863,123 +970,34 @@ const handleRootSubmit = async () => {
   await doSubmitComment(newComment.value.trim());
 };
 
-// 回复评论
-const handleReplyComment = async (rootId: number, content: string, replyToUser?: string) => {
-  await doSubmitComment(content, rootId, replyToUser);
+// 处理评论数更新（来自子组件）
+const handleUpdateCount = (delta: number) => {
+  if (post.value) {
+    post.value.comments = (post.value.comments || 0) + delta;
+  }
+  // totalComments 仅用于根评论分页，子评论回复不应影响它
+  // totalComments.value = (totalComments.value || 0) + delta;
+  updateSnapshot();
 };
 
-// 统一提交逻辑
-const doSubmitComment = async (content: string, parentId?: number, replyTo?: string) => {
+// 统一提交逻辑（仅用于根评论）
+const doSubmitComment = async (content: string) => {
   if (!post.value) return;
-  
-  // 乐观更新：构建本地评论对象
-  const localComment: Comment = {
-    id: Date.now(), // 临时ID
-    content: content,
-    authorName: '我',
-    // 优先使用当前用户的头像
-    authorAvatar: currentUser.value?.avatarUrl || currentUser.value?.userAvatar || '',
-    date: formatDateTime(new Date()),
-    likes: 0,
-    isLiked: false,
-    parentId: parentId || null,
-    replyTo: replyTo,
-    children: []
-  };
-
-  // 插入到列表中（根评论或子评论）
-  if (!parentId) {
-    // 既然刷新后评论在底部（后端按时间正序），那么前端乐观更新也应该添加到此底部
-    comments.value.push(localComment);
-    if (post.value.comments !== undefined) {
-       post.value.comments = (post.value.comments || 0) + 1;
-    }
-    // 同时更新 totalComments
-    totalComments.value = (totalComments.value || 0) + 1;
-    newComment.value = ''; // 清空根评论输入框
-  } else {
-    // 找到父评论所属的顶级评论（Root Ancestor）
-    let root: Comment | undefined;
-    let targetParent: Comment | undefined;
-
-    for (const r of comments.value) {
-      if (r.id === parentId) {
-        root = r;
-        targetParent = r;
-        break;
-      }
-      if (r.children && r.children.some(c => c.id === parentId)) {
-        root = r;
-        targetParent = r.children.find(c => c.id === parentId);
-        break;
-      }
-    }
-
-    if (root) {
-      root.children = root.children || [];
-      
-      // 如果没有指定 replyTo，则尝试从目标父评论获取
-      if (!localComment.replyTo && targetParent) {
-        localComment.replyTo = targetParent.authorName;
-      }
-
-      // 添加到顶级评论的子评论列表中
-      root.children.push(localComment);
-    }
-  }
 
   try {
-    const res = await submitCommentApi(post.value.id, { content, parentId, replyTo });
-    // 如果后端返回了带真实 id 的评论，用后端数据替换刚才那条本地评论
-    if (res && res.data) {
-      const normalizedList = normalizeComments([res.data]);
-      if (normalizedList.length > 0) {
-        const serverComment = normalizedList[0];
-        
-        // 安全合并：如果后端返回的数据缺失（如content为空），则保留本地乐观数据
-        // 这解决了"后端只返回ID导致前端显示空白评论"的问题
-        const mergedComment: Comment = {
-          ...serverComment,
-          // 优先使用后端内容，但如果为空则回退到本地内容
-          content: (serverComment.content && serverComment.content.trim()) ? serverComment.content : localComment.content,
-          // 优先使用后端作者名，但如果是默认值或空则回退到本地
-          authorName: (serverComment.authorName && serverComment.authorName !== '用户') ? serverComment.authorName : localComment.authorName,
-          authorAvatar: serverComment.authorAvatar || localComment.authorAvatar,
-          // 确保关联关系不丢失
-          parentId: serverComment.parentId || localComment.parentId,
-          replyTo: serverComment.replyTo || localComment.replyTo,
-          // 保持子评论结构（通常新评论没有子评论，但保持一致性）
-          children: (serverComment.children && serverComment.children.length > 0) ? serverComment.children : localComment.children,
-          // 必须使用后端生成的真实ID
-          id: serverComment.id
-        };
-
-        if (!parentId) {
-          const idx = comments.value.indexOf(localComment);
-          if (idx > -1) {
-            comments.value[idx] = mergedComment;
-          }
-        } else {
-          // 同样需要找到正确的 Root 来更新
-          let root: Comment | undefined;
-          for (const r of comments.value) {
-             // 这里的 parentId 是提交时的 ID（可能是子评论ID），所以要找包含该 ID 的 root
-             // 或者更简单：找包含 localComment 的 root
-             if (r.children && r.children.includes(localComment)) {
-               root = r;
-               break;
-             }
-          }
-
-          if (root && root.children) {
-            const idx = root.children.indexOf(localComment);
-            if (idx > -1) {
-               root.children[idx] = mergedComment;
-            }
-          }
-        }
-      }
+    await submitCommentApi(post.value.id, { content });
+    
+    newComment.value = ''; // 清空根评论输入框
+    // 提交成功后，重新加载评论列表（回到第一页，因为是按时间倒序）
+    currentPage.value = 1;
+    await loadComments(post.value.id);
+    
+    // 手动增加总评论数（根评论+1），不再使用 loadComments 返回的 rootTotal 覆盖
+    if (post.value) {
+       post.value.comments = (post.value.comments || 0) + 1;
     }
+    updateSnapshot();
+    
   } catch (error: any) {
     const msg =
       error?.message?.includes('不存在') || error?.message?.includes('未发布')
@@ -1026,6 +1044,9 @@ const handleLikeComment = async (commentId: number) => {
 
 // 返回
 const goBack = () => {
+  // 返回前保存快照，供列表页同步最新点赞/评论/浏览状态
+  updateSnapshot();
+
   // 优先处理来源路由
   if (route.query.from === 'myPosts') {
     const myPostsPage = route.query.fromMyPostsPage || sessionStorage.getItem('myPostsLastPage');
@@ -1481,6 +1502,68 @@ const goToUserProfile = (userId?: number) => {
   background: #E67A2A !important;
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(255, 140, 0, 0.3);
+}
+
+/* 图片预览弹层 */
+.image-preview-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.image-preview-mask .image-wrapper {
+  max-width: 80vw;
+  max-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.image-preview-mask img {
+  max-width: 78vw;
+  max-height: 78vh;
+  object-fit: contain;
+}
+
+.nav-btn,
+.close-btn {
+  position: absolute;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.nav-btn:hover,
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.nav-btn.left {
+  left: 40px;
+}
+
+.nav-btn.right {
+  right: 40px;
+}
+
+.close-btn {
+  top: 24px;
+  right: 32px;
 }
 
 /* 响应式 */

@@ -129,7 +129,7 @@
           </button>
 
           <div class="pagination-info">
-            <span>共 {{ posts.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <span>共 {{ totalCount || posts.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
           </div>
 
           <div class="pagination-jump">
@@ -139,9 +139,7 @@
               class="jump-input"
               v-model.number="jumpPageInput"
               :min="1"
-              :max="totalPages"
               @keyup.enter="handleJumpPage"
-              @input="validateJumpPage"
             />
             <span class="jump-label">页</span>
             <button class="jump-btn" @click="handleJumpPage">跳转</button>
@@ -163,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated } from 'vue';
+import { ref, computed, onMounted, nextTick, onBeforeUnmount, onDeactivated, onActivated, onUnmounted, watch } from 'vue';
 
 defineOptions({
   name: 'PostList'
@@ -195,6 +193,7 @@ interface Post {
 const router = useRouter();
 const route = useRoute();
 const posts = ref<Post[]>([]);
+const totalCount = ref(0);
 const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post'>('post');
@@ -225,10 +224,12 @@ const pendingUserFetch = new Map<number, Promise<void>>();
 const pageSize = 4;
 const currentPage = ref(1);
 const jumpPageInput = ref<number | null>(null);
-const totalPages = computed(() => Math.max(1, Math.ceil(posts.value.length / pageSize)));
+const useServerPaging = computed(() => totalCount.value > posts.value.length);
+const totalPages = computed(() => Math.max(1, Math.ceil((totalCount.value || posts.value.length) / pageSize)));
 
 // 当前页的帖子
 const pagedPosts = computed(() => {
+  if (useServerPaging.value) return posts.value;
   const start = (currentPage.value - 1) * pageSize;
   return posts.value.slice(start, start + pageSize);
 });
@@ -451,36 +452,80 @@ const mapPosts = (list: any[]): Post[] => {
   });
 };
 
-// 加载帖子列表
-const loadPosts = async () => {
+// 加载帖子列表（支持分页参数）
+const loadPosts = async (page = 1) => {
   try {
-    const res = await getPostList();
+    const res = await getPostList({ page, pageNum: page, pageSize });
     let list: any[] = [];
+    let total = 0;
 
     if (res.data) {
-      if (Array.isArray(res.data)) {
-        list = res.data;
-      } else if (Array.isArray((res.data as any).list)) {
-        list = (res.data as any).list;
-      } else if (Array.isArray((res.data as any).records)) {
-        list = (res.data as any).records;
+      const d: any = res.data;
+      if (Array.isArray(d)) {
+        list = d;
+      } else if (Array.isArray(d.list)) {
+        list = d.list;
+        total = d.total ?? d.totalCount ?? d.count ?? list.length;
+      } else if (Array.isArray(d.records)) {
+        list = d.records;
+        total = d.total ?? d.totalCount ?? d.count ?? list.length;
       }
+      // 兼容有 meta/分页对象的结构
+      if (!total && d?.pagination?.total) total = d.pagination.total;
     }
 
     if (list.length > 0) {
       posts.value = mapPosts(list);
+      totalCount.value = total || posts.value.length;
     } else {
       // 接口返回空数据，使用示例数据
       posts.value = getExamplePosts();
+      totalCount.value = posts.value.length;
     }
-    // 重置到第一页
-    currentPage.value = 1;
+    currentPage.value = page;
   } catch (error) {
     console.error('加载接口失败，显示示例数据', error);
     // 接口失败，使用示例数据
     posts.value = getExamplePosts();
-    // 重置到第一页
+    totalCount.value = posts.value.length;
     currentPage.value = 1;
+  }
+
+  // 合并详情页返回时的快照数据
+  mergeSnapshotsIntoPosts();
+};
+
+// 将详情页记录在 sessionStorage 的最新点赞/评论/浏览同步回列表
+const mergeSnapshotsIntoPosts = () => {
+  try {
+    const keys = Object.keys(sessionStorage).filter(k => k.startsWith('forumPostSnapshot_'));
+    if (!keys.length) return;
+    const map = new Map<number, { likes?: number; comments?: number; views?: number | string; liked?: boolean }>();
+    keys.forEach(k => {
+      try {
+        const val = JSON.parse(sessionStorage.getItem(k) || '{}');
+        const id = Number(k.replace('forumPostSnapshot_', ''));
+        if (Number.isFinite(id)) {
+          map.set(id, val);
+        }
+      } catch (e) {
+        // ignore parse error
+      }
+    });
+    if (!map.size) return;
+    posts.value = posts.value.map(p => {
+      const snap = map.get(Number(p.id));
+      if (!snap) return p;
+      return {
+        ...p,
+        likes: snap.likes ?? p.likes,
+        comments: snap.comments ?? p.comments,
+        views: (snap.views !== undefined ? String(snap.views) : p.views),
+        isLiked: typeof snap.liked === 'boolean' ? snap.liked : p.isLiked
+      };
+    });
+  } catch (e) {
+    console.warn('合并帖子快照失败', e);
   }
 };
 
@@ -608,6 +653,7 @@ const handleSearch = async () => {
           }
           return mapped;
         });
+        totalCount.value = posts.value.length;
       } else {
       // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
       const allPosts = await getAllPostsForSearch();
@@ -635,11 +681,13 @@ const handleSearch = async () => {
         });
 
         posts.value = mapPosts(filtered);
+        totalCount.value = posts.value.length;
         // 搜索后重置到第一页
         currentPage.value = 1;
       } catch (e) {
         console.error('前端搜索也失败:', e);
         posts.value = [];
+        totalCount.value = 0;
         currentPage.value = 1;
       }
     } finally {
@@ -789,6 +837,7 @@ const goToPostDetail = (postId: number) => {
       likes: likes.toString(),
       comments: comments.toString(),
       views: views.toString(),
+      liked: targetPost?.isLiked ? '1' : '0',
       title: targetPost?.title || '',
       content: targetPost?.content || '',
       images: targetPost?.images ? JSON.stringify(targetPost.images) : '',
@@ -818,9 +867,9 @@ const handlePageClick = (page: number) => {
   goToPage(page);
 };
 
-const goToPage = (page: number) => {
+const goToPage = async (page: number) => {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
-    currentPage.value = page;
+    await loadPosts(page);
     // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -828,15 +877,13 @@ const goToPage = (page: number) => {
 
 const prevPage = () => {
   if (currentPage.value > 1) {
-    currentPage.value -= 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    goToPage(currentPage.value - 1);
   }
 };
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
-    currentPage.value += 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    goToPage(currentPage.value + 1);
   }
 };
 
@@ -909,16 +956,6 @@ const ensureAuthorFromUser = async (userId: number) => {
 };
 
 // 验证跳转页码输入
-const validateJumpPage = () => {
-  if (jumpPageInput.value !== null) {
-    if (jumpPageInput.value < 1) {
-      jumpPageInput.value = 1;
-    } else if (jumpPageInput.value > totalPages.value) {
-      jumpPageInput.value = totalPages.value;
-    }
-  }
-};
-
 // 处理页码跳转
 const handleJumpPage = () => {
   if (jumpPageInput.value === null || jumpPageInput.value === undefined) {
@@ -963,16 +1000,24 @@ const handleAvatarError = (event: Event, post: Post) => {
   }
 };
 
+const normalizeId = (id: number | string): number => {
+  const n = typeof id === 'string' ? Number(id) : id;
+  return Number.isFinite(n) ? n : 0;
+};
+
 // 更新本地存储的点赞状态
-const updateLikedPostsStorage = (postId: number, liked: boolean) => {
+const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
   try {
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]') as number[];
+    const idNum = normalizeId(postId);
+    const likedPosts = (JSON.parse(localStorage.getItem('likedPosts') || '[]') as (number | string)[])
+      .map((val) => normalizeId(val))
+      .filter(Boolean);
     if (liked) {
-      if (!likedPosts.includes(postId)) {
-        likedPosts.push(postId);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
-      const index = likedPosts.indexOf(postId);
+      const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
       }
@@ -1035,19 +1080,34 @@ onMounted(async () => {
   if (pageParam && typeof pageParam === 'string') {
     const pageNum = parseInt(pageParam, 10);
     if (!isNaN(pageNum) && pageNum > 0) {
-      // 先加载帖子
-      await loadPosts();
-      // 使用 nextTick 确保帖子已加载完成后再设置页码
-      await nextTick();
-      if (pageNum <= totalPages.value && pageNum >= 1) {
-        currentPage.value = pageNum;
-      }
+      await loadPosts(pageNum);
       return;
     }
   }
 
   loadPosts();
+
+  // 监听详情页的更新事件，及时合并快照
+  window.addEventListener('forum-post-updated', mergeSnapshotsIntoPosts);
 });
+
+onUnmounted(() => {
+  window.removeEventListener('forum-post-updated', mergeSnapshotsIntoPosts);
+});
+
+// 从详情页返回时，尽量同步最新快照
+onActivated(() => {
+  mergeSnapshotsIntoPosts();
+});
+
+watch(
+  () => route.path,
+  (newPath, oldPath) => {
+    if (newPath === '/forum' && oldPath && oldPath.startsWith('/forum/')) {
+      mergeSnapshotsIntoPosts();
+    }
+  }
+);
 </script>
 
 <style scoped>

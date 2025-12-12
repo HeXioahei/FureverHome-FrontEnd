@@ -2,6 +2,16 @@
   <div class="new-post-page">
     <div class="container">
       <main class="main-content">
+        <!-- 返回按钮 -->
+        <button 
+          @click="router.back()" 
+          class="mb-6 flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+          title="返回"
+        >
+          <i class="fa-solid fa-arrow-left text-lg"></i>
+          <span class="font-medium">返回</span>
+        </button>
+
         <h1 class="page-title">{{ isEditMode ? '编辑帖子' : '发布新帖子' }}</h1>
 
         <form @submit.prevent="submitPost">

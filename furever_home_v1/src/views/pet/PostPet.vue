@@ -263,6 +263,16 @@ const closeErrorModal = () => {
 <template>
   <div class="min-h-screen bg-[#F8F9FB]">
     <div class="max-w-[1200px] mx-auto py-8 px-5">
+      <!-- 返回按钮 -->
+      <button 
+        @click="router.back()" 
+        class="mb-6 flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+        <span class="font-medium">返回</span>
+      </button>
+
       <main class="bg-white rounded-xl p-8 shadow-sm">
         <h1 class="text-[28px] font-bold text-center mb-8 text-[#333333]">
           发布待领养动物信息

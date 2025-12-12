@@ -56,17 +56,34 @@
       </div>
       <div v-if="!pagedNotifications.length" class="text-center text-sm text-gray-400 py-4">暂无通知</div>
     </div>
-    <div class="flex justify-center mt-6 gap-3 items-center">
+    <div class="flex justify-center mt-6 gap-2 items-center">
       <button
-        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm"
+        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         :disabled="currentPage === 1"
         @click="prevPage"
       >
         上一页
       </button>
-      <span class="text-sm text-gray-500">第 {{ currentPage }} / {{ totalPages }} 页</span>
+      
       <button
-        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm"
+        v-for="(page, index) in getDisplayedPages(currentPage, totalPages)"
+        :key="index"
+        :class="[
+          'px-3 py-1.5 border rounded-lg transition-all text-sm',
+          page === currentPage
+            ? 'bg-[#FF8C42] text-white border-[#FF8C42]'
+            : 'border-gray-300 bg-white text-gray-600',
+          typeof page === 'string'
+            ? 'cursor-default border-transparent'
+            : 'cursor-pointer hover:border-[#FF8C42] hover:text-[#FF8C42]'
+        ]"
+        @click="typeof page === 'number' && goToPage(page)"
+      >
+        {{ page }}
+      </button>
+
+      <button
+        class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm hover:border-[#FF8C42] hover:text-[#FF8C42] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
         :disabled="currentPage >= totalPages"
         @click="nextPage"
       >
@@ -111,6 +128,24 @@ const currentPage = ref(1);
 const total = ref(0);
 const totalPages = computed(() => Math.max(1, Math.ceil((total.value || 0) / pageSize)));
 const pagedNotifications = computed(() => notifications.value);
+
+const getDisplayedPages = (current: number, total: number): (number | string)[] => {
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
+
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total]
+  } else if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total]
+  } else {
+    return [1, '...', current - 1, current, current + 1, '...', total]
+  }
+}
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    loadNotifications(page)
+  }
+}
 
 async function loadCurrentUser() {
   try {
@@ -181,6 +216,15 @@ function generateNotificationContent(item: any): string {
     return `您的名为"${animalName}"的宠物的发布或修改已被管理员${event}`;
   } else if (targetType === 'post') {
     const postTitle = getPostTitle(item);
+    if (event === '通过') {
+      return `您的标题为"${postTitle}"的帖子已被管理员通过，已成功发布`;
+    } else if (event === '评论') {
+      return `您的标题为"${postTitle}"的帖子收到了新的评论`;
+    } else if (event === '回复') {
+      return `您在标题为"${postTitle}"的帖子下的评论已被回复`;
+    } else if (event === '删除') {
+      return `您的标题为"${postTitle}"的帖子已被管理员删除`;
+    }
     return `您的标题为"${postTitle}"的帖子的发布或修改已被管理员${event}`;
   } else if (targetType === 'adopt') {
     const animalName = getPetName(item);
@@ -290,7 +334,7 @@ async function loadNotifications(page = 1) {
       total.value = res.data.total ?? records.length ?? 0;
       notifications.value = records.map(item => ({
         id: item.activityId ?? item.targetId ?? Date.now(),
-        title: item.title || '系统通知',
+        title: item.targetType + '·' + item.event || '系统通知',
         content: generateNotificationContent(item),
         time: formatDateTime(item.createTime || new Date().toISOString()),
         icon: 'fa-solid fa-bell',

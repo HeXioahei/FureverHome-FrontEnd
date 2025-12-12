@@ -2,9 +2,15 @@
   <div class="min-h-screen" style="background-color: #FFF9F0;">
     <div class="max-w-6xl mx-auto px-5 py-8">
       <!-- 返回按钮 -->
-      <!-- <RouterLink to="/" class="inline-flex items-center gap-2 px-4 py-2 mb-5 text-white font-medium rounded-full transition-all hover:opacity-90 hover:-translate-y-0.5" style="background-color: #FF8C42;">
-        ← 返回
-      </RouterLink> -->
+      <button 
+        @click="router.back()" 
+        class="inline-flex items-center gap-2 px-4 py-2 mb-5 text-white font-medium rounded-full transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-md" 
+        style="background-color: #FF8C42;"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left"></i>
+        <span>返回</span>
+      </button>
 
       <div class="flex flex-wrap bg-white rounded-2xl overflow-hidden shadow-lg mb-8">
         <!-- 左侧边栏 -->
@@ -218,9 +224,9 @@
               <div class="p-5">
                 <div class="text-lg font-bold mb-1.5 text-[#333]">{{ pet.name }}</div>
                 <div class="text-sm text-[#666] mb-2.5">{{ pet.desc }}</div>
-                <div class="text-xs text-[#666] mt-1.5">
+                <!-- <div class="text-xs text-[#666] mt-1.5">
                   {{ pet.statusLabel === '长期领养' ? '长期领养人：' : '临时收养者：' }}{{ pet.fosterer || '未填写' }}
-                </div>
+                </div> -->
                 <span
                   :class="[
                     'inline-block px-3 py-1.5 rounded-2xl text-xs font-bold',
@@ -1015,7 +1021,7 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
     { label: '注册时间', value: formatDateTime(data.createTime) || '-' }
   ];
 
-  proofIntro.value = data.proofText || proofIntro.value;
+  proofIntro.value = data.proofText || '';
 
   if (data.proofPhoto && data.proofPhoto.length) {
     proofs.value = data.proofPhoto.map((url, index) => ({
@@ -1024,6 +1030,8 @@ function applyUserData(data: CurrentUserInfo, options?: { asCurrent?: boolean })
       status: 'approved',
       fileUrl: normalizeImageUrl(url)
     }));
+  } else {
+    proofs.value = [];
   }
 }
 

@@ -5,8 +5,8 @@
       <aside class="flex h-screen w-64 flex-col bg-[#0D1117] p-4 text-white sticky top-0">
         <div class="flex flex-1 flex-col gap-y-6">
           <div class="flex gap-4 items-center pl-2">
-            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-md size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCXgIEGQDxm_-u0_hGh3zLMrnSopanRetl40eBEzEZK5EuAzmRBjLSoHvTfChZUsRxhl-VkmKERbA8dzEfmZ0Lc7Eknq3IrtFS8nTd7yOq--6qN8nThXknq4Dc7yuS2F6JRnn0Lq5TvGd9eOQu1tCT8pzt3mINpyWwQjwcdAyj-0i0GbYn-BjJJ1TbMLXrWmMWqHYUTnao2jcQCpqu5SM6X3Kus-jTK34uXpMPa8s692RkVoKXgYaZqCNN-QAj1pjmnT34bKsjYDgI");'></div>
-            <h1 class="text-white text-base font-bold leading-normal">FUREVER HOME 管理后台</h1>
+            <img src="@/assets/icons/logo.svg" alt="Logo" class="size-10 rounded-md bg-white" />
+            <h1 class="text-white text-base font-bold leading-normal">管理后台</h1>
           </div>
           <nav class="flex flex-col gap-2 mt-4">
             <router-link 

@@ -54,10 +54,11 @@
       </div>
 
       <!-- Child Comments (Sub-comments) -->
-      <div v-if="comment.children && comment.children.length > 0" class="bg-gray-50 rounded-lg p-4 space-y-4">
+      <div v-if="hasReplies || (replies && replies.length > 0)" class="bg-gray-50 rounded-lg p-4 space-y-4">
+        
         <!-- Children List -->
-        <div v-if="visibleRepliesCount > 0" class="space-y-4">
-          <div v-for="child in displayedChildren" :key="child.id" class="flex gap-3">
+        <div v-if="isExpanded && replies.length > 0" class="space-y-4">
+          <div v-for="child in replies" :key="child.id" class="flex gap-3">
             <!-- Child Avatar -->
             <div class="flex-shrink-0">
                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 overflow-hidden">
@@ -70,9 +71,9 @@
             <div class="flex-grow">
               <div class="text-sm">
                 <span class="font-bold text-gray-700">{{ child.authorName }}</span>
-                <span v-if="child.replyTo" class="text-gray-500 mx-1">回复</span>
-                <span v-if="child.replyTo" class="text-blue-500">@{{ child.replyTo }}</span>
-                <span class="text-gray-800 ml-1">: {{ child.content }}</span>
+                <span v-if="child.replyTo" class="text-gray-500 mx-1"> 回复 </span>
+                <span v-if="child.replyTo" class="text-blue-500">{{ child.replyTo }}</span>
+                <span class="text-gray-800 ml-1">：{{ child.content }}</span>
               </div>
               
               <!-- Child Footer -->
@@ -82,7 +83,7 @@
                   v-if="!readonly"
                   class="flex items-center gap-1 hover:text-orange-500 transition-colors"
                   :class="{ 'text-orange-500': child.isLiked }"
-                  @click="$emit('like', child.id)"
+                  @click="handleChildLike(child)"
                 >
                   <i class="fa-regular fa-thumbs-up" v-if="!child.isLiked"></i>
                   <i class="fa-solid fa-thumbs-up" v-else></i>
@@ -104,7 +105,7 @@
                   ></textarea>
                   <button 
                     class="px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 self-end text-xs"
-                    @click="submitReply(comment.id, child)"
+                    @click="submitReply(child.id, child)"
                     :disabled="!replyContent.trim()"
                   >
                     发布
@@ -115,51 +116,159 @@
           </div>
         </div>
 
-        <!-- Unified Control Button -->
-        <button 
-          @click="handleExpandClick"
-          class="text-sm text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
-        >
-          <span v-if="visibleRepliesCount === 0">展开 {{ comment.children.length }} 条回复</span>
-          <span v-else-if="visibleRepliesCount < comment.children.length">展开更多回复 (剩余 {{ comment.children.length - visibleRepliesCount }})</span>
-          <span v-else>收起回复</span>
-          <i class="fa-solid" :class="visibleRepliesCount >= comment.children.length ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-        </button>
+        <!-- Pagination Controls -->
+        <div v-if="isExpanded && repliesTotal > repliesPageSize" class="flex items-center gap-2 text-xs text-gray-500 mt-2">
+             <span class="mr-auto">共 {{ repliesTotal }} 条回复</span>
+             <button 
+               :disabled="repliesPage === 1 || repliesLoading"
+               @click="changeReplyPage(repliesPage - 1)"
+               class="px-2 py-1 border rounded hover:bg-white disabled:opacity-50"
+             >上一页</button>
+             <span>{{ repliesPage }} / {{ Math.ceil(repliesTotal / repliesPageSize) }}</span>
+             <button 
+               :disabled="repliesPage * repliesPageSize >= repliesTotal || repliesLoading"
+               @click="changeReplyPage(repliesPage + 1)"
+               class="px-2 py-1 border rounded hover:bg-white disabled:opacity-50"
+             >下一页</button>
+        </div>
+        
+        <!-- Loading State -->
+        <div v-if="repliesLoading" class="text-center py-2 text-gray-500 text-xs">
+          加载中...
+        </div>
+
+        <!-- Expand/Collapse Controls -->
+        <div class="flex items-center gap-4 text-sm text-blue-500 font-medium">
+          <button 
+            v-if="!isExpanded && hasReplies"
+            @click="handleExpandClick"
+            class="hover:text-blue-600 flex items-center gap-1"
+          >
+            <span>展开 {{ repliesTotal || comment.replyCount || '更多' }} 条回复</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <button
+            v-if="isExpanded"
+            @click="collapseReplies"
+            class="hover:text-blue-600 flex items-center gap-1"
+          >
+            <span>收起回复</span>
+            <i class="fa-solid fa-chevron-up"></i>
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { Comment } from '@/api/commentapi';
+import { ref, computed, watch, onMounted } from 'vue';
+import { getCommentReplies, likeComment as likeCommentApi, submitComment as submitCommentApi, type Comment } from '@/api/commentapi';
+import type { CurrentUserInfo } from '@/api/userApi';
+import { normalizeComments } from '@/utils/commentUtils';
 
 const props = defineProps<{
   comment: Comment;
   readonly?: boolean;
+  postId?: number;
+  currentUser?: CurrentUserInfo | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'like', id: number): void;
-  (e: 'reply', parentId: number, content: string, replyToUser?: string): void;
+  (e: 'update-count', delta: number): void;
 }>();
 
-const visibleRepliesCount = ref(0);
+// 子评论相关状态
+const replies = ref<Comment[]>([]);
+const isExpanded = ref(false);
+const repliesLoading = ref(false);
+const repliesPage = ref(1);
+const repliesPageSize = ref(5);
+const repliesTotal = ref(0);
 
-const displayedChildren = computed(() => {
-  if (!props.comment.children) return [];
-  return props.comment.children.slice(0, visibleRepliesCount.value);
+// 初始化：如果有预加载的子评论，直接使用
+onMounted(() => {
+  if (props.comment.children && props.comment.children.length > 0) {
+    replies.value = props.comment.children;
+    // 如果没有 replyCount，尝试用 children.length
+    repliesTotal.value = props.comment.replyCount || props.comment.children.length;
+  } else {
+    repliesTotal.value = props.comment.replyCount || 0;
+  }
 });
 
-const handleExpandClick = () => {
-  const total = props.comment.children?.length || 0;
-  if (visibleRepliesCount.value >= total) {
-    visibleRepliesCount.value = 0;
-  } else {
-    visibleRepliesCount.value += 5;
+// 监听 props 变化，更新总数（例如点赞或新回复导致数据刷新）
+watch(() => props.comment, (newVal) => {
+    if (newVal.replyCount !== undefined) {
+        repliesTotal.value = newVal.replyCount;
+    }
+}, { deep: true });
+
+const hasReplies = computed(() => {
+  return repliesTotal.value > 0 || (props.comment.children && props.comment.children.length > 0);
+});
+
+// 加载子评论
+const loadReplies = async (page: number) => {
+  repliesLoading.value = true;
+  try {
+    const res = await getCommentReplies(props.comment.id, {
+      page: page,
+      pageSize: repliesPageSize.value,
+      sortBy: 'TIME',
+      order: 'DESC'
+    });
+    
+    // 处理返回数据
+    let rawList: any[] = [];
+    const d: any = res.data;
+    
+    // 尝试提取总数
+    if (d && d.total !== undefined) {
+      repliesTotal.value = Number(d.total);
+    } else if ((res as any).total !== undefined) {
+      repliesTotal.value = Number((res as any).total);
+    }
+
+    if (Array.isArray(d)) {
+      rawList = d;
+    } else if (d && Array.isArray(d.data)) {
+      rawList = d.data;
+    } else if (d && Array.isArray(d.list)) {
+      rawList = d.list;
+    } else if (d && Array.isArray(d.records)) {
+      rawList = d.records;
+    }
+    
+    replies.value = normalizeComments(rawList);
+    repliesPage.value = page;
+
+  } catch (error) {
+    console.error('加载子评论失败', error);
+  } finally {
+    repliesLoading.value = false;
   }
 };
 
+const handleExpandClick = () => {
+  isExpanded.value = true;
+  // Bilibili 逻辑：点击展开，如果当前没有数据或者数据很少，加载第一页
+  if (replies.value.length === 0 || (replies.value.length < repliesTotal.value && replies.value.length < repliesPageSize.value)) {
+      loadReplies(1);
+  }
+};
+
+const collapseReplies = () => {
+  isExpanded.value = false;
+};
+
+const changeReplyPage = (page: number) => {
+    loadReplies(page);
+};
+
+// 回复相关
 const replyingTo = ref<Comment | null>(null);
 const replyContent = ref('');
 
@@ -173,27 +282,71 @@ const toggleReply = (target: Comment) => {
   }
 };
 
-const submitReply = (rootId: number, target?: Comment) => {
-  if (!replyContent.value.trim()) return;
+// 子评论点赞
+const handleChildLike = async (child: Comment) => {
+  // 乐观更新
+  const prevLiked = child.isLiked;
+  const prevLikes = child.likes;
+  child.isLiked = !child.isLiked;
+  child.likes = child.isLiked ? child.likes + 1 : Math.max(0, child.likes - 1);
   
-  // If replying to a child, we pass the child's ID as parentId
-  // If replying to the root, we pass the root's ID
-  const parentId = target ? target.id : rootId;
-  
-  emit('reply', parentId, replyContent.value, target ? target.authorName : undefined);
-  
-  replyingTo.value = null;
-  replyContent.value = '';
+  try {
+    await likeCommentApi(child.id);
+  } catch (e) {
+    // 回滚
+    child.isLiked = prevLiked;
+    child.likes = prevLikes;
+  }
 };
+
+// 提交回复
+const submitReply = async (parentId: number, target?: Comment) => {
+  if (!replyContent.value.trim() || !props.postId) return;
+  
+  const content = replyContent.value;
+  const replyToUser = target?.authorName;
+  
+  // 清理输入框
+  replyContent.value = '';
+  replyingTo.value = null;
+  isExpanded.value = true;
+
+  try {
+      await submitCommentApi(props.postId, { 
+        content, 
+        parentId, 
+        replyTo: replyToUser,
+        rootId: props.comment.id // 始终传递当前组件对应的根评论ID
+      });
+      
+      // 提交成功后，重新加载子评论列表（刷新第一页，确保看到最新回复）
+      await loadReplies(1);
+      
+      // 通知父组件增加总评论数（因为我们不知道具体加了多少，但通常是+1）
+      // 注意：loadReplies 会更新 repliesTotal，但父组件的 totalComments 可能需要额外信号
+      emit('update-count', 1);
+
+  } catch (e) {
+      console.error('回复失败', e);
+      alert('回复失败，请稍后重试');
+  }
+};
+
 </script>
 
 <style scoped>
 .fade-in {
-  animation: fadeIn 0.2s ease-in-out;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

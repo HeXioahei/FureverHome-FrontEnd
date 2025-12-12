@@ -1,7 +1,19 @@
 <template>
   <div class="min-h-screen" style="background-color: #F8F9FB;">
+    <!-- 返回按钮 -->
+    <div class="max-w-6xl mx-auto pt-6 px-5">
+      <button 
+        @click="router.back()" 
+        class="flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+        <span class="font-medium">返回</span>
+      </button>
+    </div>
+
     <!-- 主体布局 -->
-    <div class="max-w-6xl mx-auto my-8 px-5 flex gap-8">
+    <div class="max-w-6xl mx-auto mt-4 mb-8 px-5 flex gap-8">
       <!-- 左侧侧边栏 -->
       <aside class="w-[260px] bg-white rounded-xl p-8 shadow-sm h-fit flex flex-col gap-8">
         <div class="flex items-center gap-4 pb-2.5">
@@ -72,6 +84,7 @@ import MyApplications from './UserCenter/MyApplications.vue';
 import BasicInfo from './UserCenter/BasicInfo.vue';
 import CreditScore from './UserCenter/CreditScore.vue';
 import { getCurrentUser, type CurrentUserInfo } from '../../api/userApi';
+import { userLogout } from '../../api/authApi';
 
 const route = useRoute();
 const router = useRouter();
@@ -154,9 +167,25 @@ function handleMenuClick(item: MenuItem) {
   router.push({ path: '/user-center', query: { menu: item.key } });
 }
 
-function confirmLogout() {
-  router.push('/login');
-  showLogoutConfirmModal.value = false;
+async function confirmLogout() {
+  try {
+    await userLogout();
+  } catch (error) {
+    console.error('退出登录请求失败', error);
+  } finally {
+    // 清除本地存储的 token 和用户信息
+    localStorage.removeItem('token');
+    localStorage.removeItem('saTokenValue');
+    localStorage.removeItem('bearerToken');
+    localStorage.removeItem('Authorization');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('avatarUrl');
+    
+    // 跳转到登录页
+    router.push('/login');
+    showLogoutConfirmModal.value = false;
+  }
 }
 
 function closeLogoutConfirm() {

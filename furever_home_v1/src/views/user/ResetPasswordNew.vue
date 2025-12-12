@@ -4,6 +4,18 @@
       <main
         class="relative z-10 flex w-full max-w-[420px] flex-col items-center bg-white dark:bg-stone-800 rounded-xl shadow-xl px-10 py-12"
       >
+        <!-- 返回按钮 -->
+        <div class="w-full flex justify-start mb-2">
+          <button 
+            @click="router.back()" 
+            class="flex items-center gap-1 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+            title="返回"
+          >
+            <i class="fa-solid fa-arrow-left text-lg"></i>
+            <span class="font-medium">返回</span>
+          </button>
+        </div>
+
         <!-- 标题 -->
         <div class="flex flex-col items-center gap-2 text-center mb-8">
           <h1 class="text-stone-900 dark:text-white text-3xl font-extrabold leading-tight tracking-tight">
@@ -48,7 +60,7 @@
               </button>
             </div>
             <p class="text-xs text-stone-400 dark:text-stone-500 ml-1">
-              密码需至少 8 位，并包含字母和数字。
+              密码需至少 6 位，并包含字母和数字。
             </p>
           </div>
 
@@ -86,7 +98,7 @@
           </div>
 
           <!-- 返回登录 -->
-          <div class="text-center pt-2 border-t border-stone-100 dark:border-stone-700 mt-4">
+          <!-- <div class="text-center pt-2 border-t border-stone-100 dark:border-stone-700 mt-4">
             <button
               type="button"
               class="text-sm font-bold text-stone-500 hover:text-primary dark:text-stone-400 flex items-center justify-center gap-1 transition-colors"
@@ -95,7 +107,7 @@
               <span class="material-symbols-outlined text-base">arrow_back</span>
               返回登录
             </button>
-          </div>
+          </div> -->
         </div>
       </main>
     </div>
@@ -119,7 +131,7 @@ const showPassword2 = ref(false)
 const submitting = ref(false)
 
 const isStrongPassword = (value: string) => {
-  if (value.length < 8) return false
+  if (value.length < 6) return false
   const hasLetter = /[A-Za-z]/.test(value)
   const hasNumber = /[0-9]/.test(value)
   return hasLetter && hasNumber
@@ -139,7 +151,7 @@ const handleConfirmReset = async () => {
     return
   }
   if (!isStrongPassword(password.value)) {
-    alert('密码需至少 8 位，并包含字母和数字')
+    alert('密码需至少 6 位，并包含字母和数字')
     return
   }
   if (password.value !== password2.value) {

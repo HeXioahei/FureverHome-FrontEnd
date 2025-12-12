@@ -187,6 +187,16 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-[#F8F9FB]">
     <main v-if="currentPet" class="max-w-[1200px] mx-auto py-8 px-5">
+      <!-- 返回按钮 -->
+      <button 
+        @click="router.back()" 
+        class="mb-6 flex items-center gap-2 text-[#FF8C00] hover:text-[#e6722a] transition-colors"
+        title="返回"
+      >
+        <i class="fa-solid fa-arrow-left text-lg"></i>
+        <span class="font-medium">返回</span>
+      </button>
+
       <!-- 宠物档案卡片 -->
       <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8 flex flex-col lg:flex-row">
         <!-- 左侧图片区域 -->
@@ -358,7 +368,7 @@ onMounted(() => {
     </main>
 
     <!-- Footer -->
-    <footer class="bg-[#1E293B] text-white py-10 px-[5%] mt-16">
+    <!-- <footer class="bg-[#1E293B] text-white py-10 px-[5%] mt-16">
       <div class="max-w-[1200px] mx-auto flex flex-wrap gap-10">
         <div class="flex-1 min-w-[260px]">
           <h3 class="mb-4 text-lg font-semibold">数据统计</h3>
@@ -382,6 +392,6 @@ onMounted(() => {
       <div class="text-center pt-6 mt-6 border-t border-white/10 text-sm">
         2025 FUREVERHOME 流浪动物领养平台 - 让每个生命都有温暖的家
       </div>
-    </footer>
+    </footer> -->
   </div>
 </template>
