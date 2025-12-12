@@ -57,15 +57,14 @@
             >
               <img
                 v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
-                :src="media"
+                :src="normalizeMediaUrl(media)"
                 :alt="`帖子图片 ${index + 1}`"
                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 @error="handleImageError"
-                @load="console.log('图片加载成功:', media)"
               />
               <video
                 v-else-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && isVideoUrl(media)"
-                :src="media"
+                :src="normalizeMediaUrl(media)"
                 controls
                 preload="metadata"
                 class="w-full h-full object-cover"
@@ -130,6 +129,7 @@
 
           <div class="pagination-info">
             <span>共 {{ totalCount || posts.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <span>共 {{ totalCount || posts.length }} 条，第 {{ currentPage }} / {{ totalPages }} 页</span>
           </div>
 
           <div class="pagination-jump">
@@ -171,7 +171,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { getPostList, searchPosts } from '@/api/postApi';
 import { likePost as likePostApi } from '@/api/commentapi';
 import { getCurrentUser, getUserInfo, type CurrentUserInfo } from '@/api/userApi';
-import { isVideoUrl } from '@/utils/mediaUtils';
+import { isVideoUrl, buildSnapshotUrl, generateVideoThumbnail } from '@/utils/mediaUtils';
 import { formatDateTime } from '@/utils/format';
 
 interface Post {
@@ -194,11 +194,17 @@ const router = useRouter();
 const route = useRoute();
 const posts = ref<Post[]>([]);
 const totalCount = ref(0);
+const totalCount = ref(0);
 const searchQuery = ref('');
 const currentUser = ref<CurrentUserInfo | null>(null);
 const searchType = ref<'post'>('post');
 const isSearching = ref(false);
 const containerRef = ref<HTMLElement | null>(null);
+const userNameCache = new Map<number, string>();
+const userAvatarCache = new Map<number, string | undefined>();
+const pendingUserFetch = new Map<number, Promise<void>>();
+// 标记是否已经首次加载，避免 onActivated 在首次挂载时重复加载
+const isFirstMount = ref(true);
 
 // 视频播放控制：确保同一时间只有一个视频播放
 const stopAllVideos = (excludeVideo?: HTMLVideoElement) => {
@@ -215,10 +221,6 @@ const onVideoPlay = (event: Event) => {
   const target = event.target as HTMLVideoElement;
   stopAllVideos(target);
 };
-
-const userNameCache = new Map<number, string>();
-const userAvatarCache = new Map<number, string | undefined>();
-const pendingUserFetch = new Map<number, Promise<void>>();
 
 // 分页相关
 const pageSize = 4;
@@ -350,6 +352,9 @@ const mapPosts = (list: any[]): Post[] => {
       }
     }
 
+    // 统一补全媒体 URL，避免相对路径导致封面/播放失败
+    images = images.map(normalizeMediaUrl);
+
     // 调试日志：检查媒体URL
     if (images.length > 0) {
       console.log(`帖子 ${p.id || p.postId} (${p.title}) 的媒体URL:`, images);
@@ -382,7 +387,7 @@ const mapPosts = (list: any[]): Post[] => {
       userInfo.nickName ||
       userInfo.userNickname ||
       userInfo.user_nickname;
-    const authorName =
+    let authorName =
       p.userName ||
       p.username ||
       p.user_name ||
@@ -403,7 +408,7 @@ const mapPosts = (list: any[]): Post[] => {
       userInfo.userNickname ||
       userInfo.user_nickname ||
       '未知用户';
-    const avatarInitial = authorName[0] || '用';
+    let avatarInitial = authorName[0] || '用';
     let avatarUrl =
       p.userAvatar ||
       p.authorAvatar ||
@@ -429,8 +434,11 @@ const mapPosts = (list: any[]): Post[] => {
       isLiked = likedPosts.includes(p.id || p.postId);
     }
 
+    const rawId = p.id ?? p.postId;
+    const id = typeof rawId === 'string' ? Number(rawId) || rawId : rawId;
+
     const mapped: Post = {
-      id: p.id || p.postId,
+      id,
       userId: p.userId,
       author: authorName,
       avatarInitial: avatarInitial,
@@ -480,6 +488,7 @@ const loadPosts = async (page = 1) => {
     } else {
       // 接口返回空数据，使用示例数据
       posts.value = getExamplePosts();
+      totalCount.value = posts.value.length;
       totalCount.value = posts.value.length;
     }
     currentPage.value = page;
@@ -550,7 +559,7 @@ const handleSearch = async () => {
       const res = await searchPosts({
         keyword: keyword,
         page: 1,
-        pageSize: 100 // 获取更多结果以便前端过滤
+        pageSize: 1000 // 获取更多结果以便前端过滤
       });
 
       if (res.data && res.data.list && res.data.list.length > 0) {
@@ -586,7 +595,7 @@ const handleSearch = async () => {
             userInfo.nickName ||
             userInfo.userNickname ||
             userInfo.user_nickname;
-          const authorName =
+          let authorName =
             p.userName ||
             p.username ||
             p.user_name ||
@@ -607,7 +616,7 @@ const handleSearch = async () => {
             userInfo.userNickname ||
             userInfo.user_nickname ||
             '未知用户';
-          const avatarInitial = authorName[0] || '用';
+          let avatarInitial = authorName[0] || '用';
           let avatarUrl =
             p.userAvatar ||
             p.authorAvatar ||
@@ -654,6 +663,7 @@ const handleSearch = async () => {
           return mapped;
         });
         totalCount.value = posts.value.length;
+        totalCount.value = posts.value.length;
       } else {
       // 如果后端搜索无结果，尝试从前端已加载的帖子中搜索
       const allPosts = await getAllPostsForSearch();
@@ -665,6 +675,7 @@ const handleSearch = async () => {
       });
 
         posts.value = mapPosts(filtered);
+        totalCount.value = posts.value.length;
       }
       // 搜索后重置到第一页
       currentPage.value = 1;
@@ -682,11 +693,13 @@ const handleSearch = async () => {
 
         posts.value = mapPosts(filtered);
         totalCount.value = posts.value.length;
+        totalCount.value = posts.value.length;
         // 搜索后重置到第一页
         currentPage.value = 1;
       } catch (e) {
         console.error('前端搜索也失败:', e);
         posts.value = [];
+        totalCount.value = 0;
         totalCount.value = 0;
         currentPage.value = 1;
       }
@@ -701,7 +714,7 @@ const handleSearch = async () => {
       const res = await searchPosts({
         keyword: keyword,
         page: 1,
-        pageSize: 100
+        pageSize: 1000
       });
 
       const userMap = new Map<number, UserSearchResult>();
@@ -820,6 +833,51 @@ const getAllPostsForSearch = async (): Promise<any[]> => {
   }
 };
 
+const getVideoPoster = (url: string) => {
+  const normalized = normalizeMediaUrl(url);
+  if (!normalized) return '';
+
+  // 命中缓存直接返回
+  const cached = videoPosterCache.get(normalized);
+  if (cached) return cached;
+
+  // 先给一个基于接口的兜底封面，避免闪烁
+  const fallback = buildSnapshotUrl(normalized, 500);
+  videoPosterCache.set(normalized, fallback);
+
+  // 异步尝试在 0.5s 处截帧，成功后覆盖缓存
+  if (!videoPosterGenerating.has(normalized)) {
+    const promise = generateVideoThumbnail(normalized, 0.5)
+      .then((thumb) => {
+        if (thumb) {
+          videoPosterCache.set(normalized, thumb);
+        }
+      })
+      .catch((err) => {
+        console.warn('生成视频封面失败(PostList)', err);
+      })
+      .finally(() => {
+        videoPosterGenerating.delete(normalized);
+      });
+    videoPosterGenerating.set(normalized, promise);
+  }
+
+  return fallback;
+};
+
+// 视频封面缓存，避免重复截帧
+const videoPosterCache = new Map<string, string>();
+const videoPosterGenerating = new Map<string, Promise<void>>();
+
+// 规范化媒体 URL，兼容相对路径，区分图片/视频
+const normalizeMediaUrl = (url: string | undefined | null): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/api/')) return url;
+  const clean = url.replace(/^\/+/, '');
+  return isVideoUrl(clean) ? `/api/storage/video/${clean}` : `/api/storage/image/${clean}`;
+};
+
 // 跳转到帖子详情，携带当前页码，便于返回时还原
 const goToPostDetail = (postId: number) => {
   stopAllVideos(); // 导航前停止所有视频播放
@@ -827,7 +885,7 @@ const goToPostDetail = (postId: number) => {
   const likes = targetPost?.likes ?? 0;
   const comments = targetPost?.comments ?? 0;
   const views = targetPost?.views ?? 0;
-  // 记录当前页，便于详情页“返回论坛”时恢复
+  // 记录当前页，便于详情页"返回论坛"时恢复
   sessionStorage.setItem('forumLastPage', currentPage.value.toString());
   router.push({
     name: 'PostDetail',
@@ -843,7 +901,8 @@ const goToPostDetail = (postId: number) => {
       images: targetPost?.images ? JSON.stringify(targetPost.images) : '',
       author: targetPost?.author || '',
       avatarUrl: targetPost?.avatarUrl || '',
-      userId: targetPost?.userId?.toString() || ''
+      userId: targetPost?.userId?.toString() || '',
+      liked: targetPost?.isLiked ? '1' : '0'
     }
   });
 };
@@ -1015,8 +1074,11 @@ const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
     if (liked) {
       if (!likedPosts.includes(idNum)) {
         likedPosts.push(idNum);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
+      const index = likedPosts.indexOf(idNum);
       const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
@@ -1063,15 +1125,9 @@ const toggleLike = async (post: Post, event?: Event) => {
   }
 };
 
-onBeforeUnmount(() => {
-  stopAllVideos();
-});
-
-onDeactivated(() => {
-  stopAllVideos();
-});
-
 onMounted(async () => {
+  console.log('[PostList] onMounted 触发');
+  
   // 先加载当前用户信息
   await loadCurrentUser();
 

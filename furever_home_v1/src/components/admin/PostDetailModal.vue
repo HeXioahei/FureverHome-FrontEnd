@@ -55,7 +55,7 @@
             </p>
           </div>
           <div v-if="postData?.images && postData.images.length > 0" class="grid grid-cols-2 gap-3">
-            <div
+            <img
               v-for="(img, index) in postData.images"
               :key="index"
               class="rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-40"

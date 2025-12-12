@@ -167,6 +167,15 @@ function handleMenuClick(item: MenuItem) {
   router.push({ path: '/user-center', query: { menu: item.key } });
 }
 
+function clearAuthCache() {
+  // 前台和后台可能使用的 token 均清理
+  localStorage.removeItem('token');
+  localStorage.removeItem('saTokenValue');
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('avatarUrl');
+}
+
 async function confirmLogout() {
   try {
     await userLogout();

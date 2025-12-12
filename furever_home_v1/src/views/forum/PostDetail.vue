@@ -1,5 +1,5 @@
 <template>
-  <div class="post-detail-page" ref="containerRef">
+  <div class="post-detail-page">
     <main class="forum-main">
       <!-- 返回按钮 -->
       <button 
@@ -44,12 +44,13 @@
             :key="index"
             class="relative w-full aspect-[4/3] bg-slate-100 rounded-lg overflow-hidden border border-slate-200"
           >
-            <img 
+            <img
               v-if="typeof media === 'string' && (media.startsWith('http') || media.startsWith('/')) && !isVideoUrl(media)"
-              :src="media" 
+              :src="media"
               :alt="`帖子图片 ${index + 1}`"
-              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-500 cursor-pointer"
               @error="handleImageError"
+              @click="openImagePreview(index)"
               @click="openImagePreview(index)"
             />
             <video
@@ -58,7 +59,6 @@
               controls
               preload="metadata"
               class="w-full h-full object-cover"
-              @play="onVideoPlay($event)"
             ></video>
             <span v-else class="flex items-center justify-center w-full h-full text-xs text-gray-400">{{ media }}</span>
           </div>
@@ -177,6 +177,53 @@
           <button class="btn btn-primary" @click="showErrorModal = false; errorMessage = ''">
             确定
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div
+      v-if="showImagePreview && previewImages.length > 0"
+      class="image-preview-modal"
+      @click.self="closeImagePreview"
+    >
+      <div class="image-preview-container">
+        <!-- 关闭按钮 -->
+        <button class="image-preview-close" @click="closeImagePreview">
+          <i class="fa-solid fa-times"></i>
+        </button>
+        
+        <!-- 上一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-prev"
+          @click.stop="prevImage"
+        >
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        
+        <!-- 下一张按钮 -->
+        <button
+          v-if="previewImages.length > 1"
+          class="image-preview-nav image-preview-next"
+          @click.stop="nextImage"
+        >
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        
+        <!-- 图片显示 -->
+        <div class="image-preview-content">
+          <img
+            :src="previewImages[currentPreviewIndex]"
+            :alt="`图片 ${currentPreviewIndex + 1} / ${previewImages.length}`"
+            class="image-preview-img"
+            @error="handlePreviewImageError"
+          />
+        </div>
+        
+        <!-- 图片索引指示器 -->
+        <div v-if="previewImages.length > 1" class="image-preview-indicator">
+          {{ currentPreviewIndex + 1 }} / {{ previewImages.length }}
         </div>
       </div>
     </div>
@@ -339,6 +386,11 @@ const newComment = ref('');
 const isLiked = ref(false);
 const showErrorModal = ref(false);
 const errorMessage = ref('');
+
+// 图片预览相关
+const showImagePreview = ref(false);
+const currentPreviewIndex = ref(0);
+const previewImages = ref<string[]>([]);
 // 审核提示（例如：尚未通过审核，仅自己可见）
 const reviewNotice = ref('');
 const canComment = computed(() => !!post.value && !isMockPost.value && !reviewNotice.value);
@@ -606,10 +658,18 @@ const loadPost = async (id: number) => {
         '';
       const displayTime = routeTime || updatedAt || createdAt || '';
 
+      const updatedAt = formatDateTime((p as any).updateTime || (p as any).editTime);
+      const routeTime =
+        (route.query.time as string) ||
+        (route.query.publishDate as string) ||
+        (route.query.timeAgo as string) ||
+        '';
+      const displayTime = routeTime || updatedAt || createdAt || '';
+
       const userInfo = (p as any).user || {};
       // 显示真实昵称/头像，优先用户中心昵称
       // 兼容不同字段命名，避免昵称为空
-      const authorName =
+      let authorName =
         (p as any).userName ||
         (p as any).username ||
         (p as any).user_name ||
@@ -630,7 +690,7 @@ const loadPost = async (id: number) => {
         userInfo.userNickname ||
         userInfo.user_nickname ||
         '未知用户';
-      const avatarInitial = authorName[0] || '用';
+      let avatarInitial = authorName[0] || '用';
       const avatarUrl =
         (p as any).userAvatar ||
         (p as any).authorAvatar ||
@@ -639,7 +699,7 @@ const loadPost = async (id: number) => {
         userInfo.avatarUrl ||
         userInfo.userAvatar ||
         userInfo.avatar;
-      
+
       post.value = {
         id: p.postId ?? id,
         userId: p.userId,
@@ -680,7 +740,21 @@ const loadPost = async (id: number) => {
       } else {
         reviewNotice.value = '';
       }
-      
+
+      // 若路由携带了最新的点赞/浏览快照，取较大值避免列表与详情不一致
+      const queryLikes = Number(route.query.likes) || 0;
+      const queryComments = Number(route.query.comments) || 0;
+      const queryViews = Number(route.query.views) || 0;
+      if (queryLikes > 0) {
+        post.value.likes = Math.max(post.value.likes || 0, queryLikes);
+      }
+      if (queryComments > 0) {
+        post.value.comments = Math.max(post.value.comments || 0, queryComments);
+      }
+      if (queryViews > 0) {
+        post.value.views = Math.max(Number(post.value.views) || 0, queryViews);
+      }
+
       // 如仍未知昵称，尝试请求用户信息补全
       if (post.value.author === '未知用户' && post.value.userId) {
         await ensureAuthorFromUser(post.value.userId);
@@ -789,7 +863,7 @@ const loadComments = async (postId: number) => {
     // 3) data: { list: Comment[] } / { records: Comment[] }
     let rawList: any[] = [];
     const d: any = res.data;
-    
+
     // 尝试提取总数
     if (d && d.total !== undefined) {
       totalComments.value = Number(d.total);
@@ -907,8 +981,11 @@ const updateLikedPostsStorage = (postId: number | string, liked: boolean) => {
     if (liked) {
       if (!likedPosts.includes(idNum)) {
         likedPosts.push(idNum);
+      if (!likedPosts.includes(idNum)) {
+        likedPosts.push(idNum);
       }
     } else {
+      const index = likedPosts.indexOf(idNum);
       const index = likedPosts.indexOf(idNum);
       if (index > -1) {
         likedPosts.splice(index, 1);
@@ -930,7 +1007,7 @@ const toggleLike = async () => {
     showErrorModal.value = true;
     return;
   }
-  
+
   const previousLiked = isLiked.value;
   const previousLikes = post.value.likes || 0;
   const postId = post.value.id;
@@ -944,7 +1021,7 @@ const toggleLike = async () => {
     // 如果之前已点赞，现在取消点赞，数量-1
     post.value.likes = Math.max(0, (post.value.likes || 0) - 1);
   }
-  
+
   // 更新本地存储
   updateLikedPostsStorage(postId, isLiked.value);
 
@@ -1040,6 +1117,101 @@ const handleLikeComment = async (commentId: number) => {
     comment.likes = previousLikes;
     console.error('点赞评论失败', error);
   }
+};
+
+// 打开图片预览
+const openImagePreview = (index: number) => {
+  if (!post.value || !post.value.images) return;
+  
+  // 过滤出所有图片（排除视频）
+  const imageList = post.value.images.filter(
+    (media) => typeof media === 'string' && 
+    (media.startsWith('http') || media.startsWith('/')) && 
+    !isVideoUrl(media)
+  );
+  
+  if (imageList.length === 0) return;
+  
+  // 找到点击的图片在图片列表中的索引
+  let imageIndex = 0;
+  let currentIndex = 0;
+  for (let i = 0; i < post.value.images.length; i++) {
+    const media = post.value.images[i];
+    if (typeof media === 'string' && 
+        (media.startsWith('http') || media.startsWith('/')) && 
+        !isVideoUrl(media)) {
+      if (i === index) {
+        imageIndex = currentIndex;
+        break;
+      }
+      currentIndex++;
+    }
+  }
+  
+  previewImages.value = imageList;
+  currentPreviewIndex.value = imageIndex;
+  showImagePreview.value = true;
+  
+  // 阻止页面滚动
+  document.body.style.overflow = 'hidden';
+  
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handlePreviewKeydown);
+};
+
+// 关闭图片预览
+const closeImagePreview = () => {
+  showImagePreview.value = false;
+  previewImages.value = [];
+  currentPreviewIndex.value = 0;
+  
+  // 恢复页面滚动
+  document.body.style.overflow = '';
+  
+  // 移除键盘事件监听
+  document.removeEventListener('keydown', handlePreviewKeydown);
+};
+
+// 上一张图片
+const prevImage = () => {
+  if (currentPreviewIndex.value > 0) {
+    currentPreviewIndex.value--;
+  } else {
+    currentPreviewIndex.value = previewImages.value.length - 1;
+  }
+};
+
+// 下一张图片
+const nextImage = () => {
+  if (currentPreviewIndex.value < previewImages.value.length - 1) {
+    currentPreviewIndex.value++;
+  } else {
+    currentPreviewIndex.value = 0;
+  }
+};
+
+// 键盘事件处理
+const handlePreviewKeydown = (e: KeyboardEvent) => {
+  if (!showImagePreview.value) return;
+  
+  switch (e.key) {
+    case 'Escape':
+      closeImagePreview();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      prevImage();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      nextImage();
+      break;
+  }
+};
+
+// 预览图片加载错误处理
+const handlePreviewImageError = (e: Event) => {
+  console.error('预览图片加载失败', e);
 };
 
 // 返回
@@ -1570,6 +1742,34 @@ const goToUserProfile = (userId?: number) => {
 @media (max-width: 850px) {
   .post-images {
     grid-template-columns: 1fr;
+  }
+  
+  .image-preview-nav {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .image-preview-prev {
+    left: 10px;
+  }
+  
+  .image-preview-next {
+    right: 10px;
+  }
+  
+  .image-preview-close {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .image-preview-indicator {
+    bottom: 10px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }
 </style>
